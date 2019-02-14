@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="utf8">
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <link href="favicon.ico" rel="shortcut icon">
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css')}}"/link>
+      {% if title %}
+      <title>{{ title }} - БАНКА</title>
+      {% else %}
+      <title>БАНКА. Обслуживание</title>
+      {% endif %}
+   </head>
+
+    <body>
+        <div class="container">
+            <header class="header clearfix">
+                <div class="logo">BANKA
+                {% if base %}
+                <p><code>ID: {{base.id}}</code> </p>
+                {% endif %}
+                </div>
+                <nav class="menu_main">
+                 <ul>
+                 <li class="active"><a href="/">Home</a></li>
+                    <li><a href="/conf">Конфигурация</a></li>
+                    <li><a href="/log">Журнал</a></li>
+                    <li> <a href="/control">Управление</a></li>
+                    <li> <a href="#">About</a></li>
+                 </ul>
+                </nav>
+            </header>
+        </div>
+        {% block main_content %}{% endblock %}
+    </body>
+</html>

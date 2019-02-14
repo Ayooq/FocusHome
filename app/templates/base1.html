@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="utf8">
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <link href="favicon.ico" rel="shortcut icon">
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css')}}"/link>
+      {% if title %}
+      <title>{{ title }} - БАНКА</title>
+      {% else %}
+      <title>БАНКА. Обслуживание</title>
+      {% endif %} 
+   </head>
+
+    <body>
+        {% block content %}{% endblock %}
+    </body>
+</html>

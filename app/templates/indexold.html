@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="container">
+
+    <header class="header clearfix">
+      <div class="logo">BANKA</div>
+
+      <nav class="menu_main">
+        <ul>
+          <li class="active"><a href="#">About</a></li>
+          <li><a href="#">Skins</a></li>
+          <li><a href="#">Samples</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <ul>
+      {% for id in irons %}
+         <li>{{ irons[id].ident }} {{ irons[id].description }}
+         {% if irons[id].state == true %}
+      ВКЛЮЧЕН(
+      <a href="/{{id}}/off">Выключить</a>
+      )
+         {% else %}
+      ВЫКЛЮЧЕН(<a href="/{{id}}/on">Включить</a>)
+         {% endif %}
+         </li>
+      {% endfor %}
+   </ul>
+
+   {% if message %}
+   <h2>{{ message }}</h2>
+   {% endif %}
+  </div>
+{% endblock %}

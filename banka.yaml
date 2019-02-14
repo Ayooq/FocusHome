@@ -1,0 +1,118 @@
+# Конфигурация
+
+banka:
+    id: 12345
+    description: 'Адрес: ул. 20 лет РККА 105/17'
+    host: tcpip://127.0.0.1:5025
+    time_report: 60.0
+
+# Датчики температуры
+ftemp:
+    description: Температура в устройстве
+    tcpu: &t1
+        # Все по умолчанию
+        # sensor_file: none
+        # min_temp: none
+        # max_temp: none
+        # theshold: none
+        description: Процессор
+
+    tbnk: &t2
+        sensor_file: /sys/bus/w1/devices/28-0317232a55ff/w1_slave
+        min_temp: 20.0
+        max_temp: 40.0
+        threshold: 25.0
+        histeresis: 1.0
+        description: В Банке
+
+
+fild:
+# Раскладка по ПИНАМ
+    # Выходы
+    out1: &r1
+        pin: 5
+        description: Розетка 1
+
+    out2: &r2
+        pin: 13
+        description: Розетка 2
+
+    out3: &r3
+        pin: 26
+        description: Розетка 3
+
+    out4: &r4
+        pin: 16
+        description: Розетка 4
+
+    led1:
+        pin: 17,
+        description: Светодиод 1
+        active_high: False
+
+    led2:
+        pin: 27,
+        description: Светодиод
+        active_high: False
+
+    # Входы
+
+    cnt1: &c1
+        pin: 6
+        description: Контроль 1
+
+    cnt2: &c2
+        pin: 19
+        description: Контроль 2
+
+    cnt3: &c3
+        pin: 12
+        description: Контроль 3
+
+    cnt4: &c4
+        pin: 20
+        description: Контроль 4
+
+    input1: &i1
+        pin: 21
+        description: Вxoд 1
+
+    input2: &i2
+        pin: 18
+        description: Вход 2
+
+    input3: &i3
+        pin: 23
+        description: Вход 3
+
+    input4: &i4
+        pin: 24
+        description: Вход 4
+
+    input5: &i5
+        pin: 25
+        description: Вход 5
+
+# Комлекты
+complect:
+    # description: Розетки
+    cmp1:
+        out: *r1
+        cnt: *c1
+    cmp2:
+        out: *r2
+        cnt: *c2
+    cmp3:
+        out: *r3
+        cnt: *c3
+    cmp4:
+        out: *r4
+        cnt: *c4
+
+input:
+    # description: Входы
+    input1: *i1
+    input2: *i2
+    input3: *i3
+    input4: *i4
+    input5: *i5

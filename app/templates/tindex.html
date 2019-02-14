@@ -1,0 +1,64 @@
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <link href="favicon.ico" rel="shortcut icon">
+        <link rel="stylesheet" href="{{ url_for('static', css/style.css)}}">
+        {% if title %}
+         <title>{{ title }} - БАНКА</title>
+        {% else %}
+         <title>БАНКА. Обслуживание</title>
+        {% endif %} 
+    </head>
+
+   <body>
+   <div class="container">
+
+       <header class="header clearfix">
+         <div class="logo">BANKA</div>
+         <nav class="menu_main">
+           <ul>
+             <li class="active"><a href="#">About</a></li>
+             <li><a href="#">Skins</a></li>
+             <li><a href="#">Samples</a></li>
+           </ul>
+         </nav>
+       </header>
+
+         <div class="col_66">
+         <h2>Розетки</h2>
+         <table class="table">
+            <tr>
+              <th>ID</th>
+              <th>Описание</th>
+              <th>Состояние</th>
+              <th>Действие</th>
+            </tr>
+
+            {% for id in irons %}
+            <tr>
+            <td><code>{{ irons[id].ident }}</code></td>
+            <td>{{ irons[id].description }}</td>
+            {% if irons[id].state == true %}
+            <td>ВКЛЮЧЕН</td>
+            <td><a href="/{{id}}/off">Выключить</a></td>
+            {% else %}
+            <td>ВЫКЛЮЧЕН</td>
+            <td><a href="/{{id}}/on">Включить</a></td>
+            {% endif %}
+            </tr>
+            {% endfor %}
+         </table>
+         </div>
+         <div class="col_33">
+             <h2>More elements</h2>
+             <p>Use <code>strong</code> tag for information with <strong>strong importance</strong>. Use <code>em</code> tag to <em>stress emphasis</em> on a word or phrase.</p>
+            {% if message %}
+             <p class="message">{{ message }} <code>.message</code></p>
+             {% endif %}
+         </div>
+   </div>
+   </body>
+</html>

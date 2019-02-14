@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+<article class="article clearfix">
+<div class="info">
+   <article class="hero clearfix">
+     <div class="col_100">
+       <h1>Ручное управление</h1>
+       <p>Приходил ко мне Сережка, поиграли мы немножко</p>
+     </div>
+   </article>
+</div>
+<div class="col_33">
+   <h2>Температура</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Величина</th>
+        <th>Действие</th>
+      </tr>
+      {% for id in tdata %}
+      <tr>
+         <td><code>{{ tdata[id].ident }}</code></td>
+         <td>{{ tdata[id].description }}</td>
+         <td>{{ tdata[id].temperature }} °C</td>
+         <td><a href="/{{id}}/getit">Обновить</a></td>
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+<div class="col_33">
+   <h2>Розетки</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Состояние</th>
+        <th>Действие</th>
+      </tr>
+      {% for id in complects %}
+      <tr>
+         <td><code>{{ complects[id].ident }}</code></td>
+         <td>{{ complects[id].switch.description }}</td>
+         {% if complects[id].state[0] == true %}
+         <td>ВКЛ</td>
+         <td><a href="/{{id}}/off">ОТКЛ</a></td>
+         {% else %}
+         <td>ОТКЛ</td>
+         <td><a href="/{{id}}/on">ВКЛ</a></td>
+         {% endif %}
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+<div class="col_33">
+   {% if message %}
+   <p class="success"> {{ message }}</p>
+   {% endif %}
+</div>
+{% endblock %}

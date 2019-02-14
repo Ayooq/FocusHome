@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<head>
+   <title>Инженерная панель</title>
+</head>
+
+<body>
+   <h1>Состояние устройств</h1>
+   <ul>
+      {% for id in irons %}
+         <li>{{ irons[id].ident }} {{ irons[id].description }}
+         {% if irons[id].state == true %}
+      ВКЛЮЧЕН(
+      <a href="/{{id}}/off">Выключить</a>
+      )
+         {% else %}
+      ВЫКЛЮЧЕН(<a href="/{{id}}/on">Включить</a>)
+         {% endif %}
+         </li>
+      {% endfor %}
+   </ul>
+
+
+   {% if message %}
+   <h2>{{ message }}</h2>
+   {% endif %}
+
+</body>
+</html>

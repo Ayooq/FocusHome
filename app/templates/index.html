@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+<article class="article clearfix">
+<div class="info">
+   <article class="hero clearfix">
+     <div class="col_100">
+       <h1>Сведения</h1>
+       {% if base %}
+       <p>{{base.description}}</p>
+       {% endif %}
+     </div>
+   </article>
+</div>
+{% if tdata %}
+<div class="col_33">
+   <!--h2>{{ tdata.description }}</h2-->
+   <h2>Температура устройства</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Величина</th>
+      </tr>
+      {% for id in tdata %}
+      <tr>
+         <td><code>{{ tdata[id].ident }}</code></td>
+         <td>{{ tdata[id].description }}</td>
+         <td>{{ tdata[id].temperature }} °C</td>
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+{% endif %}
+<div class="col_33">
+   <h2>Входы</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Состояние</th>
+      </tr>
+      {% for id in inputs %}
+      <tr>
+         <td><code>{{ inputs[id].ident }}</code></td>
+         <td>{{ inputs[id].description }}</td>
+         {% if inputs[id].state == true %}
+         <td>ВКЛ</td>
+         {% else %}
+         <td>ОТКЛ</td>
+         {% endif %}
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+{% if outputs %}
+<div class="col_33">
+   <h2>Выходы</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Состояние</th>
+      </tr>
+      {% for id in outputs %}
+      <tr>
+         <td><code>{{ outputs[id].ident }}</code></td>
+         <td>{{ outputs[id].description }}</td>
+         {% if outputs[id].state == true %}
+         <td>ВКЛ</td>
+         {% else %}
+         <td>ОТКЛ</td>
+         {% endif %}
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+{% endif %}
+
+{% if complects %}
+<div class="col_33">
+   <h2>Розетки</h2>
+   <table class="table">
+      <tr>
+        <th>ID</th>
+        <th>Описание</th>
+        <th>Состояние</th>
+        <th>Контроль</th>
+      </tr>
+      {% for id in complects %}
+      <tr>
+         <td><code>{{ complects[id].ident }}</code></td>
+         <td>{{ complects[id].switch.description }}</td>
+         <td>{{ complects[id].state[0] }}</td>
+         <td>{{ complects[id].state[1] }}</td>
+      </tr>
+      {% endfor %}
+   </table>
+</div>
+{% endif %}
+
+<div class="col_33">
+   {% if message %}
+   <!--p class="message">{{ message }} <code>.message</code></p-->
+   <p class="success"> {{ message }}</p>
+   {% endif %}
+</div>
+{% endblock %}
