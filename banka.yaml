@@ -8,7 +8,7 @@ banka:
 
 # Датчики температуры
 ftemp:
-    description: Температура в устройстве
+    description: Температура
     tcpu: &t1
         # Все по умолчанию
         # sensor_file: none
@@ -23,8 +23,7 @@ ftemp:
         max_temp: 40.0
         threshold: 25.0
         histeresis: 1.0
-        description: В Банке
-
+        description: Внутри
 
 fild:
 # Раскладка по ПИНАМ
@@ -95,7 +94,7 @@ fild:
 
 # Комлекты
 complect:
-    # description: Розетки
+    description: Розетки
     cmp1:
         out: *r1
         cnt: *c1
@@ -110,7 +109,7 @@ complect:
         cnt: *c4
 
 input:
-    # description: Входы
+    description: Входы
     input1: *i1
     input2: *i2
     input3: *i3

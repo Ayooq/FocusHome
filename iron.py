@@ -14,6 +14,7 @@ from gpiozero import Device
 from gpiozero.pins.mock import MockFactory
 
 from report import Reporter
+from logger import create_2_logger
 
 
 class Worker(object):
@@ -104,9 +105,14 @@ class GSwitch(GIron):
             self.off()
 
     def public(self, log_info, message):
-        self.logger.warning(
+        self.logger.debug(
             u'%s %s [%s]' %
             (self.description, message, repr(self))
+            # (self.ident, message, repr(self))
+        )
+        self.logger.warning(
+            u'%s %s' %
+            (self.description, message)
             # (self.ident, message, repr(self))
         )
         self.reporter.event(self.description, message).public()
@@ -171,9 +177,13 @@ class GTemperature(CPUTemperature):
                     self.more = False
 
     def public(self, log_info, message):
-        self.logger.warning(
+        self.logger.debug(
             u'%s %s(%s) [%s]' %
             (self.description, log_info, message, repr(self))
+        )
+        self.logger.warning(
+            u'%s %s(%s)' %
+            (self.description, log_info, message)
         )
         self.reporter.event(log_info, message).public()
 
@@ -279,9 +289,14 @@ class GReceptor(GIron):
         self.public(self.off.__doc__, 'OFF')
 
     def public(self, log_info, message):
-        self.logger.warning(
+        self.logger.debug(
             u'%s %s [%s]' %
             (self.description, log_info, repr(self))
+            # (self.ident, log_info, repr(self))
+        )
+        self.logger.warning(
+            u'%s %s' %
+            (self.description, log_info)
             # (self.ident, log_info, repr(self))
         )
         self.reporter.event(self.description, message).public()
@@ -291,7 +306,9 @@ class Irons(object):
     '''Оборудование'''
     def __init__(self, file_name='banka.yaml'):
         '''Настройка'''
-        self.logger = logging.getLogger('cfactory.%s' % __name__)
+        self.logger = create_2_logger(logging.DEBUG)
+        #   logger.info('Banka start []')
+        #   self.logger = logging.getLogger('cfactory.%s' % __name__)
         try:
             self.config = self.load_configure(file_name)
         except Exception as err:
@@ -300,6 +317,7 @@ class Irons(object):
                 (self.__init__.__doc__, file_name, err)
             )
             raise
+        self.reporter = Reporter(self.ident)
         self.wrk = Worker(self.iamlive)
         self.temp = self.get_units(GTemperature, self.config['ftemp'])
         self.inputs = self.get_units(GReceptor, self.config['input'])
@@ -308,20 +326,31 @@ class Irons(object):
                             GControlSwitch,
                             self.config['complect']
                         )
+        self.logger.info('Старт %s' % self.ident)
+
+    @property
+    def ident(self):
+        return self.config['banka']['id']
+
+    @property
+    def delta(self):
+        return self.config['banka']['time_report']
 
     def iamlive(self):
         '''Доклад'''
-        delta = self.config['banka']['time_report']
-        ident = self.config['banka']['id']
+        pause = self.delta
         while(True):
-            sleep(delta)
-            self.logger.info(
-                'Banka %s %s' %
-                (ident, 'I am live')
-            )
+            sleep(pause)
+            self.reporter.event(
+                'I am live',
+                'Banka %s' % self.ident).public()
+            # self.logger.info(
+            #     'Banka %s %s' %
+            #     (ident, 'I am live')
+            # )
 
     def get_units(self, detal, dictant):
-        text = dictant.pop('description', 'Нет описания')
+        dictant.pop('description', 'Нет описания')
         sub = {key: detal(ident=key, **dictant[key]) for key in dictant}
         # sub['description'] = text
         return sub
@@ -348,6 +377,9 @@ class Irons(object):
         '''тестовый вывод'''
         print(u'Печатаю', json.dumps(report, ensure_ascii=False))
 
+    def quit(self):
+        self.logger.info('Стоп %s' % self.ident)
+
 
 if __name__ == '__main__':
 
@@ -355,9 +387,9 @@ if __name__ == '__main__':
         print('HOOOOOOOOT')
 
     from signal import pause
-    from candle import create_logger
+    from logger import create_2_logger
 
-    logger = create_logger(logging.DEBUG)
+    logger = create_2_logger(logging.DEBUG)
     logger.info('test util')
     irn = Irons()
     fld = irn.temp

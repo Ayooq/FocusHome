@@ -35,11 +35,15 @@ def mk_templ_log():
     for line in content:
         event = {}
         item = line.split(' ')
-        event['date'] = item[0]
-        event['time'] = item[1]
-        event['type'] = item[3]
-        infa = ' '.join(item[4:])
-        event['info'] = infa
+        try:
+            event['date'] = item[0]
+            event['time'] = item[1]
+            event['type'] = item[3]
+            infa = ' '.join(item[4:])
+            event['info'] = infa
+        except Exception:
+            event[type] = 'Плохой log'
+            event['info'] = line
         events.append(event)
     tdic = {
       'logdata': events,
