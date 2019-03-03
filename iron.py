@@ -4,7 +4,7 @@ import json
 
 from threading import Thread
 from time import sleep
-# from threading import Timer
+#   # from threading import Timer
 
 from gpiozero import CPUTemperature
 from gpiozero import Button
@@ -12,6 +12,8 @@ from gpiozero import LED
 
 from gpiozero import Device
 from gpiozero.pins.mock import MockFactory
+
+import paho.mqtt.client as mqtt
 
 from report import Reporter
 from logger import create_2_logger
@@ -49,6 +51,15 @@ class GIron(object):
             self.device = device(self.pin, **kwargs)    # железка по gpiozero
         else:
             self.device = None
+        self.logger = logging.getLogger('cfactory.%s' % __name__)
+        self.reporter = Reporter(self.ident)
+        self.logger.debug('Подготовка %s [%s]' % (self.ident, repr(self)))
+
+    def registre(self, to, function):
+        self.reporter.registre(to, function)
+
+    def unregistre(self, to):
+        self.reporter.unregistre(to)
 
     def __repr__(self):
         return "%s(%r, description=%r, pin=%r, id=%r)" % (
@@ -64,8 +75,8 @@ class GSwitch(GIron):
     '''Выключатель как LED'''
     def __init__(self, **kwargs):
         GIron.__init__(self, LED, **kwargs)
-        self.logger = logging.getLogger('cfactory.%s' % __name__)
-        self.reporter = Reporter(self.ident)
+        #   self.logger = logging.getLogger('cfactory.%s' % __name__)
+        #   self.reporter = Reporter(self.ident)
         self.logger.debug('Подготовка %s [%s]' % (self.ident, repr(self)))
 
     @property
@@ -176,6 +187,12 @@ class GTemperature(CPUTemperature):
                     self.public('Норма', self.temperature)
                     self.more = False
 
+    def registre(self, to, function):
+        self.reporter.registre(to, function)
+
+    def unregistre(self, to):
+        self.reporter.unregistre(to)
+
     def public(self, log_info, message):
         self.logger.debug(
             u'%s %s(%s) [%s]' %
@@ -200,9 +217,9 @@ class GControlSwitch(object):
         self.value = False
         self.recept.addcallbacks(self.switchon, self.switchoff)
 
-    def subscribe(self, function):
-        self.switch.reporter.registre('route', function)
-        self.recept.reporter.registre('route', function)
+    def registre(self, grp, function):
+        self.switch.registre(grp, function)
+        self.recept.registre(grp, function)
 
     @property
     def state(self):
@@ -239,7 +256,7 @@ class GReceptor(GIron):
     '''Концевой датчик'''
     def __init__(self, external_callback=False, **kwargs):
         GIron.__init__(self, Button, **kwargs)
-        self.logger = logging.getLogger('cfactory.%s' % __name__)
+        #   self.logger = logging.getLogger('cfactory.%s' % __name__)
         # self.enable_mock()
         self.gwait = False
         self.state = False
@@ -248,7 +265,7 @@ class GReceptor(GIron):
         if not external_callback:
             self.addcallbacks(self.on, self.off)
         # Через Reporter идет связка обмена данными
-        self.reporter = Reporter(self.ident)
+        #   self.reporter = Reporter(self.ident)
         self.logger.debug('Подготовка %s [%s]' % (self.ident, repr(self)))
 
     def addcallbacks(self, func1, func2):
@@ -303,9 +320,12 @@ class GReceptor(GIron):
 
 
 class Irons(object):
-    '''Оборудование'''
+    '''Оборудование
+    Разбито на именнованые группы
+    '''
     def __init__(self, file_name='banka.yaml'):
         '''Настройка'''
+        self.units = {}
         self.logger = create_2_logger(logging.DEBUG)
         #   logger.info('Banka start []')
         #   self.logger = logging.getLogger('cfactory.%s' % __name__)
@@ -319,14 +339,28 @@ class Irons(object):
             raise
         self.reporter = Reporter(self.ident)
         self.wrk = Worker(self.iamlive)
-        self.temp = self.get_units(GTemperature, self.config['ftemp'])
-        self.inputs = self.get_units(GReceptor, self.config['input'])
-
-        self.complects = self.get_units(
-                            GControlSwitch,
-                            self.config['complect']
-                        )
+        self.mk_units()
         self.logger.info('Старт %s' % self.ident)
+
+    def mk_units(self):
+        '''Создание справочника железа'''
+        for key in self.config['units']:
+            self.units[key] = self.set_units(self.config['units'][key])
+
+    @property
+    def inputs(self):
+        '''Группа входы'''
+        return self.units['input']
+
+    @property
+    def temp(self):
+        '''датчики Температуры'''
+        return self.units['ftemp']
+
+    @property
+    def complects(self):
+        '''Комплекты '''
+        return self.units['complect']
 
     @property
     def ident(self):
@@ -349,9 +383,14 @@ class Irons(object):
             #     (ident, 'I am live')
             # )
 
-    def get_units(self, detal, dictant):
+    def set_units(self, dictant):
+        '''Установка '''
         dictant.pop('description', 'Нет описания')
-        sub = {key: detal(ident=key, **dictant[key]) for key in dictant}
+        try:
+            detal = eval(dictant.pop('dev', None))
+            sub = {key: detal(ident=key, **dictant[key]) for key in dictant}
+        except Exception:
+            raise
         # sub['description'] = text
         return sub
 
@@ -369,9 +408,13 @@ class Irons(object):
             conf_dict = yaml.load(f)
         return conf_dict
 
-    def subscribe(self, function):
-        for rec in self.sub.keys():
-            self.sub[rec].subscribe(function)
+    def registre_all(self, function):
+        ''' Регистрация внешнего viewera рапортов
+            в поле to - имя группы железа
+        '''
+        for key, sub in self.units.items():
+            for dev in sub:
+                sub[dev].registre(key, function)
 
     def dumper(self, report):
         '''тестовый вывод'''
@@ -381,17 +424,47 @@ class Irons(object):
         self.logger.info('Стоп %s' % self.ident)
 
 
+class Connector(Irons):
+    '''Обвязка publisher mqtt вокруг Irons
+    без учета авторизации !
+    '''
+    def __init__(self, config_file='banka.yaml', **kwargs):
+        self.broker = kwargs.pop('broker', "192.168.1.252")
+        Irons.__init__(self, config_file)
+        self.client_id = kwargs.pop('id', str(self.ident))
+        self.client = mqtt.Client(self.client_id)
+        self.client.on_connect = self.on_connect
+        self.client.connect(self.broker)
+        self.registre_all(self.report2topic)
+
+    def on_connect(self, client, userdata, rc, *extra_params):
+        print('Connected with result code ' + str(rc))
+
+    def report2topic(self, report):
+        '''Форматирование сообщения на посредника'''
+        topic = '%s/%s/%s/%s' % (
+            str(self.ident),
+            report['to'],
+            report['from'],
+            report['report']['types']
+        )
+        payload = report['report']['body']
+        self.client.publish(topic, payload)
+        #   self.logger.info('%s %s' % (topic, payload))
+
+    def _del_(self):
+        self.client.close()
+        self.quit()
+
+
 if __name__ == '__main__':
-
-    def hot():
-        print('HOOOOOOOOT')
-
     from signal import pause
-    from logger import create_2_logger
 
-    logger = create_2_logger(logging.DEBUG)
-    logger.info('test util')
-    irn = Irons()
+    irn = Connector('banka.yaml')
+
+    #   client.connect(broker_address)  # connect to broker
+    irn.client.loop_start()
+
     fld = irn.temp
     print(fld['tbnk'].when_activated)
     for i in range(10):
@@ -412,5 +485,5 @@ if __name__ == '__main__':
     fldx['cmp4'].switch.onoff('OFF')
     # fldx['cmp4'].switch.source = fld.sub['tbnk']
     # if fld.sub['tbnk'].is_active:
-    #     print(fld.sub['tbnk'].temperature, fld.sub['tbnk'].value)
+    #   print(fld.sub['tbnk'].temperature, fld.sub['tbnk'].value)
     pause()

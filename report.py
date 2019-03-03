@@ -16,6 +16,7 @@ None         null
 '''
 
 import json
+from datetime import datetime
 
 
 class Event(object):
@@ -103,7 +104,6 @@ class Report(Paper):
         self._formalize(head, 'warning', body)
         return self
 
-from datetime import datetime
 
 class Address(dict):
 
@@ -125,7 +125,7 @@ class Reporter(Report):
 
     def __init__(self, who, printer=None):
         self._from = str(who)    # От кого
-        self._callbacks = {}  # Словарь функций оповещения
+        self._callbacks = {}   # Словарь функций оповещения
         super(Reporter, self).__init__()
 
     def registre(self, to, func):
@@ -158,10 +158,12 @@ class Reporter(Report):
         '''
         adr = Address(self._from, to)
         report.update(adr)
+        #   func = self._callbacks[to]
+        #   return func(report)
         try:
             func = self._callbacks[to]
             return func(report)
-        except:
+        except Exception:
             self.dumper(report)
             pass
 

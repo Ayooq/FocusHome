@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request
-from iron import Irons
+from iron import Connector
+#   from iron import Irons
 
 app = Flask(__name__)
 
-irn = Irons()
+irn = Connector()
+irn.client.loop_start()
 
 banka = irn.config['banka']
 

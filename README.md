@@ -1,6 +1,7 @@
 # focusPro
 
 WEB interface устройств GPIO на Raspberry Pi. Базовый язык разработки python 3
+Обмен данными по протоколу MQTT
 
 ## Статус
 
@@ -10,8 +11,12 @@ WEB interface устройств GPIO на Raspberry Pi. Базовый язык
 
 - Работает на Raspberry Pi 3В+ и ОС Raspbian
 - Интерфейс управления устройств GPIO основан на библиотеке gpiozero
-- Работа с датчиками на шине 1-Wire обеспечивает пакет owfs и python-ow
-- Web на основе flask
+- Фреймворк веб-приложение flask 
+- Запуск приложение WSGI Python на основе gunicorn
+- Развертка - nginx
+- Обмен с внешней средой на основе протокола MQTT:
+    клиентская часть paho-mqtt
+    посредник mosquitto
 
 ## Состав
 
@@ -21,7 +26,4 @@ WEB interface устройств GPIO на Raspberry Pi. Базовый язык
 - iron.py - организация управления по GPIO
 - logger.py - регистраторы
 - report.py - сообщения
-
-## Замечание
-Так как flask строго не рекомендуется использовать в качестве рабочего сервера, предлагается gunicorn 
-
+- requirements.txt - список дополнительных пакетов

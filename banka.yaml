@@ -1,32 +1,16 @@
-# Конфигурация
+# Конфигурация железа
 
+# Общие параметры
 banka:
-    id: 12345
+    id: bankaN12345
     description: 'Адрес: ул. 20 лет РККА 105/17'
     host: tcpip://127.0.0.1:5025
-    time_report: 60.0
+    broker: tcpip://192.168.1.252
+    time_report: 60.0  # Атавизм 
 
-# Датчики температуры
-ftemp:
-    description: Температура
-    tcpu: &t1
-        # Все по умолчанию
-        # sensor_file: none
-        # min_temp: none
-        # max_temp: none
-        # theshold: none
-        description: Процессор
 
-    tbnk: &t2
-        sensor_file: /sys/bus/w1/devices/28-0317232a55ff/w1_slave
-        min_temp: 20.0
-        max_temp: 40.0
-        threshold: 25.0
-        histeresis: 1.0
-        description: Внутри
-
-fild:
 # Раскладка по ПИНАМ
+fild:
     # Выходы
     out1: &r1
         pin: 5
@@ -92,26 +76,50 @@ fild:
         pin: 25
         description: Вход 5
 
-# Комлекты
-complect:
-    description: Розетки
-    cmp1:
-        out: *r1
-        cnt: *c1
-    cmp2:
-        out: *r2
-        cnt: *c2
-    cmp3:
-        out: *r3
-        cnt: *c3
-    cmp4:
-        out: *r4
-        cnt: *c4
+#Раскладка в группы по функциональности 
+units:
+    # Комлекты
+    complect: &u1
+        description: Розетки
+        dev: GControlSwitch
+        cmp1:
+            out: *r1
+            cnt: *c1
+        cmp2:
+            out: *r2
+            cnt: *c2
+        cmp3:
+            out: *r3
+            cnt: *c3
+        cmp4:
+            out: *r4
+            cnt: *c4
 
-input:
-    description: Входы
-    input1: *i1
-    input2: *i2
-    input3: *i3
-    input4: *i4
-    input5: *i5
+    input: &u2
+        description: Входы
+        dev: GReceptor
+        input1: *i1
+        input2: *i2
+        input3: *i3
+        input4: *i4
+        input5: *i5
+
+    # Датчики температуры
+    ftemp: &u3
+        description: Температура
+        dev: GTemperature
+        tcpu: &t1
+            # Все по умолчанию
+            # sensor_file: none
+            # min_temp: none
+            # max_temp: none
+            # theshold: none
+            description: Процессор
+
+        tbnk: &t2
+            sensor_file: /sys/bus/w1/devices/28-0317232a55ff/w1_slave
+            min_temp: 20.0
+            max_temp: 40.0
+            threshold: 25.0
+            histeresis: 1.0
+            description: Внутри
