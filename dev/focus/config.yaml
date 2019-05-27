@@ -1,0 +1,129 @@
+# Конфигурация железа
+
+# Общие параметры
+device:
+  id: focusPro
+  description: Prototype
+  host:
+  broker:
+    host: 89.223.27.69
+    port: 1883
+    keepalive: 60
+
+# Раскладка по ПИНАМ:
+fields:
+  # Выходы
+  led1: &l1
+    pin: 17
+    active_high: false
+    description: Светодиод 1
+
+  led2: &l2
+    pin: 27
+    active_high: false
+    description: Светодиод 2
+
+  out1: &r1
+    pin: 5
+    description: Гнездо 1
+
+  out2: &r2
+    pin: 13
+    description: Гнездо 2
+
+  out3: &r3
+    pin: 26
+    description: Гнездо 3
+
+  out4: &r4
+    pin: 16
+    description: Гнездо 4
+
+  # Входы
+  input1: &i1
+    pin: 21
+    description: Вxoдной рецептор 1
+
+  input2: &i2
+    pin: 18
+    description: Входной рецептор 2
+
+  input3: &i3
+    pin: 23
+    description: Входной рецептор 3
+
+  input4: &i4
+    pin: 24
+    description: Входной рецептор 4
+
+  input5: &i5
+    pin: 25
+    description: Входной рецептор 5
+
+  cnt1: &c1
+    pin: 6
+    description: Контроль 1
+
+  cnt2: &c2
+    pin: 19
+    description: Контроль 2
+
+  cnt3: &c3
+    pin: 12
+    description: Контроль 3
+
+  cnt4: &c4
+    pin: 20
+    description: Контроль 4
+
+# Раскладка в группы по функциональности:
+units:
+  indicators: &u1
+    description: Индикаторы
+    class: FocusLED
+    led1: *l1
+    led2: *l2
+
+  inputs: &u2
+    description: Входы
+    class: FocusReceptor
+    input1: *i1
+    input2: *i2
+    input3: *i3
+    input4: *i4
+    input5: *i5
+
+  complects: &u3
+    description: Комплекты [Гнездо -- Контроль состояния]
+    class: FocusComplect
+    cmp1:
+      out: *r1
+      cnt: *c1
+    cmp2:
+      out: *r2
+      cnt: *c2
+    cmp3:
+      out: *r3
+      cnt: *c3
+    cmp4:
+      out: *r4
+      cnt: *c4
+
+  temperature: &u4
+    description: Температура
+    class: FocusTemperature
+    cpu: &t1
+      description: ЦПУ
+      # Все по умолчанию:
+      # sensor_file: none
+      # min_temp: none
+      # max_temp: none
+      # threshold: none
+    board: &t2
+      description: внутри
+      sensor_file: /sys/bus/w1/devices/28-00000a42c9f8/hwmon/hwmon0/temp1_input
+      min_temp: 10.0
+      max_temp: 80.0
+      threshold: 36.6
+      hysteresis: 1.0
+      delta: 60

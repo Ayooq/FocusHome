@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+  <article class="article clearfix">
+    <div class="col_100">
+      <h1>Сведения</h1>
+
+      {% if device %}
+        <p>{{ device.description }}</p>
+      {% endif %}
+
+    </div>
+
+    {% if complects %}
+      <div class="col_33">
+        <h2>Комплекты</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Гнездо под контролем</th>
+            <th>Состояние гнезда</th>
+          </tr>
+
+          {% for id in complects %}
+            <tr>
+              <td>
+                <code>{{ complects[id].ident }}</code>
+              </td>
+              <td>{{ complects[id].control.description }}</td>
+
+              {% if complects[id].state[1] %}
+                <td>Да</td>
+
+                {% if complects[id].state[0] %}
+                  <td>Активно</td>
+                {% else %}
+                  <td>Неактивно</td>
+                {% endif %}
+
+              {% else %}
+                <td>Нет</td>
+                <td>Неизвестно</td>
+              {% endif %}
+
+            </tr>
+          {% endfor %}
+
+        </table>
+      </div>
+    {% endif %}
+
+    {% if inputs %}
+      <div class="col_33">
+        <h2>Входные рецепторы</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Состояние</th>
+          </tr>
+
+          {% for id in inputs %}
+            <tr>
+              <td>
+                <code>{{ inputs[id].ident }}</code>
+              </td>
+              <td>{{ inputs[id].description }}</td>
+
+              {% if inputs[id].is_active %}
+                <td>ВКЛ</td>
+              {% else %}
+                <td>ОТКЛ</td>
+              {% endif %}
+
+            </tr>
+          {% endfor %}
+
+        </table>
+      </div>
+    {% endif %}
+
+    {% if temperature %}
+      <div class="col_33">
+        <h2>Температура</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Величина</th>
+          </tr>
+
+          {% for id in temperature %}
+            <tr>
+              <td>
+                <code>{{ temperature[id].ident }}</code>
+              </td>
+              <td>{{ temperature[id].description }}</td>
+              <td>{{ temperature[id].temperature }} °C</td>
+            </tr>
+          {% endfor %}
+
+        </table>
+      </div>
+    {% endif %}
+
+  </article>
+{% endblock %}

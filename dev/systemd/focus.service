@@ -1,0 +1,18 @@
+[Unit]
+Description=Gunicorn instance to serve FocusPro
+Requires=focus.socket
+After=network.target
+
+[Service]
+PIDFile=/run/focus/pid
+User=pi
+Group=www-data
+RuntimeDirectory=focus
+WorkingDirectory=/home/pi/focus_pro/focus
+Environment="PATH=/home/pi/focus_pro/venv/bin"
+ExecStart=/home/pi/focus_pro/venv/bin/gunicorn --workers 1 --pid /run/focus/pid --bind unix:/run/focus/socket front:app
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s TERM $MAINPID
+
+[Install]
+WantedBy=multi-user.target

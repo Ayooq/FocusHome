@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+  <article class="article clearfix">
+    <div class="col_100">
+      <h1>Журнал событий</h1>
+    </div>
+
+    <div class="col_100">
+      <h2>Журнал</h2>
+      <table class="table">
+        <tr>
+          <th>Дата</th>
+          <th>Время</th>
+          <th>Событие</th>
+          <th>Подробности</th>
+        </tr>
+
+        {% for event in log %}
+          <tr>
+            <td>{{ event.date }}</td>
+            <td>{{ event.time }}</td>
+            <td>{{ event.level }}</td>
+            <td>{{ event.msg }}</td>
+          </tr>
+        {% endfor %}
+
+      </table>
+    </div>
+  </article>
+{% endblock %}

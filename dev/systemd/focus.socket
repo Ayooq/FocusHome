@@ -1,0 +1,8 @@
+[Unit]
+Description=gunicorn socket
+
+[Socket]
+ListenStream=/run/focus/socket
+
+[Install]
+WantedBy=sockets.target

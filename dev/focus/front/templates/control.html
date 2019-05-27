@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block main_content %}
+  <article class="article clearfix">
+    <div class="col_100">
+      <h1>Ручное управление</h1>
+    </div>
+
+    <div class="col_50">
+      <h2>Температура</h2>
+      <form class="form">
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Величина</th>
+          </tr>
+
+          {% for id in temperature %}
+            <tr>
+              <td>
+                <code>{{ temperature[id].ident }}</code>
+              </td>
+              <td>{{ temperature[id].description }}</td>
+              <td>{{ temperature[id].temperature }} °C</td>
+            </tr>
+          {% endfor %}
+
+        </table>
+ 
+        <button>Обновить показатели</button>
+    </div>
+
+    <div class="col_50">
+      <h2>Контроль над гнёздами</h2>
+      <table class="table">
+        <tr>
+          <th>ID</th>
+          <th>Описание</th>
+          <th>Состояние</th>
+          <th>Действие</th>
+        </tr>
+
+        {% for id in complects %}
+          <tr>
+            <td>
+              <code>{{ complects[id].socket.ident }}</code>
+            </td>
+            <td>{{ complects[id].socket.description }}</td>
+
+            {% if complects[id].control.lock %}
+              <td>Включено</td>
+              <td>
+                <button>
+                  <a href="/control/{{ id }}/off">Отключить</a>
+                </button>
+              </td>
+            {% else %}
+              <td>Отключено</td>
+              <td>
+                <button>
+                  <a href="/control/{{ id }}/on">Включить</a>
+                </button>
+              </td>
+            {% endif %}
+            
+          </tr>
+        {% endfor %}
+
+      </table>
+    </div>
+  </article>
+{% endblock %}

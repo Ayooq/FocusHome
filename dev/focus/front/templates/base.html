@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="utf8">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link href="favicon.ico" rel="shortcut icon" />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+
+    {% if title %}
+      <title>{{ title }} | FocusPro</title>
+    {% else %}
+      <title>FocusPro. Обслуживание</title>
+    {% endif %}
+
+  </head>
+
+  <body>
+    <div class="container">
+      <header class="header clearfix">
+        <div class="logo">
+          <code>ID: {{ device.id }}</code>
+        </div>
+        <nav class="menu_main">
+          <ul>
+            <li class="active"><a href="{{ url_for('index') }}">На главную</a></li>
+            <li><a href="{{ url_for('control') }}">Управление</a></li>
+            <li><a href="{{ url_for('log') }}">Журнал</a></li>
+          </ul>
+        </nav>
+      </header>
+
+      {% block main_content %}{% endblock %}
+
+    </div>
+  </body>
+</html>
