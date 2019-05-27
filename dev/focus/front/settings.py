@@ -3,15 +3,11 @@ import os
 
 class BaseConfig:
     TESTING = False
-    SECRET_KEY = os.getenv(
-        'SK',
-        r'f0cu526980u_ps3%2Bnr0q9%25cg%5E%3D%2Bqec%40uq73tl%299b%40%40w-9r3%29%40exz%40iopr0'
-    )
+    SECRET_KEY = 'dev'
 
 
 class DevelopmentConfig(BaseConfig):
     TESTING = True
-    SECRET_KEY = 'dev'
 
 
 class TestingConfig(BaseConfig):
@@ -21,20 +17,21 @@ class TestingConfig(BaseConfig):
 
 _ = {
     'postgres': {
-        'dbapi': 'psycopg2',
-        'user': 'postgres',
-        'password': 'postgres',
-        'host': '',
-        'name': 'mydb',
+        'dbapi': os.getenv('PGDBAPI', 'psycopg2'),
+        'user': os.getenv('PGDBUSER', 'postgres'),
+        'password': os.getenv('PGDBPASS', 'postgres'),
+        'host': os.getenv('PGDBHOST', ''),
+        'name': os.getenv('PGDBNAME', 'mydb'),
     },
     'mysql': {
-        'dbapi': 'mysqlconnector',
-        'user': 'FocusCore',
-        'password': os.getenv('FC'),
-        'host': '',
-        'name': 'focus_test',
+        'dbapi': os.getenv('MYDBAPI', 'mysqlconnector'),
+        'user': os.getenv('MYDBUSER', 'mysql'),
+        'password': os.getenv('MYDBPASS', 'mysql'),
+        'host': os.getenv('MYDBHOST', ''),
+        'name': os.getenv('MYDBNAME', 'mydb'),
     },
     'sqlite': {
+        # 'path': r'C:\\tmp\test.db',
         'path': '/tmp/test.db',
     },
 }
@@ -59,7 +56,7 @@ DATABASES = {
 
 
 ##### SQLAlchemy setup #####
-BaseConfig._db = os.getenv('DB', 'default')
+_db = os.getenv('DB', 'default')
 BaseConfig.SQLALCHEMY_DATABASE_URI = DATABASES[_db]
 BaseConfig.SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -67,8 +64,3 @@ DevelopmentConfig.SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 TestingConfig.SQLALCHEMY_DATABASE_URI = DATABASES['sqlite']
 TestingConfig.SQLALCHEMY_TRACK_MODIFICATIONS = True
-
-
-##### Flask-Admin setup #####
-BasicConfig.BASIC_AUTH_USERNAME = 'admin'
-BasicConfig.BASIC_AUTH_PASSWORD = 'admin'
