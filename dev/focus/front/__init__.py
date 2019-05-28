@@ -15,17 +15,13 @@ def create_app(config_filename):
     except OSError:
         pass
 
-    from .models import db
-    db.init_app(app)
-    db.reflect()
-
     from . import views
 
     return app
 
 
 def configure_app(app):
-    _mode = os.getenv('FLASK_ENV', 'production')
+    _mode = os.getenv('FLASK_ENV', 'default')
 
     if _mode == 'production':
         app.config.from_object(CONFIG['default'])

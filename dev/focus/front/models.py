@@ -1,41 +1,4 @@
-from flask_sqlalchemy import SQLAlchemy
-
 from . import conn, device
-
-
-db = SQLAlchemy()
-
-
-class User(db.Model):
-    __tablename__ = 'users'
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-
-    def __repr__(self):
-        return '<Пользователь %r>' % self.username
-
-
-class Focus(db.Model):
-    __table__ = 'config'
-    __mapper_args__ = {
-        'include_properties': [
-            'device_id',
-            'device_name',
-            'keepalive'
-        ]
-    }
-
-
-class Temperature(db.Model):
-    __table__ = 'config'
-    __mapper_args__ = {
-        'include_properties': [
-            'cpu_min', 'cpu_max', 'cpu_threshold', 'cpu_delta',
-            'board_min', 'board_max', 'board_threshold', 'board_delta',
-        ]
-    }
 
 
 def _update_complects_state():
