@@ -65,8 +65,6 @@ class Connector(Layout):
             # Подписка на акции.
             self.client.subscribe(self.ident + '/action/#')
 
-            self.ping()
-
     def on_message(self, client, userdata, msg):
         self.logger.info('Инструкция %s [%s]', msg.topic, str(msg.payload))
 
