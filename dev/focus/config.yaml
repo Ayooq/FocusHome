@@ -2,7 +2,7 @@
 
 # Общие параметры
 device:
-  id: focusPro
+  id: focusPrototype
   description: Prototype
   host:
   broker:
@@ -12,34 +12,30 @@ device:
 
 # Раскладка по ПИНАМ:
 fields:
-  # Выходы
   led1: &l1
     pin: 17
-    active_high: false
     description: Светодиод 1
 
   led2: &l2
     pin: 27
-    active_high: false
     description: Светодиод 2
 
-  out1: &r1
+  out1: &o1
     pin: 5
     description: Гнездо 1
 
-  out2: &r2
+  out2: &o2
     pin: 13
     description: Гнездо 2
 
-  out3: &r3
+  out3: &o3
     pin: 26
     description: Гнездо 3
 
-  out4: &r4
+  out4: &o4
     pin: 16
     description: Гнездо 4
 
-  # Входы
   input1: &i1
     pin: 21
     description: Вxoдной рецептор 1
@@ -76,6 +72,14 @@ fields:
     pin: 20
     description: Контроль 4
 
+  volt: &v
+    pin: 9
+    description: Контроль напряжения устройства
+
+  reblck: &r
+    pin: 11
+    description: Блокировка выходов при перезагрузке
+
 # Раскладка в группы по функциональности:
 units:
   indicators: &u1
@@ -97,33 +101,38 @@ units:
     description: Комплекты [Гнездо -- Контроль состояния]
     class: FocusComplect
     cmp1:
-      out: *r1
+      out: *o1
       cnt: *c1
     cmp2:
-      out: *r2
+      out: *o2
       cnt: *c2
     cmp3:
-      out: *r3
+      out: *o3
       cnt: *c3
     cmp4:
-      out: *r4
+      out: *o4
       cnt: *c4
 
   temperature: &u4
     description: Температура
     class: FocusTemperature
     cpu: &t1
-      description: ЦПУ
+      description: ЦПУ FocusPro
       # Все по умолчанию:
       # sensor_file: none
       # min_temp: none
       # max_temp: none
       # threshold: none
     board: &t2
-      description: внутри
+      description: внутри банкомата
       sensor_file: /sys/bus/w1/devices/28-00000a42c9f8/hwmon/hwmon0/temp1_input
       min_temp: 10.0
       max_temp: 80.0
       threshold: 36.6
       hysteresis: 1.0
       delta: 60
+  # misc: &u5
+  #   description: Дополнительные компоненты
+  #   class: GPIODevice
+  #   volt: *v
+  #   reblck: *r
