@@ -1,4 +1,5 @@
 from . import conn, device
+from focus.back.hardware import log_file_path
 
 
 def _update_complects_state():
@@ -38,7 +39,7 @@ def get_data():
 def get_log():
     events = []
 
-    with open('/home/pi/focus_pro/focus/focus.log') as log:
+    with open(log_file_path) as log:
         for line in log:
             event = {}
             chunks = line.strip().split(' ')

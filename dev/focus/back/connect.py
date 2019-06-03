@@ -12,8 +12,8 @@ from .utils import Worker
 class Connector(Layout):
     """Обвязка функционала MQTT вокруг :class Layout: без учета авторизации."""
 
-    def __init__(self, config_file='/home/pi/focus_pro/focus/config.yaml', **kwargs):
-        super().__init__(config_file)
+    def __init__(self, **kwargs):
+        super().__init__()
 
         self.description = self.config['device']['description']
 
@@ -65,7 +65,7 @@ class Connector(Layout):
             # Подписка на акции.
             self.client.subscribe(self.ident + '/action/#')
 
-            self.alive()
+            self.ping()
 
     def on_message(self, client, userdata, msg):
         self.logger.info('Инструкция %s [%s]', msg.topic, str(msg.payload))
@@ -157,6 +157,7 @@ class Connector(Layout):
 
         while True:
             sleep(pause)
+
             log_and_report(self, 'Focus', 'Онлайн', msg_type='info')
 
     def _del_(self):

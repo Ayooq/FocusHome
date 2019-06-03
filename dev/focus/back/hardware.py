@@ -1,3 +1,4 @@
+import os
 import logging
 from time import sleep
 from threading import Thread
@@ -8,6 +9,11 @@ from gpiozero import LED, Button, CPUTemperature
 from .logger import main_logger
 from .report import Reporter
 from .utils import Worker
+
+
+root_dir = os.path.abspath(os.path.curdir)
+config_file_path = '%s/config.yaml' % root_dir
+log_file_path = '%s/focus.log' % root_dir
 
 
 def _log(instance, head, body):
@@ -40,10 +46,10 @@ class Layout:
     Разбито на именованные группы.
     """
 
-    def __init__(self, config_file='/home/pi/focus_pro/focus/config.yaml'):
+    def __init__(self, config_file=config_file_path):
 
         # Головной регистратор:
-        self.logger = main_logger('/home/pi/focus_pro/focus/focus.log')
+        self.logger = main_logger(log_file_path)
 
         # Заполнение словаря конфигурации на основе переданного файла.
         try:
@@ -177,13 +183,13 @@ class FocusLED(FocusUnit):
 
     @property
     def state(self):
-        return not self.unit.is_lit
+        return self.unit.is_lit
 
     def set_state(self, value):
         if value in ('ON', 'on', 1):
-            self.off()
-        else:
             self.on()
+        else:
+            self.off()
 
     def blink(self, *args, **kwargs):
         self.unit.blink(*args, **kwargs)
@@ -191,12 +197,12 @@ class FocusLED(FocusUnit):
     def on(self):
         """Зажечь индикатор."""
 
-        self.unit.off()
+        self.unit.on()
 
     def off(self):
         """Погасить индикатор."""
 
-        self.unit.on()
+        self.unit.off()
 
     def toggle(self):
         """Изменить состояние индикатора."""
@@ -216,13 +222,11 @@ class FocusSocket(FocusLED):
         super().on()
         log_and_report(self, '', 'включено')
 
-
     def off(self):
         "Отключить гнездо."
 
         super().off()
         log_and_report(self, '', 'отключено')
-
 
     def toggle(self):
         "Переключить гнездо."
@@ -234,11 +238,11 @@ class FocusSocket(FocusLED):
 class FocusReceptor(FocusUnit):
     """Концевой датчик (входной рецептор)."""
 
-    def __init__(self, external_callback=False, **kwargs):
+    def __init__(self, external_callbacks=False, **kwargs):
         super().__init__(unit=Button, **kwargs)
         self.lock = True
 
-        if not external_callback:
+        if not external_callbacks:
             self.add_callbacks(self.on, self.off)
 
     def add_callbacks(self, func1, func2):
@@ -271,7 +275,8 @@ class FocusComplect:
 
     def __init__(self, **kwargs):
         self.ident = kwargs.pop('ident')
-        self.description = kwargs.pop('description', 'Комплект %s' % self.ident[-1])
+        self.description = kwargs.pop(
+            'description', 'Комплект %s' % self.ident[-1])
 
         kout = kwargs.pop('out')
         kout['ident'] = self.ident + '/out'
@@ -301,14 +306,14 @@ class FocusComplect:
     def on(self):
         """Включить гнездо."""
 
-        if not self.control.lock:
+        if not self.control.lock and not self.socket.state:
             self.control.lock = True
             self.socket.on()
 
     def off(self):
         """Отключить гнездо."""
 
-        if self.control.lock:
+        if self.control.lock and self.socket.state:
             self.control.lock = False
             self.socket.off()
 
