@@ -1,11 +1,17 @@
+import os
 import glob
 import sqlite3
 from sqlite3 import Error
 from threading import Thread
 
 
+root_dir = os.path.abspath(os.path.curdir)
+config_file_path = '%s/config.yaml' % root_dir
+log_file_path = '%s/focus.log' % root_dir
+
+
 class Worker:
-    """Базовый организатор обмена через отдельный поток."""
+    """Базовый организатор обработки данных через отдельный поток."""
 
     def __init__(self, worker):
         self.receiver_thread = Thread(target=worker, daemon=True)
@@ -20,24 +26,27 @@ class Worker:
         self.receiver_thread.join()
 
 
+##### Работа с локальной базой данных. #####
+
 def init_db(filename):
     try:
         conn = sqlite3.connect(filename)
         print(sqlite3.version)
 
         cursor = conn.cursor()
-        create_scheme(cursor)
+        _create_schema(cursor)
     except Error as e:
-        print(e)
+        print('Ошибка в настройке БД!', e, sep='\n\n')
     else:
         return conn
 
 
-def create_scheme(cursor):
+def _create_schema(cursor):
     cursor.execute(
         '''CREATE TABLE IF NOT EXISTS config
-                  (id INTEGER PRIMARY KEY,
-                  device TEXT NOT NULL UNIQUE,
+                  (device TEXT NOT NULL UNIQUE,
+                  broker_host TEXT NOT NULL,
+                  broker_port INTEGER,
                   keepalive INTEGER NOT NULL CHECK(keepalive > 3),
                   cpu_min REAL NOT NULL CHECK(cpu_min > 0.1),
                   cpu_max REAL NOT NULL CHECK(cpu_max < 199.9),
@@ -61,8 +70,9 @@ def create_scheme(cursor):
                   
            CREATE TABLE IF NOT EXISTS gpio_status
                   (id INTEGER PRIMARY KEY,
+                  timestamp TEXT,
                   device TEXT,
-                  pin INTEGER,
+                  pin INTEGER UNIQUE,
                   group TEXT,
                   internal_name TEXT,
                   verbose_name TEXT,
@@ -70,6 +80,7 @@ def create_scheme(cursor):
 
            CREATE TABLE IF NOT EXISTS gpio_status_archive
                   (id INTEGER PRIMARY KEY,
+                  timestamp TEXT,
                   device TEXT,
                   pin INTEGER,
                   group TEXT,
@@ -79,19 +90,84 @@ def create_scheme(cursor):
     )
 
 
-def set_config(conn, config):
-    sql = '''INSERT INTO config
-                    (device, keepalive, cpu_min, cpu_max,
-                    cpu_threshold, cpu_hysteresis, cpu_timedelta,
-                    board_min, board_max, board_threshold,
-                    board_hysteresis, board_timedelta)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+_SQL = {
+    'config': '''INSERT INTO config
+                        (device, keepalive, broker_host, broker_port,
+                        cpu_min, cpu_max, cpu_threshold, cpu_hysteresis,
+                        cpu_timedelta, board_min, board_max,
+                        board_threshold, board_hysteresis, board_timedelta)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
+    'events': '''INSERT INTO events(timestamp, type, device, group, unit, msg)
+                 VALUES (?, ?, ?, ?, ?, ?);''',
+
+    'gpio_status': '''REPLACE INTO gpio_status
+                              (timestamp, device, pin, group,
+                              internal_name, verbose_name, state)
+                       VALUES (?, ?, ?, ?, ?, ?, ?);''',
+
+    'gpio_status_archive': '''INSERT INTO gpio_status_archive
+                                     (timestamp, device, pin, group,
+                                     internal_name, verbose_name, state)
+                              VALUES (?, ?, ?, ?, ?, ?, ?);''',
+}
+
+
+def set_config(conn, config):
+    data = (
+        config['device']['id'],
+        config['device']['broker']['host'],
+        config['device']['broker']['port'],
+        config['device']['broker']['keepalive'],
+        config['device']['temperature']['cpu']['min'],
+        config['device']['temperature']['cpu']['max'],
+        config['device']['temperature']['cpu']['threshold'],
+        config['device']['temperature']['cpu']['hysteresis'],
+        config['device']['temperature']['cpu']['timedelta'],
+        config['device']['temperature']['board']['min'],
+        config['device']['temperature']['board']['max'],
+        config['device']['temperature']['board']['threshold'],
+        config['device']['temperature']['board']['hysteresis'],
+        config['device']['temperature']['board']['timedelta'],
+    )
+
+    return fill_table(conn, 'config', data)
+
+
+def fill_table(conn, tablename, data):
     cursor = conn.cursor()
-    cursor.execute(sql, config)
+    cursor.execute(_SQL[tablename], data)
 
     return conn
 
 
+##### 1-Wire #####
+
 def get_sensor_file():
     return glob.glob('/sys/bus/w1/devices/28*/hwmon/hwmon0/temp1_input')
+
+
+##### Журналирование и отправка отчётов. #####
+
+def _log(instance, head, body):
+    """Зарегистрировать события согласно указанным уровням логирования."""
+
+    instance.logger.debug(
+        '%s%s: %s | [%s]', head, instance.description, body, repr(instance))
+    instance.logger.info('%s%s: %s', head, instance.description, body)
+
+
+def _report(instance, msg_type, head, body):
+    """Опубликовать сообщение о событии."""
+
+    if msg_type:
+        instance.reporter.set_type(msg_type, head, body).report()
+    else:
+        instance.reporter.event(instance.description, body).report()
+
+
+def log_and_report(instance, head, body, msg_type=None):
+    """Опубликовать сообщение о событии и создать соответствующие записи в логе."""
+
+    _log(instance, head, body)
+    _report(instance, msg_type, head, body)

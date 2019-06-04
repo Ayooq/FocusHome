@@ -8,36 +8,10 @@ from gpiozero import LED, Button, CPUTemperature
 
 from .logger import main_logger
 from .report import Reporter
-from .utils import Worker, get_sensor_file, persist_db
-
-
-root_dir = os.path.abspath(os.path.curdir)
-config_file_path = '%s/config.yaml' % root_dir
-log_file_path = '%s/focus.log' % root_dir
-
-
-def _log(instance, head, body):
-    """Зарегистрировать события согласно указанным уровням логирования."""
-
-    instance.logger.debug(
-        '%s%s: %s | [%s]', head, instance.description, body, repr(instance))
-    instance.logger.info('%s%s: %s', head, instance.description, body)
-
-
-def _report(instance, msg_type, head, body):
-    """Опубликовать сообщение о событии."""
-
-    if msg_type:
-        instance.reporter.set_type(msg_type, head, body).report()
-    else:
-        instance.reporter.event(instance.description, body).report()
-
-
-def log_and_report(instance, head, body, msg_type=None):
-    """Опубликовать сообщение о событии и создать соответствующие записи в логе."""
-
-    _log(instance, head, body)
-    _report(instance, msg_type, head, body)
+from .utils import (
+    config_file_path, log_file_path, Worker, init_db,
+    set_config, get_sensor_file, log_and_report
+)
 
 
 class Layout:
@@ -58,6 +32,10 @@ class Layout:
             self.logger.debug(
                 'Ошибка в конфигурировании оборудования! [%s] [%s]', config_file, e)
             raise
+
+        self.conn = init_db('focus.db')
+        set_config(self.conn, self.config)
+        self.conn.close()
 
         self.mk_units()
 
@@ -332,9 +310,11 @@ class FocusTemperature(CPUTemperature):
     def __init__(self, **kwargs):
         self.ident = kwargs.pop('ident')
         self.description = kwargs.pop('description', None)
-        self.hysteresis = kwargs.pop('hysteresis', 0.7)
-        self.delta = kwargs.pop('delta', 60)
-        self._tick = self.delta
+        self.min = kwargs.pop('min', 0.0)
+        self.max = kwargs.pop('max', 100.0)
+        self.threshold = kwargs.pop('threshold', 80.0)
+        self.hysteresis = kwargs.pop('hysteresis', 1.0)
+        self.timedelta = kwargs.pop('timedelta', 60)
 
         self.sensor_file = get_sensor_file()
         super().__init__(sensor_file=self.sensor_file, **kwargs)
@@ -347,9 +327,14 @@ class FocusTemperature(CPUTemperature):
         Worker(persist_db)
         Worker(self.threshold_monitor)
 
+    @property
+    def is_active(self):
+        return self.hysteresis <= abs(self.temperature - self.threshold)
+
     def threshold_monitor(self):
         """Контроль за порогом срабатывания."""
 
+        self._tick = self.timedelta
         self.exceeded = False
 
         while True:
@@ -360,7 +345,7 @@ class FocusTemperature(CPUTemperature):
             else:
                 log_and_report(self, 'Текущая температура ',
                                self.temperature, msg_type='info')
-                self._tick = self.delta
+                self._tick = self.timedelta
 
             if self.is_active:
                 if not self.exceeded:

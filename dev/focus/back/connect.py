@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 
 from .hardware import Layout, log_and_report
 from .report import Reporter
-from .utils import Worker
+from .utils import Worker,
 
 
 class Connector(Layout):

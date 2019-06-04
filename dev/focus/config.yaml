@@ -1,10 +1,7 @@
-# Конфигурация железа
-
 # Общие параметры
 device:
   id: focusPrototype
   description: Prototype
-  host:
   broker:
     host: 89.223.27.69
     port: 1883
@@ -118,13 +115,18 @@ units:
     class: FocusTemperature
     cpu: &t1
       description: ЦПУ FocusPro
+      min: 0.0
+      max: 100.0
+      threshold: 80.0
+      hysteresis: 0.9
+      timedelta: 60
     board: &t2
       description: внутри банкомата
-      min_temp: 10.0
-      max_temp: 80.0
-      threshold: 36.6
+      min: 10.0
+      max: 80.0
+      threshold: 50.0
       hysteresis: 0.7
-      delta: 60
+      timedelta: 45
   # misc: &u5
   #   description: Дополнительные компоненты
   #   class: GPIODevice
