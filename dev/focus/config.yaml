@@ -118,18 +118,12 @@ units:
     class: FocusTemperature
     cpu: &t1
       description: ЦПУ FocusPro
-      # Все по умолчанию:
-      # sensor_file: none
-      # min_temp: none
-      # max_temp: none
-      # threshold: none
     board: &t2
       description: внутри банкомата
-      sensor_file: /sys/bus/w1/devices/28-00000a42c9f8/hwmon/hwmon0/temp1_input
       min_temp: 10.0
       max_temp: 80.0
       threshold: 36.6
-      hysteresis: 1.0
+      hysteresis: 0.7
       delta: 60
   # misc: &u5
   #   description: Дополнительные компоненты

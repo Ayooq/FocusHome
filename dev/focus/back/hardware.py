@@ -8,7 +8,7 @@ from gpiozero import LED, Button, CPUTemperature
 
 from .logger import main_logger
 from .report import Reporter
-from .utils import Worker
+from .utils import Worker, get_sensor_file, persist_db
 
 
 root_dir = os.path.abspath(os.path.curdir)
@@ -186,7 +186,7 @@ class FocusLED(FocusUnit):
         return self.unit.is_lit
 
     def set_state(self, value):
-        if value in ('ON', 'on', 1):
+        if value in ('ON', 'on', 'Вкл', 'вкл', 'Включить', 'включить', 1):
             self.on()
         else:
             self.off()
@@ -332,17 +332,19 @@ class FocusTemperature(CPUTemperature):
     def __init__(self, **kwargs):
         self.ident = kwargs.pop('ident')
         self.description = kwargs.pop('description', None)
-        self.hysteresis = kwargs.pop('hysteresis', 0.0)
+        self.hysteresis = kwargs.pop('hysteresis', 0.7)
         self.delta = kwargs.pop('delta', 60)
         self._tick = self.delta
 
-        super().__init__(**kwargs)
+        self.sensor_file = get_sensor_file()
+        super().__init__(sensor_file=self.sensor_file, **kwargs)
 
         self.logger = logging.getLogger('FP.%s' % __name__)
         self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
 
         self.reporter = Reporter(self.ident)
 
+        Worker(persist_db)
         Worker(self.threshold_monitor)
 
     def threshold_monitor(self):
