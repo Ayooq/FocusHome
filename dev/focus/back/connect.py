@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 
 from .hardware import Layout, log_and_report
 from .report import Reporter
-from .utils import Worker,
+from .utils import Worker, register, log_and_report
 
 
 class Connector(Layout):
@@ -28,12 +28,15 @@ class Connector(Layout):
 
         self.reporter = Reporter(self.ident)
 
-        self.register_lamp(self.blink)
-        self.register_units(self.report_on_topic)
-        self.register('alive', self.report_on_topic)
+        self.register_units(self.blink, self.report_on_topic)
+        # Зарегистрировать само устройство для рапортирования о своём текущем статусе.
+        register(self, 'alive', self.report_on_topic)
 
         Worker(self.establish_connection)
         Worker(self.ping)
+
+        log_and_report(self, )
+        self.logger.info('Запуск %s', self.ident)
 
     def set_broker(self, **kwargs):
         """Установить параметры посредника."""
@@ -65,6 +68,9 @@ class Connector(Layout):
             # Подписка на акции.
             self.client.subscribe(self.ident + '/action/#')
 
+    def on_disconnect(self, client, userdata, rc):
+        self.logger.info('Остановка работы %s', self.ident)
+
     def on_message(self, client, userdata, msg):
         self.logger.info('Инструкция %s [%s]', msg.topic, str(msg.payload))
 
@@ -85,32 +91,43 @@ class Connector(Layout):
             )
         #   client.publish(, get_gpio_status(), 1)
 
-    def register_lamp(self, callback):
-        """Зарегистрировать световой индикатор в роли подписчика."""
+    def register_units(self, *callbacks):
+        """Зарегистрировать все компоненты устройства для рапортирования.
 
-        for grouped_components in self.units.values():
-            for unit in grouped_components:
-                grouped_components[unit].register('lamp', callback)
-
-    def register_units(self, callback):
-        """Зарегистрировать все компоненты устройства для рапортирования."""
+        Отправка отчётов осуществляется по двум каналам:
+        1) каждое событие регистрируется подсписчиком "light_indication", \
+        который осуществляет световую индикацию во время обмена \
+               информацией с посредником;
+        2) все компоненты разделяются на группы по функциональности, \
+             на имя которых и направляются отчёты о состоянии этих компонентов.
+        """
 
         for group_name, grouped_components in self.units.items():
             for unit in grouped_components:
-                grouped_components[unit].register(group_name, callback)
-
-    def register(self, subscriber, callback):
-        self.reporter.register(subscriber, callback)
-
-    def unregister(self, subscriber):
-        self.reporter.unregister(subscriber)
+                register(grouped_components[unit],
+                         'light_indication', callbacks[0])
+                register(grouped_components[unit], group_name, callbacks[1])
 
     def blink(self, report):
-        """Моргать при регистрации определённых событий."""
+        """Моргать при регистрации определённых событий.
+
+        Индикация производится следующим образом:
+        1) event -- светодиод включается на секунду, затем выключается, единожды;
+        2) info -- светодиод включается на секунду, отключается на одну, дважды;
+        3) warning -- светодиод включается на две секунды, отключается на одну, трижды;
+        4) error -- светодиод включается на одну секунду, выключается на одну, десять раз кряду.
+        """
 
         msg_type = report['report']['type']
-        if msg_type in ('event', 'warning', 'error'):
+
+        if msg_type == 'event':
             self.units['indicators']['led2'].blink(1, 1, 1)
+        elif msg_type == 'info':
+            self.units['indicators']['led2'].blink(1, 1, 2)
+        elif msg_type == 'warning':
+            self.units['indicators']['led2'].blink(2, 1, 3)
+        elif msg_type == 'error':
+            self.units['indicators']['led2'].blink(1, 1, 10)
 
     def report_on_topic(self, report):
         """Отправка отчёта посреднику по указанной теме."""
@@ -123,9 +140,10 @@ class Connector(Layout):
             report['report']['type']
         )
         payload = report['report']['body']
-        self.units['indicators']['led1'].toggle()
+
+        self.units['indicators']['led1'].on()
         self.client.publish(topic, payload)
-        self.units['indicators']['led1'].toggle()
+        self.units['indicators']['led1'].off()
 
     def establish_connection(self):
         """Установить соединение с посредником.
@@ -158,6 +176,6 @@ class Connector(Layout):
 
             log_and_report(self, 'Focus', 'Онлайн', msg_type='info')
 
-    def _del_(self):
+    def disconnect(self):
         self.client.disconnect()
         self.quit()

@@ -149,25 +149,33 @@ def get_sensor_file():
 
 ##### Журналирование и отправка отчётов. #####
 
-def _log(instance, head, body):
+def _log(instance, msg):
     """Зарегистрировать события согласно указанным уровням логирования."""
 
     instance.logger.debug(
-        '%s%s: %s | [%s]', head, instance.description, body, repr(instance))
-    instance.logger.info('%s%s: %s', head, instance.description, body)
+        '%s: %s | [%s]', instance.description, msg, repr(instance))
+    instance.logger.info('%s: %s', instance.description, msg)
 
 
-def _report(instance, msg_type, head, body):
+def _report(instance, msg_type, msg_body):
     """Опубликовать сообщение о событии."""
 
     if msg_type:
-        instance.reporter.set_type(msg_type, head, body).report()
+        instance.reporter.set_type(msg_type, msg_body).report()
     else:
-        instance.reporter.event(instance.description, body).report()
+        instance.reporter.event(instance.description, msg_body).report()
 
 
-def log_and_report(instance, head, body, msg_type=None):
+def log_and_report(instance, msg_body, msg_type=None):
     """Опубликовать сообщение о событии и создать соответствующие записи в логе."""
 
-    _log(instance, head, body)
-    _report(instance, msg_type, head, body)
+    _log(instance, msg_body)
+    _report(instance, msg_type, msg_body)
+
+
+def register(instance, subscriber, callback):
+    instance.reporter.register(subscriber, callback)
+
+
+def unregister(instance, subscriber, callback):
+    instance.reporter.unregister(subscriber)

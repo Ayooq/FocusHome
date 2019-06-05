@@ -1,6 +1,6 @@
 """Словарь сообщений для сериализации JSON.
 
-Разрешенные типы body:
+Разрешенные типы msg_body:
 _______________________________
 |   [Python]   |    [JSON]    |
 |--------------|--------------|
@@ -12,7 +12,7 @@ _______________________________
 |false         |         false|
 |None          |          null|
 
-Проверять body по isinstance.
+Проверять msg_body по isinstance.
 """
 
 import json
@@ -27,20 +27,19 @@ class Message(dict):
         self._content = mode
         self.setdefault(mode, Content())
 
-    def _formalize(self, msg_type, head, body):
+    def _formalize(self, msg_type, msg_body):
         """Официально оформить содержимое."""
 
         payload = self[self._content]
-        payload.inscribe(msg_type, head, body)
+        payload.inscribe(msg_type, msg_body)
 
 
 class Content(dict):
     """Структура содержимого для сообщений."""
 
     _subkeys = (
-        'type',
-        'head',
-        'body'
+        'msg_type',
+        'msg_body',
     )
 
     def __init__(self):
@@ -49,12 +48,11 @@ class Content(dict):
         for key in Content._subkeys:
             self.setdefault(key)
 
-    def inscribe(self, msg_type, head, body):
+    def inscribe(self, msg_type, msg_body):
         """Вписать содержимое."""
 
-        self['type'] = msg_type
-        self['head'] = head
-        self['body'] = body
+        self['msg_type'] = msg_type
+        self['msg_body'] = msg_body
 
 
 class Address(dict):
@@ -70,33 +68,33 @@ class Address(dict):
         self['date'] = now.strftime('%Y%m%d%H%M%S')
 
     def get(self, report):
-        return (report.get('from', 'system'), report.get('to', 'anybody'))
+        return (report.get('from', 'system'), report.get('to', 'anymsg_body'))
 
 
 class Report(Message):
     """Отчёт на основе сообщения по указанному типу."""
 
-    def __init__(self, msg_type=None, head=None, body=None, mode='report'):
+    def __init__(self, msg_type=None, msg_body=None, mode='report'):
         super().__init__(mode)
 
-    def event(self, head, body):
-        self._formalize('event', head, body)
+    def event(self, msg_body):
+        self._formalize('event', msg_body)
         return self
 
-    def info(self, head, body):
-        self._formalize('info', head, body)
+    def info(self, msg_body):
+        self._formalize('info', msg_body)
         return self
 
-    def warning(self, head, body):
-        self._formalize('warning', head, body)
+    def warning(self, msg_body):
+        self._formalize('warning', msg_body)
         return self
 
-    def error(self, head, body):
-        self._formalize('error', head, body)
+    def error(self, msg_body):
+        self._formalize('error', msg_body)
         return self
 
-    def set_type(self, msg_type, head, body):
-        self._formalize(msg_type, head, body)
+    def set_type(self, msg_type, msg_body):
+        self._formalize(msg_type, msg_body)
         return self
 
 
