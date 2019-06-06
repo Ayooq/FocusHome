@@ -33,23 +33,23 @@ fields:
     pin: 16
     description: Гнездо 4
 
-  input1: &i1
+  in1: &i1
     pin: 21
     description: Вxoдной рецептор 1
 
-  input2: &i2
+  in2: &i2
     pin: 18
     description: Входной рецептор 2
 
-  input3: &i3
+  in3: &i3
     pin: 23
     description: Входной рецептор 3
 
-  input4: &i4
+  in4: &i4
     pin: 24
     description: Входной рецептор 4
 
-  input5: &i5
+  in5: &i5
     pin: 25
     description: Входной рецептор 5
 
@@ -79,13 +79,13 @@ fields:
 
 # Раскладка в группы по функциональности:
 units:
-  indicators: &u1
+  leds: &u1
     description: Индикаторы
     class: FocusLED
     led1: *l1
     led2: *l2
 
-  inputs: &u2
+  ins: &u2
     description: Входы
     class: FocusReceptor
     input1: *i1
@@ -94,8 +94,8 @@ units:
     input4: *i4
     input5: *i5
 
-  complects: &u3
-    description: Комплекты [Гнездо -- Контроль состояния]
+  couts: &u3
+    description: Комплекты [Гнездо — Контроль состояния]
     class: FocusComplect
     cmp1:
       out: *o1
@@ -110,7 +110,7 @@ units:
       out: *o4
       cnt: *c4
 
-  temperature: &u4
+  temp: &u4
     description: Температура
     class: FocusTemperature
     cpu: &t1
@@ -120,7 +120,7 @@ units:
       threshold: 80.0
       hysteresis: 0.9
       timedelta: 60
-    board: &t2
+    bnk: &t2
       description: внутри банкомата
       min: 10.0
       max: 80.0
