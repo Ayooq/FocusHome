@@ -1,6 +1,6 @@
 import logging
 
-from ..report import Reporter
+from ..reporting import Reporter
 
 
 class BaseUnit:
@@ -18,7 +18,7 @@ class BaseUnit:
                 'Компонент не установлен! Необходимо указать класс компонента библиотеки gpiozero.')
             raise
 
-        self.logger = logging.getLogger('FP.%s' % __name__)
+        self.logger = logging.getLogger('FocusPro.%s' % __name__)
         self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
 
         self.reporter = Reporter(self.ident)

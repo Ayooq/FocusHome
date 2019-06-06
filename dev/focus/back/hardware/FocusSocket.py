@@ -12,16 +12,16 @@ class FocusSocket(FocusLED):
         "Включить гнездо."
 
         super().on()
-        log_and_report(self, '', 'включено')
+        log_and_report(self, 'включено')
 
     def off(self):
         "Отключить гнездо."
 
         super().off()
-        log_and_report(self, '', 'отключено')
+        log_and_report(self, 'отключено')
 
     def toggle(self):
         "Переключить гнездо."
 
         super().toggle()
-        log_and_report(self, '', 'переключено')
+        log_and_report(self, 'переключено')

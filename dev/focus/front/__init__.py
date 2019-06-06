@@ -1,6 +1,6 @@
 from flask import Flask
 
-from focus.back.connect import Connector
+from focus.back import Connector
 
 
 app = Flask(__name__)

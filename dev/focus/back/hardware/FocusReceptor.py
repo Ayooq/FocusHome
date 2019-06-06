@@ -23,17 +23,17 @@ class FocusReceptor(BaseUnit):
         return self.unit.is_pressed
 
     def on(self):
-        """Начать считывание входного сигнала."""
+        """Замкнуть цепь на приём сигнала."""
 
         if not self.lock and self.state:
             self.lock = True
 
-            log_and_report(self, '', 'включён')
+            log_and_report(self, 'включён')
 
     def off(self):
-        """Прервать считывание входного сигнала."""
+        """Разомкнуть цепь подачи сигнала."""
 
         if self.lock and not self.state:
             self.lock = False
 
-            log_and_report(self, '', 'отключён')
+            log_and_report(self, 'отключён')

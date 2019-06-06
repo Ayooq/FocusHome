@@ -6,53 +6,53 @@ _formats_list = [
     '%(filename)-11s [LINE:%(lineno)d]  #%(levelname)-7s [%(asctime)s] %(message)s'
 ]
 
-_file_formatter = logging.Formatter(_formats_list[0])
-_stream_formatter = logging.Formatter(_formats_list[1])
 
-
-def _set_file_handler(filename, level, formatter):
-    fh = logging.FileHandler(filename)
-    fh.setLevel(level)
-    fh.setFormatter(formatter)
-
-    return fh
-
-
-def _set_stream_handler(level, formatter):
-    sh = logging.StreamHandler()
-    sh.setLevel(level)
-    sh.setFormatter(formatter)
-
-    return sh
-
-
-def main_logger(filename, level=logging.INFO):
-    """Создать и настроить головной регистратор.
+class Logger:
+    """Головной регистратор.
 
     Параметры:
-    \t:param filename: название файла, в который будет производиться запись.
+    \t:param filename: название файла, в который будет производиться запись;
     \t:param level: уровень логирования.
     """
 
-    # Cоздать регистратор с названием 'FP' и присвоить ему указанный уровень логирования:
-    logger = logging.getLogger('FP')
-    logger.setLevel(level)
+    def __init__(self, filename, level=logging.INFO, prefix='FocusPro'):
+        self.dest = filename
+        self.level = level
+        self.prefix = prefix
 
-    # Наполнить словарь обработчиков событий:
-    logger_handlers = {
-        'file_handler': _set_file_handler(
-            filename,
-            logging.INFO,
-            _file_formatter
-        ),
-        'stream_handler': _set_stream_handler(
-            logging.DEBUG,
-            _stream_formatter
-        ),
-    }
+        self.instance = logging.getLogger(self.prefix)
+        self.instance.setLevel(self.level)
 
-    # Добавить обработчики в регистратор:
-    for handler in logger_handlers.values():
-        logger.addHandler(handler)
+        self._file_formatter = logging.Formatter(_formats_list[0])
+        self._stream_formatter = logging.Formatter(_formats_list[1])
 
-    return logger
+        for handler in self.handlers.values():
+            self.instance.addHandler(handler)
+
+    @property
+    def handlers(self):
+        return {
+            'file_handler': self._set_file_handler(
+                self.dest,
+                self.level,
+                self._file_formatter
+            ),
+            'stream_handler': self._set_stream_handler(
+                logging.DEBUG,
+                self._stream_formatter
+            ),
+        }
+
+    def _set_file_handler(self, filename, level, formatter):
+        fh = logging.FileHandler(filename)
+        fh.setLevel(level)
+        fh.setFormatter(formatter)
+
+        return fh
+
+    def _set_stream_handler(self, level, formatter):
+        sh = logging.StreamHandler()
+        sh.setLevel(level)
+        sh.setFormatter(formatter)
+
+        return sh

@@ -2,11 +2,11 @@ import logging
 
 from .FocusSocket import FocusSocket
 from .FocusReceptor import FocusReceptor
-from ..report import Reporter
+from ..reporting import Reporter
 
 
 class FocusSocketControl:
-    """Комплект [Гнездо -- Контроль состояния]."""
+    """Комплект [Гнездо — Контроль состояния]."""
 
     def __init__(self, **kwargs):
         self.ident = kwargs.pop('ident')
@@ -22,7 +22,7 @@ class FocusSocketControl:
         self.socket = FocusSocket(**kout)
         self.control = FocusReceptor(**kcnt)
 
-        self.logger = logging.getLogger('FP.%s' % __name__)
+        self.logger = logging.getLogger('FocusPro.%s' % __name__)
         self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
 
         self.reporter = Reporter(self.ident)
