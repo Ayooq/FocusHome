@@ -6,11 +6,12 @@ class Message(dict):
 
     def __init__(self, mode):
         super().__init__()
-        self._content = mode
-        self.setdefault(mode, Content())
+
+        self.mode = mode
+        self.setdefault(self.mode, Content())
 
     def _formalize(self, msg_type, msg_body):
         """Официально оформить содержимое."""
 
-        payload = self[self._content]
+        payload = self[self.mode]
         payload.inscribe(msg_type, msg_body)

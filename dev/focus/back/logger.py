@@ -11,8 +11,8 @@ class Logger:
     """Головной регистратор.
 
     Параметры:
-    \t:param filename: название файла, в который будет производиться запись;
-    \t:param level: уровень логирования.
+        :param filename: название файла, в который будет производиться запись;
+        :param level: уровень логирования.
     """
 
     def __init__(self, filename, level=logging.INFO, prefix='FocusPro'):
@@ -29,20 +29,6 @@ class Logger:
         for handler in self.handlers.values():
             self.instance.addHandler(handler)
 
-    @property
-    def handlers(self):
-        return {
-            'file_handler': self._set_file_handler(
-                self.dest,
-                self.level,
-                self._file_formatter
-            ),
-            'stream_handler': self._set_stream_handler(
-                logging.DEBUG,
-                self._stream_formatter
-            ),
-        }
-
     def _set_file_handler(self, filename, level, formatter):
         fh = logging.FileHandler(filename)
         fh.setLevel(level)
@@ -56,3 +42,17 @@ class Logger:
         sh.setFormatter(formatter)
 
         return sh
+
+    @property
+    def handlers(self):
+        return {
+            'file_handler': self._set_file_handler(
+                self.dest,
+                self.level,
+                self._file_formatter
+            ),
+            'stream_handler': self._set_stream_handler(
+                logging.DEBUG,
+                self._stream_formatter
+            ),
+        }

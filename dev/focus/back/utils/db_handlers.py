@@ -52,19 +52,45 @@ def _create_schema(cursor):
 
 
 def init_db(filename):
+    """Инициализировать БД SQLite3 с именем :str filename:.
+
+    Создать схему с таблицами:
+    1) config — локальная конфигурация устройства;
+    2) events — все зарегистрированные события;
+    3) gpio_status — текущее состояние компонентов устройства;
+    4) gpio_status_archive — история состояний компонентов за всё время.
+
+    Схема создаётся единожды при самом первом запуске устройства.
+    Это обеспечивается проверкой наличия указанных таблиц в БД путём
+    соответствующих SQL-запросов.
+
+    Возвратить объект соединения с БД, в противном случае вывести сообщение об
+    ошибке.
+    """
+
     try:
         conn = sqlite3.connect(filename)
         print(sqlite3.version)
 
         cursor = conn.cursor()
         _create_schema(cursor)
+        cursor.close()
     except Error as e:
-        print('Ошибка в настройке БД!', e, sep='\n\n')
+        print('Ошибка в настройке базы данных!', e, sep='\n\n')
     else:
         return conn
 
 
 def set_config(conn, config):
+    """Загрузить настройки по умолчанию в таблицу конфигурации.
+
+    Параметры:
+        :object conn: — объект соединения с БД;
+        :dict config: — словарь конфигурации оборудования.
+
+    Вернуть объект соединения с БД.
+    """
+
     device = config['device']
     broker = device['broker']
     temperature = device['temp']
@@ -92,8 +118,18 @@ def set_config(conn, config):
 
 
 def fill_table(conn, tablename, data):
+    """Заполнить таблицу указанными значениями.
+
+    Параметры:
+        :object conn: — объект соединения с БД;
+        :str tablename: — название целевой таблицы;
+        :list, tuple data: — упорядоченная коллекция данных для заполнения.
+
+    Вернуть объект соединения с БД.
+    """
     cursor = conn.cursor()
     cursor.execute(_SQL[tablename], data)
+    cursor.close()
 
     return conn
 

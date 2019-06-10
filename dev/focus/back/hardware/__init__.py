@@ -1,9 +1,12 @@
+import os
 import yaml
 
 from . import (FocusLED, FocusReceptor, FocusSocket,
                FocusSocketControl, FocusTemperature)
-from ..utils import CONFIG_FILE, LOG_FILE, init_db, log_and_report, set_config
 from ..logger import Logger
+from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
+from ..utils.db_handlers import init_db, set_config
+from ..utils.messaging_tools import log_and_report
 
 
 class Hardware:
@@ -27,10 +30,12 @@ class Hardware:
 
             raise
 
-        self.conn = init_db('focus.db')
+        # Инициализация локальной БД для записи необходимой информации и
+        # управления устройством.
+        self.conn = init_db(DB_FILE)
         set_config(self.conn, self.config)
-        self.conn.close()
 
+        # Создание словаря компонентов с именами классов в качестве значений.
         self.make_units_dict()
 
     def get_config(self, config_file):
@@ -51,9 +56,9 @@ class Hardware:
         self.units = {}
 
         for group in self.config['units']:
-            self.units[group] = self.set_context(self.config['units'][group])
+            self.units[group] = self._set_context(self.config['units'][group])
 
-    def set_context(self, group):
+    def _set_context(self, group):
         """Установить контекст для компонентов единой группы."""
 
         group.pop('description', 'Нет описания')
@@ -83,7 +88,7 @@ class Hardware:
     def complects(self):
         """Комплекты [Гнездо — Контроль состояния]."""
 
-        return self.units['outs']
+        return self.units['couts']
 
     @property
     def temperature(self):

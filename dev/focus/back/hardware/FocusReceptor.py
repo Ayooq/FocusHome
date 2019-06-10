@@ -1,7 +1,7 @@
 from gpiozero import Button
 
 from .BaseUnit import BaseUnit
-from ..utils import log_and_report
+from ..utils.messaging_tools import log_and_report
 
 
 class FocusReceptor(BaseUnit):
@@ -18,10 +18,6 @@ class FocusReceptor(BaseUnit):
         self.unit.when_pressed = func1
         self.unit.when_released = func2
 
-    @property
-    def state(self):
-        return self.unit.is_pressed
-
     def on(self):
         """Замкнуть цепь на приём сигнала."""
 
@@ -37,3 +33,7 @@ class FocusReceptor(BaseUnit):
             self.lock = False
 
             log_and_report(self, 'отключён')
+
+    @property
+    def state(self):
+        return self.unit.is_pressed

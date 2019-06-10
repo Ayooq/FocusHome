@@ -26,14 +26,15 @@ class Reporter(Report):
     def __init__(self, ident):
         self._publisher = str(ident)
         self._callbacks = {}
+
         super().__init__()
 
     def register(self, subscriber, callback):
         """Зарегистрировать подписчика с указанной функцией оповещения в словаре рассылки.
 
         Параметры:
-        \t:param subscriber: уникальное имя подписчика.
-        \t:param callback: функция оповещения подписчика.
+            :param subscriber: — уникальное имя подписчика;
+            :param callback: — функция оповещения подписчика.
         """
 
         self._callbacks[subscriber] = callback
@@ -42,7 +43,7 @@ class Reporter(Report):
         """Удалить подписчика из словаря рассылки.
 
         Параметры:
-        \t:param subscriber: уникальное имя подписчика.
+            :param subscriber: — уникальное имя подписчика.
         """
 
         del self._callbacks[subscriber]
@@ -54,11 +55,14 @@ class Reporter(Report):
             self._send(self, subscriber)
 
     def _send(self, report, subscriber):
-        """Отправить подготовленный отчёт подписчику.
+        """Отправить отчёт подписчику.
 
         Параметры:
-        \t:param report: подготовленый отчёт.
-        \t:param subscriber: уникальное имя подписчика.
+            :param report: — подготовленый отчёт;
+            :param subscriber: — уникальное имя подписчика.
+
+        Возвратить функцию-обработчик для подписчика либо
+        осуществить тестовый вывод отчёта на экран при ошибке.
         """
 
         addr = Address(self._publisher, subscriber)

@@ -1,7 +1,7 @@
 class Content(dict):
     """Структура содержимого для сообщений."""
 
-    _subkeys = (
+    subkeys = (
         'msg_type',
         'msg_body',
     )
@@ -9,7 +9,7 @@ class Content(dict):
     def __init__(self):
         super().__init__()
 
-        for key in Content._subkeys:
+        for key in Content.subkeys:
             self.setdefault(key)
 
     def inscribe(self, msg_type, msg_body):

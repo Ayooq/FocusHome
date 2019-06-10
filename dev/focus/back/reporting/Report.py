@@ -23,6 +23,6 @@ class Report(Message):
         self._formalize('error', msg_body)
         return self
 
-    def set_type(self, msg_type, msg_body):
+    def _set_type(self, msg_type, msg_body):
         self._formalize(msg_type, msg_body)
         return self

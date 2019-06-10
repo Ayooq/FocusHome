@@ -96,7 +96,7 @@ units:
 
   couts: &u3
     description: Комплекты [Гнездо — Контроль состояния]
-    class: FocusComplect
+    class: FocusSocketControl
     cmp1:
       out: *o1
       cnt: *c1

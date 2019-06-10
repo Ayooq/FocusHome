@@ -34,10 +34,6 @@ class FocusSocketControl:
             self.description,
         )
 
-    @property
-    def state(self):
-        return(self.socket.state, self.control.state)
-
     def on(self):
         """Включить гнездо."""
 
@@ -51,3 +47,7 @@ class FocusSocketControl:
         if self.control.lock and self.socket.state:
             self.control.lock = False
             self.socket.off()
+
+    @property
+    def state(self):
+        return(self.socket.state, self.control.state)

@@ -12,19 +12,6 @@ class FocusLED(BaseUnit):
     def __init__(self, **kwargs):
         super().__init__(unit=LED, **kwargs)
 
-    @property
-    def state(self):
-        return self.unit.is_lit
-
-    def set_state(self, value):
-        if value in ('ON', 'on', 'Вкл', 'вкл', 'Включить', 'включить', 1):
-            self.on()
-        else:
-            self.off()
-
-    def blink(self, *args, **kwargs):
-        self.unit.blink(*args, **kwargs)
-
     def on(self):
         """Зажечь индикатор."""
 
@@ -39,3 +26,22 @@ class FocusLED(BaseUnit):
         """Изменить состояние индикатора."""
 
         self.unit.toggle()
+
+    def blink(self, *args, **kwargs):
+        self.unit.blink(*args, **kwargs)
+
+    def _get_state(self):
+        return self.unit.is_lit
+
+    def _set_state(self, value):
+        if value == 1 or str(value.lower()) in ('on', 'вкл', 'включить'):
+            self.on()
+        else:
+            self.off()
+
+    @property
+    def state(self, value=None):
+        if value:
+            self._set_state(value)
+
+        return self._get_state()
