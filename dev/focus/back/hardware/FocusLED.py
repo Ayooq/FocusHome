@@ -23,11 +23,13 @@ class FocusLED(BaseUnit):
         self.unit.off()
 
     def toggle(self):
-        """Изменить состояние индикатора."""
+        """Изменить состояние индикатора на противоположное."""
 
         self.unit.toggle()
 
     def blink(self, *args, **kwargs):
+        """Прокси для метода моргания у класса LED."""
+
         self.unit.blink(*args, **kwargs)
 
     def _get_state(self):

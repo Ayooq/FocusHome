@@ -8,7 +8,7 @@ def _report(instance, msg_type, msg_body):
     if msg_type:
         instance.reporter._set_type(msg_type, msg_body).report()
     else:
-        instance.reporter.event(instance.description, msg_body).report()
+        instance.reporter.event(msg_body).report()
 
 
 def log_and_report(instance, msg_body, msg_type=None):

@@ -73,29 +73,26 @@ fields:
     pin: 9
     description: Контроль напряжения устройства
 
-  reblck: &r
+  block: &b
     pin: 11
-    description: Блокировка выходов при перезагрузке
+    description: Блокировка состояния выходов при перезагрузке
 
 # Раскладка в группы по функциональности:
 units:
   leds: &u1
-    description: Индикаторы
     class: FocusLED
     led1: *l1
     led2: *l2
 
   ins: &u2
-    description: Входы
     class: FocusReceptor
-    input1: *i1
-    input2: *i2
-    input3: *i3
-    input4: *i4
-    input5: *i5
+    in1: *i1
+    in2: *i2
+    in3: *i3
+    in4: *i4
+    in5: *i5
 
   couts: &u3
-    description: Комплекты [Гнездо — Контроль состояния]
     class: FocusSocketControl
     cmp1:
       out: *o1
@@ -111,7 +108,6 @@ units:
       cnt: *c4
 
   temp: &u4
-    description: Температура
     class: FocusTemperature
     cpu: &t1
       description: ЦПУ FocusPro
@@ -127,8 +123,7 @@ units:
       threshold: 50.0
       hysteresis: 0.7
       timedelta: 45
-  # misc: &u5
-  #   description: Дополнительные компоненты
-  #   class: GPIODevice
-  #   volt: *v
-  #   reblck: *r
+
+  misc: &u5
+    volt: *v
+    # block: *b

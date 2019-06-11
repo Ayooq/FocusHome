@@ -18,27 +18,24 @@ class Connector(Hardware):
     def __init__(self, **kwargs):
         super().__init__()
 
+        self.reporter = Reporter(self.ident)
+        msg_body = 'Запуск %s' % self.ident
+        log_and_report(self, msg_body, msg_type='info')
+
+        self.register_units(self._blink, self._report_on_topic)
+        self.define_broker(**self.config['device']['broker'])
+        self.is_connected = False
         self.description = self.config['device']['description']
 
-        self.set_broker(**self.config['device']['broker'])
-
-        self.client_id = kwargs.pop('id', str(self.ident))
-        self.client = mqtt.Client(self.client_id, False)
-
-        # Регистрация функций обработки.
+        self.client = mqtt.Client(self.ident, False)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
 
-        self.reporter = Reporter(self.ident)
-
-        self.register_units(self._blink, self._report_on_topic)
         # Зарегистрировать само устройство для рапортирования о своём текущем статусе.
         # register(self, 'alive', self.report_on_topic)
 
         # self.service = Worker(self.connection_maintenance)
         # Worker(self.ping)
-
-        log_and_report(self, 'Запуск %s' % self.ident, msg_type='info')
 
         while not self.is_connected:
             try:
@@ -52,17 +49,14 @@ class Connector(Hardware):
 
                 sleep(3)
 
-    @property
-    def ident(self):
-        return self.config['device']['id']
+        self.client.loop_start()
 
-    def set_broker(self, **kwargs):
+    def define_broker(self, **kwargs):
         """Установить параметры посредника."""
 
         self.broker = kwargs.pop('host', '89.223.27.69')
         self.port = kwargs.pop('port', 1883)
         self.keepalive = kwargs.pop('keepalive', 60)
-        self.is_connected = False
 
     def on_connect(self, client, userdata, flags, rc):
         """Обработка подключения.
@@ -91,10 +85,7 @@ class Connector(Hardware):
             log_and_report(self, msg_body, msg_type='info')
 
             # Подписка на акции.
-            self.client.subscribe(self.ident + '/action/#', qos=2)
-
-            # Вывести соединение в отдельный поток и слушать события.
-            self.client.loop_start()
+            self.client.subscribe(self.ident + '/action/#', qos=1)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -197,7 +188,7 @@ class Connector(Hardware):
         payload = report['report']['body']
 
         self.units['leds']['led1'].on()
-        self.client.publish(topic, payload, qos=2, retain=True)
+        self.client.publish(topic, payload, qos=1, retain=True)
         self.units['leds']['led1'].off()
 
     # def connection_maintenance(self):
@@ -234,3 +225,7 @@ class Connector(Hardware):
     # def disconnect(self):
     #     self.service.quit()
     #     self.client.disconnect()
+
+    @property
+    def ident(self):
+        return self.config['device']['id']

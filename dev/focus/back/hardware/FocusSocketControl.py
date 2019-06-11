@@ -9,44 +9,41 @@ class FocusSocketControl:
     """Комплект [Гнездо — Контроль состояния]."""
 
     def __init__(self, **kwargs):
-        self.ident = kwargs.pop('ident')
-        self.description = kwargs.pop(
-            'description', 'Комплект %s' % self.ident[-1])
+        self.id = kwargs.pop('id')
+        self.description = kwargs.pop('description', None)
 
-        kout = kwargs.pop('out')
-        kout['ident'] = self.ident + '/out'
+        out = kwargs.pop('out')
+        out['id'] = self.id + '/out'
 
-        kcnt = kwargs.pop('cnt')
-        kcnt['ident'] = self.ident + '/cnt'
+        cnt = kwargs.pop('cnt')
+        cnt['id'] = self.id + '/cnt'
 
-        self.socket = FocusSocket(**kout)
-        self.control = FocusReceptor(**kcnt)
+        self.socket = FocusSocket(**out)
+        self.control = FocusReceptor(**cnt)
 
         self.logger = logging.getLogger('FocusPro.%s' % __name__)
-        self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
+        self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
-        self.reporter = Reporter(self.ident)
+        self.reporter = Reporter(self.id)
 
     def __repr__(self):
         return '%s (id=%r, description=%r)' % (
             self.__class__.__name__,
-            self.ident,
+            self.id,
             self.description,
         )
 
     def on(self):
-        """Включить гнездо."""
+        """Включить контроль."""
 
-        if not self.control.lock and not self.socket.state:
-            self.control.lock = True
-            self.socket.on()
+        if self.socket.state:
+            self.control.on()
 
     def off(self):
-        """Отключить гнездо."""
+        """Отключить контроль."""
 
-        if self.control.lock and self.socket.state:
-            self.control.lock = False
-            self.socket.off()
+        if not self.socket.state:
+            self.control.off()
 
     @property
     def state(self):

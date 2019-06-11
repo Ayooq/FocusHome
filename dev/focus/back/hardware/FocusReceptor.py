@@ -7,32 +7,26 @@ from ..utils.messaging_tools import log_and_report
 class FocusReceptor(BaseUnit):
     """Концевой датчик (входной рецептор)."""
 
-    def __init__(self, external_callbacks=False, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(unit=Button, **kwargs)
+
         self.lock = True
-
-        if not external_callbacks:
-            self.add_callbacks(self.on, self.off)
-
-    def add_callbacks(self, func1, func2):
-        self.unit.when_pressed = func1
-        self.unit.when_released = func2
+        self.unit.when_pressed = self.on
+        self.unit.when_released = self.off
 
     def on(self):
         """Замкнуть цепь на приём сигнала."""
 
-        if not self.lock and self.state:
+        if not self.lock:
             self.lock = True
-
-            log_and_report(self, 'включён')
+            log_and_report(self, 'включён.')
 
     def off(self):
         """Разомкнуть цепь подачи сигнала."""
 
-        if self.lock and not self.state:
+        if self.lock:
             self.lock = False
-
-            log_and_report(self, 'отключён')
+            log_and_report(self, 'отключён.')
 
     @property
     def state(self):

@@ -1,33 +1,29 @@
 import logging
 
+from gpiozero import InternalDevice
+
 from ..reporting import Reporter
 
 
 class BaseUnit:
     """Базовый класс для устройств GPIO."""
 
-    def __init__(self, unit=None, **kwargs):
+    def __init__(self, unit=InternalDevice, **kwargs):
+        self.id = kwargs.pop('id')
         self.pin = kwargs.pop('pin')
-        self.ident = kwargs.pop('ident')
+        self.unit = unit(self.pin, **kwargs)
         self.description = kwargs.pop('description', None)
 
-        try:
-            self.unit = unit(self.pin, **kwargs)
-        except:
-            print(
-                'Компонент не установлен! Необходимо указать класс компонента библиотеки gpiozero.')
-            raise
-
         self.logger = logging.getLogger('FocusPro.%s' % __name__)
-        self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
+        self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
-        self.reporter = Reporter(self.ident)
+        self.reporter = Reporter(self.id)
 
     def __repr__(self):
-        return '%s (%r, pin=%r, id=%r, description=%r)' % (
+        return '%s (id=%r, pin=%r, unit=%r, description=%r)' % (
             self.__class__.__name__,
-            self.unit,
+            self.id,
             self.pin,
-            self.ident,
+            self.unit,
             self.description,
         )

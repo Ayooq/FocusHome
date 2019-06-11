@@ -1,8 +1,11 @@
 import os
 import yaml
 
-from . import (FocusLED, FocusReceptor, FocusSocket,
-               FocusSocketControl, FocusTemperature)
+from .FocusSocket import FocusSocket, FocusLED
+from .FocusReceptor import FocusReceptor, BaseUnit
+from .FocusSocketControl import FocusSocketControl
+from .FocusTemperature import FocusTemperature
+from .FocusVoltage import FocusVoltage
 from ..logger import Logger
 from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
 from ..utils.db_handlers import init_db, set_config
@@ -61,14 +64,15 @@ class Hardware:
     def _set_context(self, group):
         """Установить контекст для компонентов единой группы."""
 
-        group.pop('description', 'Нет описания')
+        interface = eval(group.pop('class', None))
 
-        try:
-            component = eval(group.pop('class', None))
-            ctx = {unit: component(
-                ident=unit, **group[unit]) for unit in group}
-        except Exception:
-            raise
+        if interface:
+            ctx = {unit: interface(id=unit, **group[unit]) for unit in group}
+        else:
+            ctx = {
+                'volt': FocusVoltage(id='volt', **group['volt']),
+                # 'block': FocusBlockage(id='block', **group['block']),
+            }
 
         return ctx
 
@@ -95,3 +99,9 @@ class Hardware:
         """Температура."""
 
         return self.units['temp']
+
+    @property
+    def misc(self):
+        """Дополнительные компоненты."""
+
+        return self.units['misc']

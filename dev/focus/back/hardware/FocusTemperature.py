@@ -13,11 +13,11 @@ class FocusTemperature(CPUTemperature):
     """Датчик температуры."""
 
     def __init__(self, **kwargs):
-        self.ident = kwargs.pop('ident')
+        self.id = kwargs.pop('id')
         self.description = kwargs.pop('description', None)
 
         self.kwargs_ = {
-            'sensor_file': self.sensor_file,
+            'sensor_file': get_sensor_file(),
             'min_temp': self.config['min'],
             'max_temp': self.config['max'],
             'threshold': self.config['threshold'],
@@ -28,9 +28,9 @@ class FocusTemperature(CPUTemperature):
         self.timedelta = kwargs.pop('timedelta', 60)
 
         self.logger = logging.getLogger('FocusPro.%s' % __name__)
-        self.logger.debug('Подготовка %s [%s]', self.ident, repr(self))
+        self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
-        self.reporter = Reporter(self.ident)
+        self.reporter = Reporter(self.id)
 
         self.service = Worker(self.state_monitor)
 
@@ -54,24 +54,20 @@ class FocusTemperature(CPUTemperature):
             self._tick -= 1
 
             if not self._tick:
-                log_and_report(self, self.msg_body, msg_type='info')
+                log_and_report(self, self.state, msg_type='info')
                 self._tick += self.timedelta
 
             if self.is_active and not self._exceeded:
-                log_and_report(self, self.msg_body, msg_type='warning')
+                log_and_report(self, self.state, msg_type='warning')
                 self._exceeded = True
             elif self._exceeded and not self.is_active:
-                log_and_report(self, self.msg_body)
+                log_and_report(self, self.state)
                 self._exceeded = False
-
-    @property
-    def sensor_file(self):
-        return get_sensor_file()
 
     @property
     def is_active(self):
         return self.hysteresis < abs(self.temperature - self.threshold)
 
     @property
-    def msg_body(self):
-        return '%s °C' % self.temperature
+    def state(self):
+        return '%s °C.' % self.temperature
