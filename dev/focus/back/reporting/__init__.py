@@ -16,18 +16,18 @@ _______________________________
 
 import json
 
-from .Report import Report
+from .Message import Message
 from .Address import Address
 
 
-class Reporter(Report):
-    """Модель отчёта от имени указанного устройства либо его компонента."""
+class Reporter(Message):
+    """Модель отчёта от имени экземпляра устройства либо его компонента."""
 
-    def __init__(self, ident):
+    def __init__(self, ident, mode='report'):
         self._publisher = str(ident)
         self._callbacks = {}
 
-        super().__init__()
+        super().__init__(mode)
 
     def register(self, subscriber, callback):
         """Зарегистрировать подписчика с указанной функцией оповещения в словаре рассылки.

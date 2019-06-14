@@ -1,6 +1,3 @@
-from datetime import datetime
-
-
 class Address(dict):
     """Адресация сообщений."""
 
@@ -10,8 +7,5 @@ class Address(dict):
         self['from'] = sender
         self['to'] = receiver
 
-        now = datetime.today()
-        self['date'] = now.strftime('%Y%m%d%H%M%S')
-
     def get(self, report):
-        return (report.get('from', 'system'), report.get('to', 'anymsg_body'))
+        return (report.get('from', 'system'), report.get('to', 'anybody'))

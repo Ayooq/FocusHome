@@ -1,6 +1,6 @@
 # Общие параметры
 device:
-  id: focusPrototype
+  id: FP
   description: Prototype
   broker:
     host: 89.223.27.69
@@ -116,7 +116,7 @@ units:
       threshold: 80.0
       hysteresis: 0.9
       timedelta: 60
-    bnk: &t2
+    ext: &t2
       description: внутри банкомата
       min: 10.0
       max: 80.0

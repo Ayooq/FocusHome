@@ -1,4 +1,5 @@
 from .BaseUnit import BaseUnit
+from ..utils.db_handlers import fill_table
 from ..utils.messaging_tools import log_and_report
 
 
@@ -14,15 +15,13 @@ class FocusVoltage(BaseUnit):
     def on(self):
         """Напряжение подаётся."""
 
-        log_and_report(self, 'в норме.')
+        log_and_report(self, 'в норме')
 
     def off(self):
         """Напряжение пропало."""
 
-        log_and_report(self, 'не подаётся.', msg_type='warning')
+        log_and_report(self, 'не подаётся', msg_type='warning')
 
     @property
-    def gpio(self):
-        """asdas."""
-
-        return self.unit
+    def state(self):
+        return self.unit.value

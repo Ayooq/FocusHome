@@ -5,7 +5,7 @@ from focus.back import Connector
 
 app = Flask(__name__)
 
-conn = Connector()
-device = conn.config['device']
+c = Connector()
+device = c.config['device']
 
 from . import views, models

@@ -1,54 +1,6 @@
 import sqlite3
 from sqlite3 import Error
-
-
-def _create_schema(cursor):
-    cursor.execute(
-        '''CREATE TABLE IF NOT EXISTS config
-                  (device TEXT NOT NULL UNIQUE,
-                  broker_host TEXT NOT NULL,
-                  broker_port INTEGER,
-                  keepalive INTEGER NOT NULL CHECK(keepalive > 3),
-                  cpu_min REAL NOT NULL CHECK(cpu_min > 0.1),
-                  cpu_max REAL NOT NULL CHECK(cpu_max < 199.9),
-                  cpu_threshold REAL NOT NULL,
-                  cpu_hysteresis REAL,
-                  cpu_timedelta REAL NOT NULL CHECK(cpu_timedelta >= 10),
-                  board_min REAL CHECK(board_min > 0),
-                  board_max REAL CHECK(board_max < 200),
-                  board_threshold REAL NOT NULL,
-                  board_hysteresis REAL,
-                  board_timedelta REAL NOT NULL CHECK(board_timedelta >= 10));
-                  
-           CREATE TABLE IF NOT EXISTS events
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  type TEXT,
-                  device TEXT,
-                  group TEXT,
-                  unit TEXT,
-                  msg TEXT);
-                  
-           CREATE TABLE IF NOT EXISTS gpio_status
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  device TEXT,
-                  pin INTEGER UNIQUE,
-                  group TEXT,
-                  internal_name TEXT,
-                  verbose_name TEXT,
-                  state TEXT);
-
-           CREATE TABLE IF NOT EXISTS gpio_status_archive
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  device TEXT,
-                  pin INTEGER,
-                  group TEXT,
-                  internal_name TEXT,
-                  verbose_name TEXT,
-                  state TEXT);'''
-    )
+from datetime import datetime
 
 
 def init_db(filename):
@@ -81,12 +33,58 @@ def init_db(filename):
         return conn
 
 
+def _create_schema(cursor):
+    cursor.execute(
+        '''CREATE TABLE IF NOT EXISTS config
+                  (device_id TEXT NOT NULL UNIQUE,
+                  broker_host TEXT NOT NULL,
+                  broker_port INTEGER,
+                  keep_alive INTEGER NOT NULL CHECK(keep_alive > 3),
+                  cpu_min REAL NOT NULL CHECK(cpu_min > 0.1),
+                  cpu_max REAL NOT NULL CHECK(cpu_max < 199.9),
+                  cpu_threshold REAL NOT NULL,
+                  cpu_hysteresis REAL,
+                  cpu_timedelta REAL NOT NULL,
+                  external_min REAL CHECK(external_min > 0),
+                  external_max REAL CHECK(external_max < 200),
+                  external_threshold REAL NOT NULL,
+                  external_hysteresis REAL,
+                  external_timedelta REAL NOT NULL);
+                  
+           CREATE TABLE IF NOT EXISTS events
+                  (id INTEGER PRIMARY KEY,
+                  timestamp TEXT,
+                  type TEXT,
+                  family TEXT,
+                  unit TEXT,
+                  message TEXT);
+                  
+           CREATE TABLE IF NOT EXISTS gpio_status
+                  (id INTEGER PRIMARY KEY,
+                  timestamp TEXT,
+                  pin INTEGER UNIQUE,
+                  family TEXT,
+                  internal_name TEXT,
+                  verbose_name TEXT,
+                  state TEXT);
+
+           CREATE TABLE IF NOT EXISTS gpio_status_archive
+                  (id INTEGER PRIMARY KEY,
+                  timestamp TEXT,
+                  pin INTEGER UNIQUE,
+                  family TEXT,
+                  internal_name TEXT,
+                  verbose_name TEXT,
+                  state TEXT);'''
+    )
+
+
 def set_config(conn, config):
     """Загрузить настройки по умолчанию в таблицу конфигурации.
 
     Параметры:
-        :object conn: — объект соединения с БД;
-        :dict config: — словарь конфигурации оборудования.
+        :param conn: — объект соединения с БД;
+        :param config: — словарь конфигурации оборудования.
 
     Вернуть объект соединения с БД.
     """
@@ -95,7 +93,7 @@ def set_config(conn, config):
     broker = device['broker']
     temperature = device['temp']
     cpu = temperature['cpu']
-    board = temperature['bnk']
+    external = temperature['ext']
 
     data = (
         device['id'],
@@ -107,23 +105,41 @@ def set_config(conn, config):
         cpu['threshold'],
         cpu['hysteresis'],
         cpu['timedelta'],
-        board['min'],
-        board['max'],
-        board['threshold'],
-        board['hysteresis'],
-        board['timedelta'],
+        external['min'],
+        external['max'],
+        external['threshold'],
+        external['hysteresis'],
+        external['timedelta'],
     )
 
     return fill_table(conn, 'config', data)
+
+
+def set_gpio_status(conn, family):
+    """Записать текущее состояние всех компонентов единого семейства.
+
+    Параметры:
+        :param conn: — объект соединения с БД;
+        :param family: — название семейства компонентов.
+
+    Вернуть объект соединения с БД.
+    """
+
+    timestamp = datetime.now().isoformat(sep=' ')
+
+    for unit in family:
+        tabledata = [timestamp, unit.pin, family, unit.id,
+                     unit.description, str(unit.state)]
+        fill_table(conn, 'gpio_status', tabledata)
 
 
 def fill_table(conn, tablename, data):
     """Заполнить таблицу указанными значениями.
 
     Параметры:
-        :object conn: — объект соединения с БД;
-        :str tablename: — название целевой таблицы;
-        :list, tuple data: — упорядоченная коллекция данных для заполнения.
+        :param conn: — объект соединения с БД;
+        :param tablename: — название целевой таблицы;
+        :param data: — упорядоченная коллекция данных для заполнения.
 
     Вернуть объект соединения с БД.
     """
@@ -136,22 +152,23 @@ def fill_table(conn, tablename, data):
 
 _SQL = {
     'config': '''INSERT INTO config
-                        (device, keepalive, broker_host, broker_port,
+                        (device_id, broker_host, broker_port, keep_alive,
                         cpu_min, cpu_max, cpu_threshold, cpu_hysteresis,
-                        cpu_timedelta, board_min, board_max,
-                        board_threshold, board_hysteresis, board_timedelta)
+                        cpu_timedelta, external_min, external_max,
+                        external_threshold, external_hysteresis,
+                        external_timedelta)
+                        
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
-    'events': '''INSERT INTO events(timestamp, type, device, group, unit, msg)
-                 VALUES (?, ?, ?, ?, ?, ?);''',
+    'events': '''INSERT INTO events
+                        (timestamp, type, family, unit, message)
+                 VALUES (?, ?, ?, ?, ?);''',
 
     'gpio_status': '''REPLACE INTO gpio_status
-                              (timestamp, device, pin, group,
-                              internal_name, verbose_name, state)
-                       VALUES (?, ?, ?, ?, ?, ?, ?);''',
+                              (timestamp, pin, family, internal_name,verbose_name, state)
+                       VALUES (?, ?, ?, ?, ?, ?);''',
 
     'gpio_status_archive': '''INSERT INTO gpio_status_archive
-                                     (timestamp, device, pin, group,
-                                     internal_name, verbose_name, state)
-                              VALUES (?, ?, ?, ?, ?, ?, ?);''',
+                                     (timestamp, pin, family, internal_name,verbose_name, state)
+                              VALUES (?, ?, ?, ?, ?, ?);''',
 }

@@ -1,5 +1,6 @@
 import os
 import yaml
+from datetime import datetime
 
 from .FocusSocket import FocusSocket, FocusLED
 from .FocusReceptor import FocusReceptor, BaseUnit
@@ -8,7 +9,7 @@ from .FocusTemperature import FocusTemperature
 from .FocusVoltage import FocusVoltage
 from ..logger import Logger
 from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
-from ..utils.db_handlers import init_db, set_config
+from ..utils.db_handlers import init_db, set_config, set_gpio_status
 from ..utils.messaging_tools import log_and_report
 
 
@@ -26,20 +27,23 @@ class Hardware:
         # Заполнение словаря конфигурации на основе переданного файла.
         try:
             self.config = self.get_config(config_file)
-        except Exception as e:
-            msg_body = 'Ошибка в конфигурировании оборудования! [%s] [%s]' % (
-                config_file, e)
+            self.id = self.config['device']['id']
+        except:
+            msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
             log_and_report(self, msg_body, msg_type='error')
 
             raise
+
+        # Создание словаря компонентов с именами классов в качестве значений.
+        self.make_units_dict()
 
         # Инициализация локальной БД для записи необходимой информации и
         # управления устройством.
         self.conn = init_db(DB_FILE)
         set_config(self.conn, self.config)
 
-        # Создание словаря компонентов с именами классов в качестве значений.
-        self.make_units_dict()
+        for family in self.units:
+            set_gpio_status(self.conn, 'gpio_status', family)
 
     def get_config(self, config_file):
         """Загрузка описателя оборудования из файла конфигурации.
@@ -61,17 +65,17 @@ class Hardware:
         for group in self.config['units']:
             self.units[group] = self._set_context(self.config['units'][group])
 
-    def _set_context(self, group):
+    def _set_context(self, family):
         """Установить контекст для компонентов единой группы."""
 
-        interface = eval(group.pop('class', None))
+        interface = eval(family.pop('class', None))
 
         if interface:
-            ctx = {unit: interface(id=unit, **group[unit]) for unit in group}
+            ctx = {unit: interface(id=unit, **family[unit]) for unit in family}
         else:
             ctx = {
-                'volt': FocusVoltage(id='volt', **group['volt']),
-                # 'block': FocusBlockage(id='block', **group['block']),
+                'volt': FocusVoltage(id='volt', **family['volt']),
+                # 'block': FocusBlockage(id='block', **family['block']),
             }
 
         return ctx
