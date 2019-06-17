@@ -115,22 +115,23 @@ def set_config(conn, config):
     return fill_table(conn, 'config', data)
 
 
-def set_gpio_status(conn, family):
+def set_initial_gpio_status(cursor, family):
     """Записать текущее состояние всех компонентов единого семейства.
 
     Параметры:
-        :param conn: — объект соединения с БД;
+        :param cursor: — объект указателя БД;
         :param family: — название семейства компонентов.
-
-    Вернуть объект соединения с БД.
     """
 
     timestamp = datetime.now().isoformat(sep=' ')
 
-    for unit in family:
-        tabledata = [timestamp, unit.pin, family, unit.id,
-                     unit.description, str(unit.state)]
-        fill_table(conn, 'gpio_status', tabledata)
+    try:
+        for unit in family:
+            tabledata = [timestamp, unit.pin, family, unit.id,
+                         unit.description, str(unit.state)]
+            cursor.execute(_SQL['gpio_status_init'], tabledata)
+    except sqlite3.IntegrityError:
+        pass
 
 
 def fill_table(conn, tablename, data):
@@ -164,11 +165,18 @@ _SQL = {
                         (timestamp, type, family, unit, message)
                  VALUES (?, ?, ?, ?, ?);''',
 
+    'gpio_status_init': '''INSERT INTO gpio_status
+                                  (timestamp, pin, family, internal_name
+                                  verbose_name, state)
+                           VALUES (?, ?, ?, ?, ?, ?);''',
+
     'gpio_status': '''REPLACE INTO gpio_status
-                              (timestamp, pin, family, internal_name,verbose_name, state)
+                              (timestamp, pin, family, internal_name
+                              verbose_name, state)
                        VALUES (?, ?, ?, ?, ?, ?);''',
 
     'gpio_status_archive': '''INSERT INTO gpio_status_archive
-                                     (timestamp, pin, family, internal_name,verbose_name, state)
+                                     (timestamp, pin, family, internal_name,
+                                     verbose_name, state)
                               VALUES (?, ?, ?, ?, ?, ?);''',
 }

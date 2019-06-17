@@ -9,7 +9,7 @@ from .FocusTemperature import FocusTemperature
 from .FocusVoltage import FocusVoltage
 from ..logger import Logger
 from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
-from ..utils.db_handlers import init_db, set_config, set_gpio_status
+from ..utils.db_handlers import init_db, set_config, set_initial_gpio_status
 from ..utils.messaging_tools import log_and_report
 
 
@@ -42,8 +42,9 @@ class Hardware:
         self.conn = init_db(DB_FILE)
         set_config(self.conn, self.config)
 
-        for family in self.units:
-            set_gpio_status(self.conn, 'gpio_status', family)
+        cursor = self.conn.cursor()
+        set_initial_gpio_status(cursor, self.units)
+        cursor.close()
 
     def get_config(self, config_file):
         """Загрузка описателя оборудования из файла конфигурации.

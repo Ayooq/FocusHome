@@ -15,13 +15,13 @@ class FocusVoltage(BaseUnit):
     def on(self):
         """Напряжение подаётся."""
 
-        log_and_report(self, 'в норме')
+        log_and_report(self, 'вкл.')
 
     def off(self):
         """Напряжение пропало."""
 
-        log_and_report(self, 'не подаётся', msg_type='warning')
+        log_and_report(self, 'откл.', msg_type='warning')
 
     @property
     def state(self):
-        return self.unit.value
+        return self.unit.is_active
