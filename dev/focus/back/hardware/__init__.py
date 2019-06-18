@@ -20,17 +20,16 @@ class Hardware:
     """
 
     def __init__(self, config_file=CONFIG_FILE):
-
-        # Головной регистратор:
-        self.logger = Logger(LOG_FILE).instance
-
-        # Заполнение словаря конфигурации на основе переданного файла.
         try:
             self.config = self.get_config(config_file)
             self.id = self.config['device']['id']
+
+            # Головной регистратор:
+            self.logger = Logger(LOG_FILE, prefix=self.id).instance
+
         except:
             msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
-            log_and_report(self, msg_body, msg_type='error')
+            print(msg_body)
 
             raise
 
@@ -46,11 +45,14 @@ class Hardware:
         set_initial_gpio_status(cursor, self.units)
         cursor.close()
 
-    def get_config(self, config_file):
+    def get_config(self, config_file: str):
         """Загрузка описателя оборудования из файла конфигурации.
 
         Конфигурационный файл должен быть доверительно проверен!
         Ссылки на имена классов позволяют выполнять произвольный код.
+
+        Параметры:
+          :param config_file: — название конфигурационного файла.
         """
 
         with open(config_file) as f:
@@ -66,8 +68,12 @@ class Hardware:
         for group in self.config['units']:
             self.units[group] = self._set_context(self.config['units'][group])
 
-    def _set_context(self, family):
-        """Установить контекст для компонентов единой группы."""
+    def _set_context(self, family: dict):
+        """Установить контекст для компонентов единой группы.
+
+        Параметры:
+          :param family: — семейство компонентов устройства.
+        """
 
         interface = eval(family.pop('class', None))
 
@@ -80,6 +86,10 @@ class Hardware:
             }
 
         return ctx
+
+    @property
+    def prefix(self):
+        return self.prefix
 
     @property
     def indicators(self):

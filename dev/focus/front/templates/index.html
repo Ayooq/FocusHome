@@ -11,8 +11,38 @@
 
     </div>
 
+    {% if inputs %}
+      <div class="col_50">
+        <h2>Входные рецепторы</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Состояние</th>
+          </tr>
+
+          {% for unit in inputs %}
+            <tr>
+              <td>
+                <code>{{ inputs[unit].id }}</code>
+              </td>
+              <td>{{ inputs[unit].description }}</td>
+
+              {% if inputs[unit].state %}
+                <td>ВКЛ</td>
+              {% else %}
+                <td>ОТКЛ</td>
+              {% endif %}
+
+            </tr>
+          {% endfor %}
+
+        </table>
+      </div>
+    {% endif %}
+
     {% if complects %}
-      <div class="col_33">
+      <div class="col_50">
         <h2>Комплекты</h2>
         <table class="table">
           <tr>
@@ -22,17 +52,17 @@
             <th>Состояние гнезда</th>
           </tr>
 
-          {% for id in complects %}
+          {% for unit in complects %}
             <tr>
               <td>
-                <code>{{ complects[id].ident }}</code>
+                <code>{{ complects[unit].id }}</code>
               </td>
-              <td>{{ complects[id].control.description }}</td>
+              <td>{{ complects[unit].control.description }}</td>
 
-              {% if complects[id].state[1] %}
+              {% if complects[unit].state[1] %}
                 <td>Да</td>
 
-                {% if complects[id].state[0] %}
+                {% if complects[unit].state[0] %}
                   <td>Активно</td>
                 {% else %}
                   <td>Неактивно</td>
@@ -50,38 +80,8 @@
       </div>
     {% endif %}
 
-    {% if inputs %}
-      <div class="col_33">
-        <h2>Входные рецепторы</h2>
-        <table class="table">
-          <tr>
-            <th>ID</th>
-            <th>Описание</th>
-            <th>Состояние</th>
-          </tr>
-
-          {% for id in inputs %}
-            <tr>
-              <td>
-                <code>{{ inputs[id].ident }}</code>
-              </td>
-              <td>{{ inputs[id].description }}</td>
-
-              {% if inputs[id].is_active %}
-                <td>ВКЛ</td>
-              {% else %}
-                <td>ОТКЛ</td>
-              {% endif %}
-
-            </tr>
-          {% endfor %}
-
-        </table>
-      </div>
-    {% endif %}
-
     {% if temperature %}
-      <div class="col_33">
+      <div class="col_50">
         <h2>Температура</h2>
         <table class="table">
           <tr>
@@ -90,16 +90,40 @@
             <th>Величина</th>
           </tr>
 
-          {% for id in temperature %}
+          {% for unit in temperature %}
             <tr>
               <td>
-                <code>{{ temperature[id].ident }}</code>
+                <code>{{ temperature[unit].id }}</code>
               </td>
-              <td>{{ temperature[id].description }}</td>
-              <td>{{ temperature[id].temperature }} °C</td>
+              <td>{{ temperature[unit].description }}</td>
+              <td>{{ temperature[unit].state }}</td>
             </tr>
           {% endfor %}
 
+        </table>
+      </div>
+    {% endif %}
+
+    {% if misc %}
+      <div class="col-50">
+        <h2>Питание</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Состояние</th>
+          </tr>
+
+          {% for unit in misc %}
+            <tr>
+              <td>
+                <code>{{ misc[unit].id }}</code>
+              </td>
+              <td>{{ misc[unit].description }}</td>
+              <td>{{ misc[unit].state }}</td>
+            </tr>
+          {% endfor %}
+          
         </table>
       </div>
     {% endif %}

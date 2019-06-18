@@ -3,8 +3,8 @@ from sqlite3 import Error
 from datetime import datetime
 
 
-def init_db(filename):
-    """Инициализировать БД SQLite3 с именем :str filename:.
+def init_db(filename: str):
+    """Инициализировать БД SQLite3 в файле с именем :param filename:.
 
     Создать схему с таблицами:
     1) config — локальная конфигурация устройства;
@@ -79,12 +79,12 @@ def _create_schema(cursor):
     )
 
 
-def set_config(conn, config):
+def set_config(conn, config: dict):
     """Загрузить настройки по умолчанию в таблицу конфигурации.
 
     Параметры:
-        :param conn: — объект соединения с БД;
-        :param config: — словарь конфигурации оборудования.
+      :param conn: — объект соединения с БД;
+      :param config: — конфигурация оборудования в виде словаря.
 
     Вернуть объект соединения с БД.
     """
@@ -119,8 +119,8 @@ def set_initial_gpio_status(cursor, family):
     """Записать текущее состояние всех компонентов единого семейства.
 
     Параметры:
-        :param cursor: — объект указателя БД;
-        :param family: — название семейства компонентов.
+      :param cursor: — объект указателя БД;
+      :param family: — название семейства компонентов.
     """
 
     timestamp = datetime.now().isoformat(sep=' ')
@@ -128,24 +128,24 @@ def set_initial_gpio_status(cursor, family):
     try:
         for unit in family:
             tabledata = [timestamp, unit.pin, family, unit.id,
-                         unit.description, str(unit.state)]
+                         unit.description, unit.state]
             cursor.execute(_SQL['gpio_status_init'], tabledata)
     except sqlite3.IntegrityError:
         pass
 
 
-def fill_table(conn, tablename, data):
+def fill_table(conn, tablename, tabledata):
     """Заполнить таблицу указанными значениями.
 
     Параметры:
-        :param conn: — объект соединения с БД;
-        :param tablename: — название целевой таблицы;
-        :param data: — упорядоченная коллекция данных для заполнения.
+      :param conn: — объект соединения с БД;
+      :param tablename: — название целевой таблицы;
+      :param tabledata: — упорядоченная коллекция данных для заполнения.
 
     Вернуть объект соединения с БД.
     """
     cursor = conn.cursor()
-    cursor.execute(_SQL[tablename], data)
+    cursor.execute(_SQL[tablename], tabledata)
     cursor.close()
 
     return conn

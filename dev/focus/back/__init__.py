@@ -19,10 +19,11 @@ class Connector(Hardware):
     def __init__(self, **kwargs):
         super().__init__()
 
+        self.pin = None
         self.description = self.config['device']['description']
 
         self.reporter = Reporter(self.id)
-        self.register_device(self._blink, self.report_on_topic)
+        self.register_device(self.blink_on_report, self.report_on_topic)
 
         msg_body = 'запуск %s' % self.id
         log_and_report(self, msg_body, msg_type='info')
@@ -49,7 +50,7 @@ class Connector(Hardware):
             self.client.publish(**status)
 
             # Подписка на акции.
-            self.client.subscribe(self.id + '/action/#', qos=1)
+            self.client.subscribe(self.id + '/action/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -82,7 +83,7 @@ class Connector(Hardware):
         1) каждое событие регистрируется подсписчиком "blink", который
         осуществляет световую индикацию, основанную на типе события;
         2) события, связанные с взаимодействием устройства и посредника,
-        записываются на имя "client" от имени самого устройства;
+        записываются на имя "dev" от имени самого устройства;
         3) все компоненты разделяются на группы по функциональности, на имя
         которых и направляются отчёты о состоянии этих компонентов.
         """
@@ -94,7 +95,7 @@ class Connector(Hardware):
         """Зарегистрировать само устройство для рапортирования.
 
         Параметры:
-            :param callbacks: — кортеж из функций-обработчиков, которые будут
+          :param callbacks: — кортеж из функций-обработчиков, которые будут
         привязаны к экземпляру устройства.
         """
 
@@ -105,7 +106,7 @@ class Connector(Hardware):
         """Зарегистрировать все компоненты устройства для рапортирования.
 
         Параметры:
-            :param callbacks: — кортеж из функций-обработчиков, которые будут
+          :param callbacks: — кортеж из функций-обработчиков, которые будут
         привязаны к каждому компоненту устройства.
         """
 
@@ -126,8 +127,15 @@ class Connector(Hardware):
         self.keepalive = kwargs.pop('keepalive', 60)
 
     def set_status_message(self, payload, qos=0, retain=True):
-        """Вернуть объект словаря для отправки посреднику сообщения о статусе
-        устройства.
+        """Определить сообщение о статусе устройства для отправки посреднику.
+
+        Параметры:
+          :param payload: — тело сообщения в виде строки состояния;
+          :param qos: — уровень доставки сообщения посреднику, от 0 до 2;
+          :param retain: — булевый показатель сохранения сообщения в качестве
+        последнего "надёжного", выдаваемого сразу при подписке на данную тему.
+
+        Вернуть объект словаря для связывания с методом publish() клиента MQTT.
         """
 
         topic = '%s/status' % self.id
@@ -140,12 +148,12 @@ class Connector(Hardware):
         }
 
     def establish_connection(self, sec_to_wait: int):
-        """Установить содинение с посредником.
+        """Установить соединение с посредником.
 
         Делать попытки подключения до тех пор, пока связь не будет налажена.
 
         Параметры:
-            : param sec_to_wait: — время в секундах, определяющее интервал
+          :param sec_to_wait: — время в секундах, определяющее интервал
         между попытками подключения к посреднику.
         """
 
@@ -165,23 +173,24 @@ class Connector(Hardware):
 
                 sleep(sec_to_wait)
 
-    def _blink(self, msg):
+    def blink_on_report(self, msg: dict):
         """Моргать при регистрации событий.
 
         Индикация производится следующим образом:
         1) event/status — светодиод включается на секунду, затем выключается,
-        единожды;
+        однократно;
         2) info — светодиод включается на секунду, отключается на одну, дважды;
         3) warning — светодиод включается на две секунды, отключается на одну,
         трижды;
         4) error — светодиод включается на одну секунду, выключается на одну,
-        десять раз кряду.
+        десять раз подряд.
 
-        Параметры:: dict msg: — объект компонента, осуществляющего отправку отчётов
+        Параметры:
+          :param msg: — объект компонента, осуществляющего отправку отчётов
         от своего имени через реализацию словаря с данными.
         """
 
-        msg_type = msg['report']['msg_type']
+        msg_type = msg[msg.mode]['msg_type']
 
         if msg_type == 'event' or msg_type == 'status':
             self.indicators['led2'].blink(1, 1, 1)
@@ -192,46 +201,47 @@ class Connector(Hardware):
         elif msg_type == 'error':
             self.indicators['led2'].blink(1, 1, 10)
 
-    def report_on_topic(self, report: dict):
+    def report_on_topic(self, msg: dict):
         """Отправка отчёта посреднику по указанной теме.
 
         Рапортирование сопровождается световой индикацией.
 
-        Параметры:: param report: — содержание отчёта в виде словаря.
-        Если определён ключ 'status', формируется отчёт о текущем состоянии
-        устройства/компонента.
-        В противном случае, оформляется отчёт о произошедшем событии.
+        Параметры:
+          :param msg: — объект отчёта, содержащий необходимые данные
+        для формирования структуры результирующего сообщения.
         """
 
-        publish_data = self._form_publish_data(report)
-        tabledata = self._form_tabledata(report)
+        publish_data = self._form_publish_data(msg)
+        tabledata = self._form_tabledata(msg)
         publish_data['payload'] = json.dumps(tabledata)
 
         self.indicators['led1'].on()
         self.client.publish(**publish_data)
         self.indicators['led1'].off()
 
-    def _form_publish_data(self, msg):
-        """Сформировать объект с данными для отправки отчёта посреднику.
+    def _form_publish_data(self, msg: dict):
+        """Сформировать объект с данными для публикации отчёта.
 
-        Параметры:: param msg: — объект отчёта, содержащий необходимые данные
-        для формирования структуры результирующего сообщения;
+        Параметры:
+          :param msg: — объект отчёта, содержащий необходимые данные
+        для формирования структуры результирующего сообщения.
 
         Вернуть объект словаря для связывания с методом publish() клиента MQTT.
         """
 
-        msg_type = msg['report']['msg_type']
+        report = msg[msg.mode]
+        msg_type = report['msg_type']
 
         topic = '%s/%s/%s/%s/%s' % (
             self.id,
-            'report',
+            msg.mode,
             msg['to'],
             msg['from'],
             msg_type,
         )
-        payload = msg['report']['msg_body']
-        qos = msg['report']['qos']
-        retain = msg['report']['retain']
+        payload = report['msg_body']
+        qos = report['qos']
+        retain = report['retain']
 
         return {
             'topic': topic,
@@ -240,25 +250,29 @@ class Connector(Hardware):
             'retain': retain,
         }
 
-    def _form_tabledata(self, msg):
-        """Сформировать список табличных данных для отправки посреднику.
+    def _form_tabledata(self, msg: dict):
+        """Сформировать объект табличных данных для отправки посреднику.
 
-        Записать данные в локальную БД, а затем вернуть список с необходимыми
-        значениями полей для заполнения БД на хосте посредника. Список
-        формируется в соответствии с типом сообщения.
+        Записать данные в локальную БД, а затем вернуть объект словаря с
+        необходимыми значениями полей для заполнения БД на хосте посредника.
 
         Параметры:
-            :param report: — объект сообщения для посредника.
+          :param msg: — объект отчёта, содержащий необходимые данные
+        для формирования структуры результирующего сообщения.
         """
 
         timestamp = datetime.now().isoformat(sep=' ')
-        msg_type = msg['report']['msg_type']
-        msg_body = msg['report']['msg_body']
         tabledata = {}
 
+        report = msg[msg.mode]
+        msg_type = report['msg_type']
+        msg_body = report['msg_body']
+        pin = report['gpio'][0]
+        description = report['gpio'][1]
+
         if self.id != msg['from']:
-            status_data = [timestamp, msg.pin, msg['to'],
-                           msg['from'], msg.description, msg_body]
+            status_data = [timestamp, pin, msg['to'],
+                           msg['from'], description, msg_body]
 
             fill_table(self.conn, 'gpio_status', status_data)
             fill_table(self.conn, 'gpio_status_archive', status_data)

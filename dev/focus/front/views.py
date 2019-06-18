@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for
 
-from . import app, conn
+from . import app, c
 from .models import get_data, get_log
 
 
@@ -21,12 +21,12 @@ def control():
     return render_template('control.html', **data)
 
 
-@app.route('/control/<ident>/<action>')
-def action(ident, action):
-    units = conn.complects
+@app.route('/control/<id_>/<action>')
+def action(id_, action):
+    units = c.complects
 
-    if ident in units.keys():
-        complect = units[ident]
+    if id_ in units.keys():
+        complect = units[id_]
 
         if action == 'on':
             complect.on()

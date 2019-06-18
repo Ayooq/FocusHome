@@ -17,33 +17,32 @@ _______________________________
 import json
 
 from .Message import Message
-from .Address import Address
 
 
 class Reporter(Message):
     """Модель отчёта от имени экземпляра устройства либо его компонента."""
 
-    def __init__(self, ident, mode='report'):
-        self._publisher = str(ident)
+    def __init__(self, id_, mode='report'):
+        self.id = id_
         self._callbacks = {}
 
         super().__init__(mode)
 
-    def register(self, subscriber, callback):
+    def register(self, subscriber: str, callback):
         """Зарегистрировать подписчика с указанной функцией оповещения в словаре рассылки.
 
         Параметры:
-            :param subscriber: — уникальное имя подписчика;
-            :param callback: — функция оповещения подписчика.
+          :param subscriber: — уникальное имя подписчика;
+          :param callback: — функция оповещения подписчика.
         """
 
         self._callbacks[subscriber] = callback
 
-    def unregister(self, subscriber):
+    def unregister(self, subscriber: str):
         """Удалить подписчика из словаря рассылки.
 
         Параметры:
-            :param subscriber: — уникальное имя подписчика.
+          :param subscriber: — уникальное имя подписчика.
         """
 
         del self._callbacks[subscriber]
@@ -54,18 +53,19 @@ class Reporter(Message):
         for subscriber in self._callbacks:
             self._send(self, subscriber)
 
-    def _send(self, report, subscriber):
+    def _send(self, report: dict, subscriber: str):
         """Отправить отчёт подписчику.
 
         Параметры:
-            :param report: — подготовленый отчёт;
-            :param subscriber: — уникальное имя подписчика.
+          :param report: — подготовленый отчёт;
+          :param subscriber: — уникальное имя подписчика.
 
         Возвратить функцию-обработчик для подписчика либо
         осуществить тестовый вывод отчёта на экран при ошибке.
         """
 
-        addr = Address(self._publisher, subscriber)
+        correspondents = self.id, subscriber
+        addr = zip(Reporter._mapping, correspondents)
         report.update(addr)
 
         try:
@@ -75,7 +75,13 @@ class Reporter(Message):
             self._dumper(report)
             pass
 
-    def _dumper(self, doc):
-        """Тестовый вывод."""
+    def _dumper(self, report: dict):
+        """Тестовый вывод.
 
-        print('Печатаю', json.dumps(doc))
+        Параметры:
+          :param report: — объект отчёта.
+        """
+
+        print('Печатаю', json.dumps(report))
+
+    _mapping = 'from', 'to'

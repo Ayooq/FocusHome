@@ -4,20 +4,23 @@ class Content(dict):
     def __init__(self):
         super().__init__()
 
-        for key in Content.keys:
+        for key in Content._mapping:
             self.setdefault(key)
 
-    def inscribe(self, msg_type, msg_body, qos, retain):
-        """Вписать содержимое."""
+    def inscribe(self, values: tuple):
+        """Вписать содержимое в словарь отчёта.
 
-        self['msg_type'] = msg_type
-        self['msg_body'] = msg_body
-        self['qos'] = qos
-        self['retain'] = retain
+        Параметры:
+          :param values: — кортеж из элементов, определяющих наполнение отчёта.
+        """
 
-    keys = (
+        data = zip(Content._mapping, values)
+        self.update(data)
+
+    _mapping = (
         'msg_type',
         'msg_body',
         'qos',
         'retain',
+        'gpio',
     )

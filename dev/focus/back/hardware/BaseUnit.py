@@ -2,7 +2,7 @@ import logging
 
 from gpiozero import InternalDevice
 
-from ..logger import Logger
+from . import Hardware
 from ..reporting import Reporter
 
 
@@ -15,7 +15,7 @@ class BaseUnit:
         self.unit = unit(self.pin, **kwargs)
         self.description = kwargs.pop('description', None)
 
-        self.logger = logging.getLogger('%s.%s' % (Logger.prefix, __name__))
+        self.logger = logging.getLogger('%s.%s' % (Hardware.prefix, __name__))
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)

@@ -5,21 +5,21 @@ class Worker:
     """Базовый организатор обработки данных через отдельный поток.
 
     Параметры:
-        :param service: — функция-обработчик, для исполнения которой
+      :param service: — функция-обработчик, для исполнения которой
     требуется выделение отдельного потока.
 
     Свойства:
-        receiver_thread — объект выделенного потока;
-        message_received — функция-обработчик для принятых сообщений.
+      :attr receiver_thread: — объект выделенного потока;
+      :attr message_received: — функция-обработчик для принятых сообщений.
 
     Методы:
-        set_message_callback — установить функцию-обработчик для
+      :meth set_message_callback: — установить функцию-обработчик для
     принятых сообщений;
-        quit — завершить процесс, подождав, пока поток не будет уничтожен.
+      :meth quit: — завершить процесс, подождав, пока поток не будет уничтожен.
     """
 
-    def __init__(self, worker):
-        self.receiver_thread = Thread(target=worker, daemon=True)
+    def __init__(self, service):
+        self.receiver_thread = Thread(target=service, daemon=True)
         self.receiver_thread.start()
 
         self.message_received = 'Обработчик не установлен!'

@@ -16,13 +16,13 @@
             <th>Величина</th>
           </tr>
 
-          {% for id in temperature %}
+          {% for unit in temperature %}
             <tr>
               <td>
-                <code>{{ temperature[id].ident }}</code>
+                <code>{{ temperature[unit].id }}</code>
               </td>
-              <td>{{ temperature[id].description }}</td>
-              <td>{{ temperature[id].temperature }} °C</td>
+              <td>{{ temperature[unit].description }}</td>
+              <td>{{ temperature[unit].state }}</td>
             </tr>
           {% endfor %}
 
@@ -41,25 +41,25 @@
           <th>Действие</th>
         </tr>
 
-        {% for id in complects %}
+        {% for unit in complects %}
           <tr>
             <td>
-              <code>{{ complects[id].socket.ident }}</code>
+              <code>{{ complects[unit].control.id }}</code>
             </td>
-            <td>{{ complects[id].socket.description }}</td>
+            <td>{{ complects[unit].control.description }}</td>
 
-            {% if complects[id].control.lock %}
-              <td>Включено</td>
+            {% if complects[unit].control.lock %}
+              <td>Включён</td>
               <td>
                 <button>
-                  <a href="/control/{{ id }}/off">Отключить</a>
+                  <a href="/control/{{ unit }}/off">Отключить</a>
                 </button>
               </td>
             {% else %}
-              <td>Отключено</td>
+              <td>Отключён</td>
               <td>
                 <button>
-                  <a href="/control/{{ id }}/on">Включить</a>
+                  <a href="/control/{{ unit }}/on">Включить</a>
                 </button>
               </td>
             {% endif %}

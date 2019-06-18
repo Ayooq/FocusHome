@@ -1,7 +1,5 @@
 import logging
 
-from . import Connector
-
 
 _formats_list = [
     '%(asctime)s %(name)s %(levelname)-11s %(message)s',
@@ -17,13 +15,12 @@ class Logger:
         :param level: уровень логирования.
     """
 
-    prefix = Connector.id
-
-    def __init__(self, filename, level=logging.INFO):
+    def __init__(self, filename, level=logging.INFO, prefix='fp'):
         self.dest = filename
         self.level = level
+        self.prefix = prefix
 
-        self.instance = logging.getLogger(Logger.prefix)
+        self.instance = logging.getLogger(self.prefix)
         self.instance.setLevel(self.level)
 
         self._file_formatter = logging.Formatter(_formats_list[0])

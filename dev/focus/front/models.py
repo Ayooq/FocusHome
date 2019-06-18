@@ -2,13 +2,20 @@ from . import c, device
 from focus.back.utils import LOG_FILE
 
 
-def _get_complects_status():
-    for _ in c.complects.values():
-        _.state
+def update_values():
+    _get_inputs_status()
+    _get_complects_status()
+    _get_temperature_status()
+    _get_miscellaneous_status()
 
 
 def _get_inputs_status():
     for _ in c.inputs.values():
+        _.state
+
+
+def _get_complects_status():
+    for _ in c.complects.values():
         _.state
 
 
@@ -17,10 +24,9 @@ def _get_temperature_status():
         _.temperature
 
 
-def update_values():
-    _get_complects_status()
-    _get_inputs_status()
-    _get_temperature_status()
+def _get_miscellaneous_status():
+    for _ in c.misc.values():
+        _.state
 
 
 def get_data():
@@ -28,9 +34,10 @@ def get_data():
 
     data = {
         'device': device,
-        'complects': c.complects,
         'inputs': c.inputs,
+        'complects': c.complects,
         'temperature': c.temperature,
+        'misc': c.misc,
     }
 
     return data

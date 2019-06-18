@@ -1,40 +1,54 @@
-def log_and_report(instance, msg_body, msg_type=None, qos=1, retain=False):
-    """Записать сообщение в журнал событий и отправить отчёт посреднику."""
+def log_and_report(instance, msg_body, msg_type='event', qos=1, retain=False):
+    """Записать сообщение в журнал событий и отправить отчёт посреднику.
 
-    _log(instance, msg_body)
-    _report(instance, msg_type, msg_body, qos, retain)
+    Параметры:
+      :param instance: — экземпляр объекта отправителя;
+      :param msg_type: — тип сообщения;
+      :param msg_body: — тело сообщения;
+      :param qos: — уровень доставки сообщения посреднику, от 0 до 2;
+      :param retain: — булевый показатель сохранения сообщения в качестве
+    последнего "надёжного", выдаваемого сразу при подписке на данную тему.
+    """
+
+    common_args = instance, msg_body
+    report_args = msg_type, qos, retain
+
+    _log(*common_args)
+    _report(*common_args, *report_args)
 
 
-def _log(instance, msg):
+def _log(instance, message: str):
     instance.logger.debug(
-        '%s %s | [%s]', instance.description, msg, repr(instance))
-    instance.logger.info('%s %s', instance.description, msg)
+        '%s %s | [%s]', instance.description, message, repr(instance))
+    instance.logger.info('%s %s', instance.description, message)
 
 
-def _report(instance, msg_body, msg_type='event', qos=1, retain=False):
-    instance.reporter._formalize(msg_type, msg_body, qos, retain).report()
+def _report(instance, msg_type: str, msg_body: str, qos=1, retain=False):
+    gpio_args = instance.pin, instance.description
+    content = msg_type, msg_body, qos, retain, gpio_args
+    instance.reporter._formalize(content).report()
 
 
-def register(instance, subscriber, callback):
+def register(instance, subscriber: str, callback):
     """Прокси для метода регистрации подписчика у экземпляра репортёра.
 
     Параметры:
-        :param instance: — экземпляр класса, от чьего имени осуществляется
+      :param instance: — экземпляр класса, от чьего имени осуществляется
     отправка отчётов;
-        :param subscriber: — имя подписчика, которому будут отправляться отчёты;
-        :param callback: — обработчик отправляемых сообщений.
+      :param subscriber: — имя подписчика, которому будут отправляться отчёты;
+      :param callback: — обработчик отправляемых сообщений.
     """
 
     instance.reporter.register(subscriber, callback)
 
 
-def unregister(instance, subscriber):
+def unregister(instance, subscriber: str):
     """Прокси для метода удаления подписчика у экземпляра репортёра.
 
     Параметры:
-        :param instance: — экземпляр класса, от чьего имени осуществляется
+      :param instance: — экземпляр класса, от чьего имени осуществляется
     отправка отчётов;
-        :param subscriber: — имя подписчика, которого следует удалить из списка
+      :param subscriber: — имя подписчика, которого следует удалить из списка
     рассылки сообщений о событиях.
     """
 
