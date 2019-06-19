@@ -177,7 +177,7 @@ class Connector(Hardware):
         """Моргать при регистрации событий.
 
         Индикация производится следующим образом:
-        1) event/status — светодиод включается на секунду, затем выключается,
+        1) event — светодиод включается на секунду, затем выключается,
         однократно;
         2) info — светодиод включается на секунду, отключается на одну, дважды;
         3) warning — светодиод включается на две секунды, отключается на одну,
@@ -192,7 +192,7 @@ class Connector(Hardware):
 
         msg_type = msg[msg.mode]['msg_type']
 
-        if msg_type == 'event' or msg_type == 'status':
+        if msg_type == 'event':
             self.indicators['led2'].blink(1, 1, 1)
         elif msg_type == 'info':
             self.indicators['led2'].blink(1, 1, 2)
@@ -262,34 +262,28 @@ class Connector(Hardware):
         """
 
         timestamp = datetime.now().isoformat(sep=' ')
-        tabledata = {}
+        tables_dict = {}
 
         report = msg[msg.mode]
         msg_type = report['msg_type']
         msg_body = report['msg_body']
-        pin = report['gpio'][0]
-        description = report['gpio'][1]
+
+        tabledata = [timestamp, msg_type, msg['to'], msg['from'], msg_body]
+
+        fill_table(self.conn, 'events', tabledata)
 
         if self.id != msg['from']:
-            status_data = [timestamp, pin, msg['to'],
-                           msg['from'], description, msg_body]
+            pin = report['gpio'][0]
+            description = report['gpio'][1]
 
-            fill_table(self.conn, 'gpio_status', status_data)
-            fill_table(self.conn, 'gpio_status_archive', status_data)
+            tabledata[1] = pin
+            tabledata.insert(-1, description)
 
-            status_data.remove(msg['to'])
-            status_data.remove(msg['from'])
+            fill_table(self.conn, 'gpio_status', tabledata)
+            fill_table(self.conn, 'gpio_status_archive', tabledata)
 
-            tabledata['status'] = status_data
+            tables_dict['gpio'] = tabledata[1], tabledata[-2]
 
-        event_data = [timestamp, msg_type, msg['to'],
-                      msg['from'], msg_body]
+        tables_dict['event'] = tabledata[0], tabledata[-1]
 
-        fill_table(self.conn, 'events', event_data)
-
-        event_data.remove(msg['to'])
-        event_data.remove(msg['from'])
-
-        tabledata['event'] = event_data
-
-        return tabledata
+        return tables_dict
