@@ -14,14 +14,14 @@ def index():
     return render_template('index.html', **data)
 
 
-@app.route('/control/')
-def control():
+@app.route('/management/')
+def management():
     data = get_data()
 
-    return render_template('control.html', **data)
+    return render_template('management.html', **data)
 
 
-@app.route('/control/<id_>/<action>')
+@app.route('/management/<id_>/<action>')
 def action(id_, action):
     units = c.complects
 
@@ -34,7 +34,7 @@ def action(id_, action):
         elif action == 'off':
             complect.off()
 
-    return redirect(url_for('control'))
+    return redirect(url_for('management'))
 
 
 @app.route('/log')
