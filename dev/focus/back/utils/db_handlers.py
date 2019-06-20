@@ -20,20 +20,37 @@ def init_db(filename: str):
     ошибке.
     """
 
-    try:
-        conn = sqlite3.connect(filename)
-        print(sqlite3.version)
+    conn = sqlite3.connect(filename)
+    cursor = conn.cursor()
 
-        cursor = conn.cursor()
+    try:
         _create_schema(cursor)
-        cursor.close()
-    except Error as e:
-        print('Ошибка в настройке базы данных!', e, sep='\n\n')
-    else:
-        return conn
+    except:
+        pass
+
+    cursor.close()
+
+    return conn
 
 
 def _create_schema(cursor):
+    _create_config_table(cursor)
+
+    gpio_columns = (
+        'pin INTEGER UNIQUE',
+        'description TEXT, state TEXT',
+    )
+    tables = {
+        'events': ('type TEXT', 'message TEXT'),
+        'gpio_status': gpio_columns,
+        'gpio_status_archive': gpio_columns,
+    }
+
+    for table, columns in tables.items():
+        _create_defined_table(cursor, table, columns)
+
+
+def _create_config_table(cursor):
     cursor.execute(
         '''CREATE TABLE IF NOT EXISTS config
                   (device_id TEXT NOT NULL UNIQUE,
@@ -44,39 +61,54 @@ def _create_schema(cursor):
                   cpu_max REAL NOT NULL CHECK(cpu_max < 199.9),
                   cpu_threshold REAL NOT NULL,
                   cpu_hysteresis REAL,
-                  cpu_timedelta REAL NOT NULL,
-                  external_min REAL CHECK(external_min > 0),
-                  external_max REAL CHECK(external_max < 200),
+                  cpu_timedelta INTEGER NOT NULL,
+                  external_min REAL CHECK(external_min > 0.1),
+                  external_max REAL CHECK(external_max < 199.9),
                   external_threshold REAL NOT NULL,
                   external_hysteresis REAL,
-                  external_timedelta REAL NOT NULL);
-                  
-           CREATE TABLE IF NOT EXISTS events
+                  external_timedelta INTEGER NOT NULL);'''
+    )
+
+
+def _create_defined_table(cursor, name, columns):
+    col1, col2 = columns
+    cursor.execute(
+        '''CREATE TABLE IF NOT EXISTS {0}
                   (id INTEGER PRIMARY KEY,
                   timestamp TEXT,
-                  type TEXT,
+                  {1},
                   family TEXT,
                   unit TEXT,
-                  message TEXT);
-                  
-           CREATE TABLE IF NOT EXISTS gpio_status
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  pin INTEGER UNIQUE,
-                  family TEXT,
-                  internal_name TEXT,
-                  verbose_name TEXT,
-                  state TEXT);
-
-           CREATE TABLE IF NOT EXISTS gpio_status_archive
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  pin INTEGER UNIQUE,
-                  family TEXT,
-                  internal_name TEXT,
-                  verbose_name TEXT,
-                  state TEXT);'''
+                  {2});'''.format(name, col1, col2)
     )
+
+
+def set_initial_gpio_status(cursor, family):
+    """Записать текущее состояние всех компонентов единого семейства.
+
+    Параметры:
+      :param cursor: — объект указателя БД;
+      :param family: — название семейства компонентов.
+    """
+
+    timestamp = datetime.now().isoformat(sep=' ')
+
+    try:
+        for unit in family.values():
+            for gpio in unit.values():
+                if isinstance(gpio, dict):
+                    for complect in gpio.values():
+                        tabledata = [timestamp, complect.pin, family,
+                                     complect.id, complect.description,
+                                     complect.state]
+                        cursor.execute(SQL['gpio_status_init'], tabledata)
+
+                else:
+                    tabledata = [timestamp, gpio.pin, family, gpio.id,
+                                 gpio.description, gpio.state]
+                    cursor.execute(SQL['gpio_status_init'], tabledata)
+    except sqlite3.IntegrityError:
+        pass
 
 
 def set_config(conn, config: dict):
@@ -91,7 +123,7 @@ def set_config(conn, config: dict):
 
     device = config['device']
     broker = device['broker']
-    temperature = device['temp']
+    temperature = config['units']['temp']
     cpu = temperature['cpu']
     external = temperature['ext']
 
@@ -115,25 +147,6 @@ def set_config(conn, config: dict):
     return fill_table(conn, 'config', data)
 
 
-def set_initial_gpio_status(cursor, family):
-    """Записать текущее состояние всех компонентов единого семейства.
-
-    Параметры:
-      :param cursor: — объект указателя БД;
-      :param family: — название семейства компонентов.
-    """
-
-    timestamp = datetime.now().isoformat(sep=' ')
-
-    try:
-        for unit in family:
-            tabledata = [timestamp, unit.pin, family, unit.id,
-                         unit.description, unit.state]
-            cursor.execute(_SQL['gpio_status_init'], tabledata)
-    except sqlite3.IntegrityError:
-        pass
-
-
 def fill_table(conn, tablename, tabledata):
     """Заполнить таблицу указанными значениями.
 
@@ -145,38 +158,40 @@ def fill_table(conn, tablename, tabledata):
     Вернуть объект соединения с БД.
     """
     cursor = conn.cursor()
-    cursor.execute(_SQL[tablename], tabledata)
+    cursor.execute(SQL[tablename], tabledata)
     cursor.close()
 
     return conn
 
 
-_SQL = {
+GPIO_TABLE_STRUCTURE = {
+    'columns': '(timestamp, pin, family, unit, description, state)',
+    'values': 'VALUES (?, ?, ?, ?, ?, ?);',
+}
+
+SQL = {
     'config': '''INSERT INTO config
                         (device_id, broker_host, broker_port, keep_alive,
                         cpu_min, cpu_max, cpu_threshold, cpu_hysteresis,
                         cpu_timedelta, external_min, external_max,
                         external_threshold, external_hysteresis,
                         external_timedelta)
-                        
+
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
     'events': '''INSERT INTO events
                         (timestamp, type, family, unit, message)
                  VALUES (?, ?, ?, ?, ?);''',
 
-    'gpio_status_init': '''INSERT INTO gpio_status
-                                  (timestamp, pin, family, internal_name
-                                  verbose_name, state)
-                           VALUES (?, ?, ?, ?, ?, ?);''',
+    'gpio_status_init': 'INSERT INTO gpio_status {} {}'.format(
+        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
+    ),
 
-    'gpio_status': '''REPLACE INTO gpio_status
-                              (timestamp, pin, family, internal_name
-                              verbose_name, state)
-                       VALUES (?, ?, ?, ?, ?, ?);''',
+    'gpio_status': 'REPLACE INTO gpio_status {} {}'.format(
+        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
+    ),
 
-    'gpio_status_archive': '''INSERT INTO gpio_status_archive
-                                     (timestamp, pin, family, internal_name,
-                                     verbose_name, state)
-                              VALUES (?, ?, ?, ?, ?, ?);''',
+    'gpio_status_archive': 'INSERT INTO gpio_status_archive {} {}'.format(
+        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
+    ),
 }

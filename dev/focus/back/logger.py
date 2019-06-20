@@ -15,16 +15,15 @@ class Logger:
         :param level: уровень логирования.
     """
 
-    def __init__(self, filename, level=logging.INFO, prefix='fp'):
+    def __init__(self, filename, level=logging.INFO):
         self.dest = filename
         self.level = level
-        self.prefix = prefix
 
-        self.instance = logging.getLogger(self.prefix)
+        self.instance = logging.getLogger()
         self.instance.setLevel(self.level)
 
-        self._file_formatter = logging.Formatter(_formats_list[0])
-        self._stream_formatter = logging.Formatter(_formats_list[1])
+        self.file_formatter = logging.Formatter(_formats_list[0])
+        self.stream_formatter = logging.Formatter(_formats_list[1])
 
         for handler in self.handlers.values():
             self.instance.addHandler(handler)
@@ -49,10 +48,10 @@ class Logger:
             'file_handler': self._set_file_handler(
                 self.dest,
                 self.level,
-                self._file_formatter
+                self.file_formatter
             ),
             'stream_handler': self._set_stream_handler(
                 logging.DEBUG,
-                self._stream_formatter
+                self.stream_formatter
             ),
         }

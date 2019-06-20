@@ -26,7 +26,9 @@ def _log(instance, message: str):
 def _report(instance, msg_type: str, msg_body: str, qos=1, retain=False):
     gpio_args = instance.pin, instance.description
     content = msg_type, msg_body, qos, retain, gpio_args
-    instance.reporter._formalize(content).report()
+
+    instance.reporter._formalize(content)
+    instance.reporter.report()
 
 
 def register(instance, subscriber: str, callback):

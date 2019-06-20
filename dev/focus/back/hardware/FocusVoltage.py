@@ -6,8 +6,8 @@ from ..utils.messaging_tools import log_and_report
 class FocusVoltage(BaseUnit):
     """Контроль напряжения устройства."""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         self.unit.when_activated = self.on
         self.unit.when_deactivated = self.off

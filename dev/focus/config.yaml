@@ -3,7 +3,7 @@ device:
   id: FP
   description: Prototype
   broker:
-    host: 89.223.27.69
+    host: "89.223.27.69"
     port: 1883
     keepalive: 60
 

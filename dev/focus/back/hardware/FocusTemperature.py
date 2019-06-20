@@ -3,8 +3,6 @@ from time import sleep
 
 from gpiozero import CPUTemperature
 
-from . import Hardware
-from ..logger import Logger
 from ..reporting import Reporter
 from ..utils.one_wire import get_sensor_file
 from ..utils.concurrency import Worker
@@ -20,16 +18,16 @@ class FocusTemperature(CPUTemperature):
 
         self.kwargs_ = {
             'sensor_file': get_sensor_file(),
-            'min_temp': self.config['min'],
-            'max_temp': self.config['max'],
-            'threshold': self.config['threshold'],
+            'min_temp': kwargs.pop('min'),
+            'max_temp': kwargs.pop('max'),
+            'threshold': kwargs.pop('threshold'),
         }
         super().__init__(**self.kwargs_)
 
         self.hysteresis = kwargs.pop('hysteresis', 1.0)
         self.timedelta = kwargs.pop('timedelta', 60)
 
-        self.logger = logging.getLogger('%s.%s' % (Hardware.prefix, __name__))
+        self.logger = logging.getLogger(__name__)
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)

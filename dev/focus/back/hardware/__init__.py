@@ -25,7 +25,7 @@ class Hardware:
             self.id = self.config['device']['id']
 
             # Головной регистратор:
-            self.logger = Logger(LOG_FILE, prefix=self.id).instance
+            self.logger = Logger(LOG_FILE).instance
 
         except:
             msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
@@ -42,7 +42,9 @@ class Hardware:
         set_config(self.conn, self.config)
 
         cursor = self.conn.cursor()
+        t = self.units.pop('temp')
         set_initial_gpio_status(cursor, self.units)
+        self.units['temp'] = t
         cursor.close()
 
     def get_config(self, config_file: str):
@@ -75,10 +77,13 @@ class Hardware:
           :param family: — семейство компонентов устройства.
         """
 
-        interface = eval(family.pop('class', None))
+        class_ = family.pop('class', None)
 
-        if interface:
-            ctx = {unit: interface(id=unit, **family[unit]) for unit in family}
+        if class_:
+            interface = eval(class_)
+            ctx = {
+                unit: interface(id=unit, **family[unit]) for unit in family
+            }
         else:
             ctx = {
                 'volt': FocusVoltage(id='volt', **family['volt']),
@@ -86,10 +91,6 @@ class Hardware:
             }
 
         return ctx
-
-    @property
-    def prefix(self):
-        return self.prefix
 
     @property
     def indicators(self):

@@ -1,9 +1,7 @@
 import logging
 
-from . import Hardware
 from .FocusSocket import FocusSocket
 from .FocusReceptor import FocusReceptor
-from ..logger import Logger
 from ..reporting import Reporter
 
 
@@ -23,7 +21,7 @@ class FocusSocketControl:
         self.socket = FocusSocket(**out)
         self.control = FocusReceptor(**cnt)
 
-        self.logger = logging.getLogger('%s.%s' % (Hardware.prefix, __name__))
+        self.logger = logging.getLogger(__name__)
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)
