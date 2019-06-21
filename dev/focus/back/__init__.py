@@ -163,7 +163,7 @@ class Connector(Hardware):
         while not self.is_connected:
             try:
                 self.client.connect(
-                    self.int(broker),
+                    self.broker,
                     self.port,
                     self.keepalive)
             except:
