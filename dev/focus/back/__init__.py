@@ -158,8 +158,6 @@ class Connector(Hardware):
         между попытками подключения к посреднику.
         """
 
-        error_reported = False
-
         while not self.is_connected:
             try:
                 self.client.connect(
@@ -167,10 +165,8 @@ class Connector(Hardware):
                     self.port,
                     self.keepalive)
             except:
-                if not error_reported:
-                    msg_body = 'не удаётся установить связь с посредником'
-                    log_and_report(self, msg_body, msg_type='error')
-                    error_reported = True
+                msg_body = 'не удаётся установить связь с посредником'
+                self.logger.error(msg_body)
 
                 sleep(sec_to_wait)
 
