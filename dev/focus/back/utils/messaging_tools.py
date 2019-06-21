@@ -23,7 +23,7 @@ def _log(instance, message: str):
     instance.logger.info('%s %s', instance.description, message)
 
 
-def _report(instance, msg_type: str, msg_body: str, qos=1, retain=False):
+def _report(instance, msg_body: str, msg_type: str, qos: int, retain: bool):
     gpio_args = instance.pin, instance.description
     content = msg_type, msg_body, qos, retain, gpio_args
 

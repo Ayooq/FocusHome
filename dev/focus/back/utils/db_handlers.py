@@ -1,5 +1,4 @@
 import sqlite3
-from sqlite3 import Error
 from datetime import datetime
 
 
@@ -21,14 +20,14 @@ def init_db(filename: str):
     """
 
     conn = sqlite3.connect(filename)
-    cursor = conn.cursor()
+    db_file = open(filename, 'rb')
+    db_initiated = db_file.read(1)
+    db_file.close()
 
-    try:
+    if not db_initiated:
+        cursor = conn.cursor()
         _create_schema(cursor)
-    except:
-        pass
-
-    cursor.close()
+        cursor.close()
 
     return conn
 
@@ -52,7 +51,7 @@ def _create_schema(cursor):
 
 def _create_config_table(cursor):
     cursor.execute(
-        '''CREATE TABLE IF NOT EXISTS config
+        '''CREATE TABLE config
                   (device_id TEXT NOT NULL UNIQUE,
                   broker_host TEXT NOT NULL,
                   broker_port INTEGER,
@@ -73,7 +72,7 @@ def _create_config_table(cursor):
 def _create_defined_table(cursor, name, columns):
     col1, col2 = columns
     cursor.execute(
-        '''CREATE TABLE IF NOT EXISTS {0}
+        '''CREATE TABLE {0}
                   (id INTEGER PRIMARY KEY,
                   timestamp TEXT,
                   {1},
@@ -83,32 +82,31 @@ def _create_defined_table(cursor, name, columns):
     )
 
 
-def set_initial_gpio_status(cursor, family):
+def set_initial_gpio_status(cursor, units: dict):
     """Записать текущее состояние всех компонентов единого семейства.
 
     Параметры:
       :param cursor: — объект указателя БД;
-      :param family: — название семейства компонентов.
+      :param units: — словарь GPIO-компонентов, распределённых по группам.
     """
 
     timestamp = datetime.now().isoformat(sep=' ')
 
     try:
-        for unit in family.values():
-            for gpio in unit.values():
-                if isinstance(gpio, dict):
-                    for complect in gpio.values():
-                        tabledata = [timestamp, complect.pin, family,
-                                     complect.id, complect.description,
-                                     complect.state]
+        for family, group in units.items():
+            for unit in group:
+                if unit.startswith('cmp'):
+                    for _ in (group[unit].control, group[unit].socket):
+                        tabledata = [timestamp, _.pin, family, _.id,
+                                     _.description, _.state]
                         cursor.execute(SQL['gpio_status_init'], tabledata)
-
                 else:
-                    tabledata = [timestamp, gpio.pin, family, gpio.id,
-                                 gpio.description, gpio.state]
+                    tabledata = [timestamp, group[unit].pin, family,
+                                 group[unit].id, group[unit].description,
+                                 group[unit].state]
                     cursor.execute(SQL['gpio_status_init'], tabledata)
-    except sqlite3.IntegrityError:
-        pass
+    except sqlite3.IntegrityError as e:
+        print(e)
 
 
 def set_config(conn, config: dict):

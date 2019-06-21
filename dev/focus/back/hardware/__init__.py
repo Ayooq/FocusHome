@@ -42,9 +42,13 @@ class Hardware:
         set_config(self.conn, self.config)
 
         cursor = self.conn.cursor()
-        t = self.units.pop('temp')
-        set_initial_gpio_status(cursor, self.units)
-        self.units['temp'] = t
+        gpio_units = {
+            'leds': self.indicators,
+            'ins': self.inputs,
+            'couts': self.complects,
+            'misc': self.misc,
+        }
+        set_initial_gpio_status(cursor, gpio_units)
         cursor.close()
 
     def get_config(self, config_file: str):
@@ -75,6 +79,8 @@ class Hardware:
 
         Параметры:
           :param family: — семейство компонентов устройства.
+
+        Вернуть объект контекста в виде словаря.
         """
 
         class_ = family.pop('class', None)

@@ -53,6 +53,7 @@ class Connector(Hardware):
             self.client.subscribe(self.id + '/action/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
+        self.conn.close()
         self.is_connected = False
 
         if rc == 0:
@@ -162,7 +163,7 @@ class Connector(Hardware):
         while not self.is_connected:
             try:
                 self.client.connect(
-                    self.broker,
+                    self.int(broker),
                     self.port,
                     self.keepalive)
             except:
