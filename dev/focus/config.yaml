@@ -1,6 +1,6 @@
 # Общие параметры:
 device:
-  id: FP
+  id: FP-
   description: Prototype
   broker:
     host: "89.223.27.69"
