@@ -103,6 +103,8 @@ def set_initial_gpio_status(cursor, units: dict):
                                  group[unit].id, group[unit].description,
                                  group[unit].state]
                     cursor.execute(SQL['gpio_status_init'], tabledata)
+
+        conn.commit()
     except sqlite3.IntegrityError as e:
         print(e)
 
@@ -155,6 +157,7 @@ def fill_table(conn, tablename, tabledata):
     """
     cursor = conn.cursor()
     cursor.execute(SQL[tablename], tabledata)
+    conn.commit()
     cursor.close()
 
     return conn
