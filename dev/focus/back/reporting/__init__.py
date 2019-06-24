@@ -22,11 +22,11 @@ from .Message import Message
 class Reporter(Message):
     """Модель отчёта от имени экземпляра устройства либо его компонента."""
 
-    def __init__(self, id_, mode='report'):
+    def __init__(self, id_, topic='report'):
         self.id = id_
         self._callbacks = {}
 
-        super().__init__(mode)
+        super().__init__(topic)
 
     def register(self, subscriber: str, callback):
         """Зарегистрировать подписчика с указанной функцией оповещения в словаре рассылки.

@@ -187,7 +187,7 @@ class Connector(Hardware):
         от своего имени через реализацию словаря с данными.
         """
 
-        msg_type = msg[msg.mode]['msg_type']
+        msg_type = msg[msg.topic]['msg_type']
 
         if msg_type == 'event':
             self.indicators['led2'].blink(1, 1, 1)
@@ -226,12 +226,12 @@ class Connector(Hardware):
         Вернуть объект словаря для связывания с методом publish() клиента MQTT.
         """
 
-        report = msg[msg.mode]
+        report = msg[msg.topic]
         msg_type = report['msg_type']
 
         topic = '%s/%s/%s/%s/%s' % (
             self.id,
-            msg.mode,
+            msg.topic,
             msg['to'],
             msg['from'],
             msg_type,
@@ -261,7 +261,7 @@ class Connector(Hardware):
         timestamp = datetime.now().isoformat(sep=' ')
         tables_dict = {}
 
-        report = msg[msg.mode]
+        report = msg[msg.topic]
         msg_type = report['msg_type']
         msg_body = report['msg_body']
 

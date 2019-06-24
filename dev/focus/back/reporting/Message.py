@@ -4,11 +4,11 @@ from .Content import Content
 class Message(dict):
     """Сообщение для отчёта."""
 
-    def __init__(self, mode: str):
+    def __init__(self, topic: str):
         super().__init__()
 
-        self.mode = mode
-        self.setdefault(self.mode, Content())
+        self.topic = topic
+        self.setdefault(self.topic, Content())
 
     def _formalize(self, content: tuple):
         """Оформить содержимое в соответствии с указанным типом сообщения.
@@ -17,5 +17,5 @@ class Message(dict):
           :param content: — кортеж из элементов, определяющих наполнение отчёта.
         """
 
-        payload = self[self.mode]
+        payload = self[self.topic]
         payload.inscribe(content)
