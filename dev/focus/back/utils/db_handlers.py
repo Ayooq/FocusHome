@@ -93,6 +93,8 @@ def set_initial_gpio_status(conn, units: dict):
     Параметры:
       :param conn: — объект соединения с БД;
       :param units: — словарь GPIO-компонентов, распределённых по группам.
+
+    Вернуть объект соединения с БД.
     """
 
     cursor = conn.cursor()
@@ -117,6 +119,8 @@ def set_initial_gpio_status(conn, units: dict):
         conn.rollback()
     else:
         conn.commit()
+
+    return conn
 
 
 def set_config(conn, config: dict):
