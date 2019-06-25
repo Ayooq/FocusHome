@@ -24,8 +24,14 @@ def init_db(filename: str):
 
     if not db_initiated:
         cursor = conn.cursor()
-        _create_schema(cursor)
-        cursor.close()
+
+        try:
+            _create_schema(cursor)
+            cursor.close()
+        except sqlite3.Error:
+            conn.rollback()
+        else:
+            conn.commit()
 
     return conn
 
@@ -70,24 +76,26 @@ def _create_config_table(cursor):
 def _create_defined_table(cursor, name, columns):
     col1, col2 = columns
     cursor.execute(
-        '''CREATE TABLE {0}
+        '''CREATE TABLE %s
                   (id INTEGER PRIMARY KEY,
                   timestamp TEXT,
-                  {1},
+                  ?,
                   family TEXT,
                   unit TEXT,
-                  {2});'''.format(name, col1, col2)
+                  ?);''' % name,
+        (col1, col2)
     )
 
 
-def set_initial_gpio_status(cursor, units: dict):
+def set_initial_gpio_status(conn, units: dict):
     """Записать текущее состояние всех компонентов единого семейства.
 
     Параметры:
-      :param cursor: — объект указателя БД;
+      :param conn: — объект соединения с БД;
       :param units: — словарь GPIO-компонентов, распределённых по группам.
     """
 
+    cursor = conn.cursor()
     timestamp = datetime.now().isoformat(sep=' ')
 
     try:
@@ -104,9 +112,11 @@ def set_initial_gpio_status(cursor, units: dict):
                                  group[unit].state]
                     cursor.execute(SQL['gpio_status_init'], tabledata)
 
+        cursor.close()
+    except sqlite3.Error:
+        conn.rollback()
+    else:
         conn.commit()
-    except sqlite3.IntegrityError as e:
-        print(e)
 
 
 def set_config(conn, config: dict):
@@ -142,25 +152,29 @@ def set_config(conn, config: dict):
         external['timedelta'],
     )
 
-    return fill_table(conn, 'config', data)
+    cursor = conn.cursor()
+
+    try:
+        fill_table(cursor, 'config', data)
+        cursor.close()
+    except sqlite3.Error:
+        conn.rollback()
+    else:
+        conn.commit()
+
+    return conn
 
 
-def fill_table(conn, tablename, tabledata):
+def fill_table(cursor, tablename, tabledata):
     """Заполнить таблицу указанными значениями.
 
     Параметры:
-      :param conn: — объект соединения с БД;
+      :param cursor: — объект указателя БД;
       :param tablename: — название целевой таблицы;
       :param tabledata: — упорядоченная коллекция данных для заполнения.
-
-    Вернуть объект соединения с БД.
     """
-    cursor = conn.cursor()
-    cursor.execute(SQL[tablename], tabledata)
-    conn.commit()
-    cursor.close()
 
-    return conn
+    cursor.execute(SQL[tablename], tabledata)
 
 
 GPIO_TABLE_STRUCTURE = {

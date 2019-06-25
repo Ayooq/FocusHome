@@ -42,15 +42,13 @@ class Hardware:
         self.conn = init_db(DB_FILE)
         set_config(self.conn, self.config)
 
-        cursor = self.conn.cursor()
         gpio_units = {
             'leds': self.indicators,
             'ins': self.inputs,
             'couts': self.complects,
             'misc': self.misc,
         }
-        set_initial_gpio_status(cursor, gpio_units)
-        cursor.close()
+        set_initial_gpio_status(self.conn, gpio_units)
 
     def get_config(self, config_file: str):
         """Загрузка описателя оборудования из файла конфигурации.
