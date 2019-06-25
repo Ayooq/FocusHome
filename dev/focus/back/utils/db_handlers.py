@@ -27,11 +27,13 @@ def init_db(filename: str):
 
         try:
             _create_schema(cursor)
-            cursor.close()
         except sqlite3.Error:
             conn.rollback()
+            raise
         else:
             conn.commit()
+        finally:
+            cursor.close()
 
     return conn
 
@@ -113,14 +115,14 @@ def set_initial_gpio_status(conn, units: dict):
                                  group[unit].id, group[unit].description,
                                  group[unit].state]
                     cursor.execute(SQL['gpio_status_init'], tabledata)
-
-        cursor.close()
     except sqlite3.Error:
         conn.rollback()
+        raise
     else:
         conn.commit()
-
-    return conn
+    finally:
+        cursor.close()
+        return conn
 
 
 def set_config(conn, config: dict):
@@ -160,13 +162,14 @@ def set_config(conn, config: dict):
 
     try:
         fill_table(cursor, 'config', data)
-        cursor.close()
     except sqlite3.Error:
         conn.rollback()
+        raise
     else:
         conn.commit()
-
-    return conn
+    finally:
+        cursor.close()
+        return conn
 
 
 def fill_table(cursor, tablename, tabledata):

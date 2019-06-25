@@ -30,7 +30,7 @@ class Hardware:
 
         except:
             msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
-            print(msg_body)
+            self.logger.error(msg_body) if self.logger else print(msg_body)
 
             raise
 
