@@ -1,7 +1,7 @@
 # Общие параметры:
 device:
   id: FP-
-  description: Prototype
+  location: Адрес банкомата
   broker:
     host: "89.223.27.69"
     port: 1883

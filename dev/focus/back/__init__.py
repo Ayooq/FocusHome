@@ -9,7 +9,7 @@ from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
 from .utils.concurrency import Worker
-from .utils.db_handlers import fill_table
+from .utils.db_handlers import get_device_id, define_broker, fill_table
 from .utils.messaging_tools import register, log_and_report
 
 
@@ -20,7 +20,12 @@ class Connector(Hardware):
         super().__init__()
 
         self.pin = None
-        self.description = self.config['device']['description']
+        self.description = self.config['device']['location']
+
+        self.cursor = self.conn.cursor()
+        self.id = get_device_id(self.cursor)
+        self.broker, self.port, self.keepalive = define_broker(self.conn)
+        self.cursor.close()
 
         self.reporter = Reporter(self.id)
         self.register_device(self.blink_on_report, self.report_on_topic)
@@ -28,14 +33,13 @@ class Connector(Hardware):
         msg_body = 'запуск %s' % self.id
         log_and_report(self, msg_body, msg_type='info')
 
-        self.is_connected = False
-        self.define_broker(**self.config['device']['broker'])
-
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         # self.client.on_message = self.on_message
         LWT = self.set_status_message('оффлайн', qos=1)
         self.client.will_set(**LWT)
+
+        self.is_connected = False
         self.establish_connection(3)
 
         self.client.loop_start()
@@ -115,16 +119,6 @@ class Connector(Hardware):
                 register(grouped_components[unit],
                          'blink', callbacks[0])
                 register(grouped_components[unit], group_name, callbacks[1])
-
-    def define_broker(self, **kwargs):
-        """Определить адрес хоста и порт, через который будет осуществляться
-        обмен данными с посредником, а также допустимое время простоя между
-        отправкой сообщений в секундах.
-        """
-
-        self.broker = kwargs.pop('host', '89.223.27.69')
-        self.port = kwargs.pop('port', 1883)
-        self.keepalive = kwargs.pop('keepalive', 60)
 
     def set_status_message(self, payload, qos=0, retain=True):
         """Определить сообщение о статусе устройства для отправки посреднику.

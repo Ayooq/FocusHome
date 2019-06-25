@@ -184,6 +184,33 @@ def fill_table(cursor, tablename, tabledata):
     cursor.execute(SQL[tablename], tabledata)
 
 
+def get_device_id(cursor):
+    """Возвратить имя устройства."""
+
+    cursor.execute('SELECT device_id FROM config')
+
+    return cursor.fetchone()[0]
+
+
+def define_broker(conn):
+    """Определить адрес хоста и порт, через который будет осуществляться
+    обмен данными с посредником, а также допустимое время простоя между
+    отправкой сообщений в секундах.
+
+    Параметры:
+      :param conn: — объект соединения с БД.
+
+    Вернуть кортеж вида: (адрес, порт, время простоя).
+    """
+
+    cursor = conn.cursor()
+    cursor.execute(
+        'SELECT (broker_host, broker_port, keep_alive) FROM config'
+    )
+
+    return cursor.fetchone()
+
+
 GPIO_TABLE_STRUCTURE = {
     'columns': '(timestamp, pin, family, unit, description, state)',
     'values': 'VALUES (?, ?, ?, ?, ?, ?);',

@@ -23,7 +23,6 @@ class Hardware:
     def __init__(self, config_file=CONFIG_FILE):
         try:
             self.config = self.get_config(config_file)
-            self.id = self.config['device']['id'] + str(uuid.uuid4())
 
             # Головной регистратор:
             self.logger = Logger(LOG_FILE).instance
