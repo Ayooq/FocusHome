@@ -223,7 +223,6 @@ SQL = {
                         cpu_hysteresis, cpu_timedelta, external_min,
                         external_max, external_threshold, external_hysteresis,
                         external_timedelta)
-
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
     'events': '''INSERT INTO events
