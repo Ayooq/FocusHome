@@ -3,8 +3,8 @@ def log_and_report(instance, msg_body, msg_type='event', qos=1, retain=False):
 
     Параметры:
       :param instance: — экземпляр объекта отправителя;
-      :param msg_type: — тип сообщения;
       :param msg_body: — тело сообщения;
+      :param msg_type: — тип сообщения;
       :param qos: — уровень доставки сообщения посреднику, от 0 до 2;
       :param retain: — булевый показатель сохранения сообщения в качестве
     последнего "надёжного", выдаваемого сразу при подписке на данную тему.

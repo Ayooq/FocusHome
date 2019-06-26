@@ -13,6 +13,7 @@ class FocusTemperature(CPUTemperature):
     """Датчик температуры."""
 
     def __init__(self, **kwargs):
+        self.pin = None
         self.id = kwargs.pop('id')
         self.description = kwargs.pop('description', None)
 

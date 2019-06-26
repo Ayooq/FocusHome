@@ -39,14 +39,16 @@ class Hardware:
         # Инициализация локальной БД для записи необходимой информации и
         # управления устройством.
         self.conn = init_db(DB_FILE)
-        set_config(self.conn, self.config)
 
-        gpio_units = {
-            'leds': self.indicators,
-            'ins': self.inputs,
-            'couts': self.complects,
-            'misc': self.misc,
-        }
+        # Установка начальных параметров устройства и состояния его компонентов.
+        set_config(self.conn, self.config)
+        gpio_units = (
+            self.indicators,
+            self.inputs,
+            self.complects,
+            self.temperature,
+            self.misc,
+        )
         set_initial_gpio_status(self.conn, gpio_units)
 
     def get_config(self, config_file: str):

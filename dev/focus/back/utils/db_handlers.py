@@ -42,7 +42,7 @@ def _create_schema(cursor):
     _create_config_table(cursor)
 
     gpio_columns = (
-        'pin INTEGER UNIQUE',
+        'pin INTEGER',
         'description TEXT, state TEXT',
     )
     tables = {
@@ -59,6 +59,7 @@ def _create_config_table(cursor):
     cursor.execute(
         '''CREATE TABLE config
                   (device_id TEXT NOT NULL UNIQUE,
+                  device_location TEXT,
                   broker_host TEXT NOT NULL,
                   broker_port INTEGER,
                   keep_alive INTEGER NOT NULL CHECK(keep_alive > 3),
@@ -80,7 +81,7 @@ def _create_defined_table(cursor, name, columns):
     cursor.execute(
         '''CREATE TABLE %s
                   (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
+                  timestamp TEXT UNIQUE,
                   ?,
                   family TEXT,
                   unit TEXT,
@@ -89,12 +90,12 @@ def _create_defined_table(cursor, name, columns):
     )
 
 
-def set_initial_gpio_status(conn, units: dict):
+def set_initial_gpio_status(conn, units: tuple):
     """Записать текущее состояние всех компонентов единого семейства.
 
     Параметры:
       :param conn: — объект соединения с БД;
-      :param units: — словарь GPIO-компонентов, распределённых по группам.
+      :param units: — кортеж из семейств компонентов устройства.
 
     Вернуть объект соединения с БД.
     """
@@ -103,18 +104,17 @@ def set_initial_gpio_status(conn, units: dict):
     timestamp = datetime.now().isoformat(sep=' ')
 
     try:
-        for family, group in units.items():
-            for unit in group:
-                if unit.startswith('cmp'):
-                    for _ in (group[unit].control, group[unit].socket):
+        for family in units:
+            for k, v in family.items():
+                if k.startswith('cmp'):
+                    for _ in (v.control, v.socket):
                         tabledata = [timestamp, _.pin, family, _.id,
                                      _.description, _.state]
-                        cursor.execute(SQL['gpio_status_init'], tabledata)
+                        cursor.execute(SQL['gpio_status'], tabledata)
                 else:
-                    tabledata = [timestamp, group[unit].pin, family,
-                                 group[unit].id, group[unit].description,
-                                 group[unit].state]
-                    cursor.execute(SQL['gpio_status_init'], tabledata)
+                    tabledata = [timestamp, v.pin, family, v.id,
+                                 v.description, v.state]
+                    cursor.execute(SQL['gpio_status'], tabledata)
     except sqlite3.Error:
         conn.rollback()
         raise
@@ -143,6 +143,7 @@ def set_config(conn, config: dict):
 
     data = (
         device['id'],
+        device['location'],
         broker['host'],
         broker['port'],
         broker['keepalive'],
@@ -192,18 +193,17 @@ def get_device_id(cursor):
     return cursor.fetchone()[0]
 
 
-def define_broker(conn):
+def define_broker(cursor):
     """Определить адрес хоста и порт, через который будет осуществляться
     обмен данными с посредником, а также допустимое время простоя между
     отправкой сообщений в секундах.
 
     Параметры:
-      :param conn: — объект соединения с БД.
+      :param cursor: — объект указателя БД.
 
     Вернуть кортеж вида: (адрес, порт, время простоя).
     """
 
-    cursor = conn.cursor()
     cursor.execute(
         'SELECT (broker_host, broker_port, keep_alive) FROM config'
     )
@@ -218,21 +218,17 @@ GPIO_TABLE_STRUCTURE = {
 
 SQL = {
     'config': '''INSERT INTO config
-                        (device_id, broker_host, broker_port, keep_alive,
-                        cpu_min, cpu_max, cpu_threshold, cpu_hysteresis,
-                        cpu_timedelta, external_min, external_max,
-                        external_threshold, external_hysteresis,
+                        (device_id, device_location, broker_host, broker_port,
+                        keep_alive, cpu_min, cpu_max, cpu_threshold,
+                        cpu_hysteresis, cpu_timedelta, external_min,
+                        external_max, external_threshold, external_hysteresis,
                         external_timedelta)
 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
     'events': '''INSERT INTO events
                         (timestamp, type, family, unit, message)
                  VALUES (?, ?, ?, ?, ?);''',
-
-    'gpio_status_init': 'INSERT INTO gpio_status {} {}'.format(
-        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
-    ),
 
     'gpio_status': 'REPLACE INTO gpio_status {} {}'.format(
         GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']

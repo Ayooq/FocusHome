@@ -24,8 +24,9 @@ class Connector(Hardware):
 
         self.cursor = self.conn.cursor()
         self.id = get_device_id(self.cursor)
-        self.broker, self.port, self.keepalive = define_broker(self.conn)
+        self.broker, self.port, self.keepalive = define_broker(self.cursor)
         self.cursor.close()
+        del self.cursor
 
         self.reporter = Reporter(self.id)
         self.register_device(self.blink_on_report, self.report_on_topic)
@@ -59,9 +60,7 @@ class Connector(Hardware):
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
 
-        if rc == 0:
-            self.report_on_topic('оффлайн')
-        else:
+        if rc:
             msg_body = 'соединение прервано, код %s' % rc
             log_and_report(self, msg_body, msg_type='error')
 
@@ -120,11 +119,11 @@ class Connector(Hardware):
                          'blink', callbacks[0])
                 register(grouped_components[unit], group_name, callbacks[1])
 
-    def set_status_message(self, payload, qos=0, retain=True):
+    def set_status_message(self, msg, qos=0, retain=True):
         """Определить сообщение о статусе устройства для отправки посреднику.
 
         Параметры:
-          :param payload: — тело сообщения в виде строки состояния;
+          :param msg: — тело сообщения в виде строки состояния;
           :param qos: — уровень доставки сообщения посреднику, от 0 до 2;
           :param retain: — булевый показатель сохранения сообщения в качестве
         последнего "надёжного", выдаваемого сразу при подписке на данную тему.
@@ -132,7 +131,14 @@ class Connector(Hardware):
         Вернуть объект словаря для связывания с методом publish() клиента MQTT.
         """
 
+        timestamp = datetime.now().isoformat(sep=' ')
+        tabledata = {
+            'event': [timestamp, msg],
+            'status': [None, self.description],
+        }
+
         topic = '%s/status' % self.id
+        payload = json.dumps(tabledata)
 
         return {
             'topic': topic,
@@ -260,20 +266,29 @@ class Connector(Hardware):
 
         tabledata = [timestamp, msg_type, msg['to'], msg['from'], msg_body]
 
-        fill_table(self.conn, 'events', tabledata)
+        cursor = self.conn.cursor()
 
-        if self.id != msg['from']:
+        try:
+            fill_table(cursor, 'events', tabledata)
+
             pin = report['gpio'][0]
             description = report['gpio'][1]
 
             tabledata[1] = pin
             tabledata.insert(-1, description)
 
-            fill_table(self.conn, 'gpio_status', tabledata)
-            fill_table(self.conn, 'gpio_status_archive', tabledata)
-
-            tables_dict['gpio'] = tabledata[1], tabledata[-2]
+            if self.id != msg['from']:
+                fill_table(cursor, 'gpio_status', tabledata)
+                fill_table(cursor, 'gpio_status_archive', tabledata)
+        except:
+            self.conn.rollback()
+            raise
+        else:
+            self.conn.commit()
+        finally:
+            cursor.close()
 
         tables_dict['event'] = tabledata[0], tabledata[-1]
+        tables_dict['status'] = tabledata[1], tabledata[-2]
 
         return tables_dict
