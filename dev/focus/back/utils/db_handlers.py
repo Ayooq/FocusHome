@@ -81,10 +81,10 @@ def _create_defined_table(cursor, name, columns):
     cursor.execute(
         '''CREATE TABLE %s
                   (id INTEGER PRIMARY KEY,
-                  timestamp TEXT UNIQUE,
+                  timestamp TEXT,
                   ?,
                   family TEXT,
-                  unit TEXT,
+                  unit TEXT UNIQUE,
                   ?);''' % name,
         (col1, col2)
     )
