@@ -133,8 +133,8 @@ class Connector(Hardware):
 
         timestamp = datetime.now().isoformat(sep=' ')
         tabledata = {
-            'event': [timestamp, msg],
-            'status': [None, self.description],
+            'event': (timestamp, msg),
+            'status': (None, self.description, self.id + 'dev'),
         }
 
         topic = '%s/status' % self.id
@@ -289,6 +289,8 @@ class Connector(Hardware):
             cursor.close()
 
         tables_dict['event'] = tabledata[0], tabledata[-1]
-        tables_dict['status'] = tabledata[1], tabledata[-2]
+        tables_dict['status'] = (
+            tabledata[1], tabledata[-2], self.id + msg['from']
+        )
 
         return tables_dict
