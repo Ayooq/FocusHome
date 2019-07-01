@@ -58,18 +58,18 @@ def _create_schema(cursor):
 def _create_config_table(cursor):
     cursor.execute(
         '''CREATE TABLE config
-                  (device_id TEXT NOT NULL UNIQUE,
+                  (device_id TEXT NOT NULL,
                   device_location TEXT,
                   broker_host TEXT NOT NULL,
                   broker_port INTEGER,
                   keep_alive INTEGER NOT NULL CHECK(keep_alive > 3),
-                  cpu_min REAL NOT NULL CHECK(cpu_min > 0.1),
-                  cpu_max REAL NOT NULL CHECK(cpu_max < 199.9),
+                  cpu_min REAL NOT NULL CHECK(cpu_min > -0.1),
+                  cpu_max REAL NOT NULL CHECK(cpu_max < 200.1),
                   cpu_threshold REAL NOT NULL,
                   cpu_hysteresis REAL,
                   cpu_timedelta INTEGER NOT NULL,
-                  external_min REAL CHECK(external_min > 0.1),
-                  external_max REAL CHECK(external_max < 199.9),
+                  external_min REAL CHECK(external_min > -0.1),
+                  external_max REAL CHECK(external_max < 200.1),
                   external_threshold REAL NOT NULL,
                   external_hysteresis REAL,
                   external_timedelta INTEGER NOT NULL);'''
@@ -79,14 +79,13 @@ def _create_config_table(cursor):
 def _create_defined_table(cursor, name, columns):
     col1, col2 = columns
     cursor.execute(
-        '''CREATE TABLE %s
+        '''CREATE TABLE {}
                   (id INTEGER PRIMARY KEY,
                   timestamp TEXT,
-                  ?,
+                  {},
                   family TEXT,
-                  unit TEXT UNIQUE,
-                  ?);''' % name,
-        (col1, col2)
+                  unit TEXT,
+                  {});'''.format(name, col1, col2)
     )
 
 
@@ -188,7 +187,7 @@ def fill_table(cursor, tablename, tabledata):
 def get_device_id(cursor):
     """Возвратить имя устройства."""
 
-    cursor.execute('SELECT device_id FROM config')
+    cursor.execute('SELECT device_id FROM config;')
 
     return cursor.fetchone()[0]
 
@@ -205,10 +204,10 @@ def define_broker(cursor):
     """
 
     cursor.execute(
-        'SELECT (broker_host, broker_port, keep_alive) FROM config'
+        'SELECT broker_host, broker_port, keep_alive FROM config;'
     )
 
-    return cursor.fetchone()
+    return cursor.fetchall()[0]
 
 
 GPIO_TABLE_STRUCTURE = {
