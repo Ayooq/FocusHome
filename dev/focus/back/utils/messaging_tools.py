@@ -10,7 +10,7 @@ def log_and_report(instance, msg_body, msg_type='event', qos=1, retain=False):
     последнего "надёжного", выдаваемого сразу при подписке на данную тему.
     """
 
-    common_args = instance, msg_body
+    common_args = instance, str(msg_body)
     report_args = msg_type, qos, retain
 
     _log(*common_args)

@@ -1,3 +1,4 @@
+import uuid
 import sqlite3
 from datetime import datetime
 
@@ -17,7 +18,7 @@ def init_db(filename: str):
     Возвратить объект соединения с БД.
     """
 
-    conn = sqlite3.connect(filename)
+    conn = sqlite3.connect(filename, check_same_thread=False)
     db_file = open(filename, 'rb')
     db_initiated = db_file.read(1)
     db_file.close()
@@ -31,9 +32,10 @@ def init_db(filename: str):
             conn.rollback()
             raise
         else:
+            print('DB initiated.')
             conn.commit()
-        finally:
-            cursor.close()
+    else:
+        print('The DB file is not empty, skipping the schema creation step.')
 
     return conn
 
@@ -41,24 +43,32 @@ def init_db(filename: str):
 def _create_schema(cursor):
     _create_config_table(cursor)
 
-    gpio_columns = (
-        'pin INTEGER',
-        'description TEXT, state TEXT',
-    )
-    tables = {
-        'events': ('type TEXT', 'message TEXT'),
-        'gpio_status': gpio_columns,
-        'gpio_status_archive': gpio_columns,
+    _mapping = {
+        'events': (
+            'type TEXT',
+            ',',
+            'message TEXT',
+        ),
+        'gpio_status': (
+            'pin INTEGER',
+            ' UNIQUE,',
+            'description TEXT, state TEXT',
+        ),
+        'gpio_status_archive': (
+            'pin INTEGER',
+            ',',
+            'description TEXT, state TEXT',
+        ),
     }
 
-    for table, columns in tables.items():
+    for table, columns in _mapping.items():
         _create_defined_table(cursor, table, columns)
 
 
 def _create_config_table(cursor):
     cursor.execute(
         '''CREATE TABLE config
-                  (device_id TEXT NOT NULL,
+                  (device_id TEXT NOT NULL UNIQUE,
                   device_location TEXT,
                   broker_host TEXT NOT NULL,
                   broker_port INTEGER,
@@ -77,51 +87,16 @@ def _create_config_table(cursor):
 
 
 def _create_defined_table(cursor, name, columns):
-    col1, col2 = columns
-    cursor.execute(
-        '''CREATE TABLE {}
-                  (id INTEGER PRIMARY KEY,
-                  timestamp TEXT,
-                  {},
-                  family TEXT,
-                  unit TEXT,
-                  {});'''.format(name, col1, col2)
-    )
-
-
-def set_initial_gpio_status(conn, units: tuple):
-    """Записать текущее состояние всех компонентов единого семейства.
-
-    Параметры:
-      :param conn: — объект соединения с БД;
-      :param units: — кортеж из семейств компонентов устройства.
-
-    Вернуть объект соединения с БД.
-    """
-
-    cursor = conn.cursor()
-    timestamp = datetime.now().isoformat(sep=' ')
-
-    try:
-        for family in units:
-            for k, v in family.items():
-                if k.startswith('cmp'):
-                    for _ in (v.control, v.socket):
-                        tabledata = [timestamp, _.pin, family, _.id,
-                                     _.description, _.state]
-                        cursor.execute(SQL['gpio_status'], tabledata)
-                else:
-                    tabledata = [timestamp, v.pin, family, v.id,
-                                 v.description, v.state]
-                    cursor.execute(SQL['gpio_status'], tabledata)
-    except sqlite3.Error:
-        conn.rollback()
-        raise
-    else:
-        conn.commit()
-    finally:
-        cursor.close()
-        return conn
+    col1, col2, col3 = columns
+    sql_command = '''CREATE TABLE {}
+                            (id INTEGER PRIMARY KEY,
+                            timestamp TEXT,
+                            {},
+                            family TEXT,
+                            unit TEXT{}
+                            {});'''.format(name, col1, col2, col3)
+    print(sql_command)
+    cursor.execute(sql_command)
 
 
 def set_config(conn, config: dict):
@@ -140,8 +115,8 @@ def set_config(conn, config: dict):
     cpu = temperature['cpu']
     external = temperature['ext']
 
-    data = (
-        device['id'],
+    tabledata = (
+        device['id'] + str(uuid.uuid4())[:8],
         device['location'],
         broker['host'],
         broker['port'],
@@ -159,40 +134,74 @@ def set_config(conn, config: dict):
     )
 
     cursor = conn.cursor()
+    tables_set = {'config'}
 
-    try:
-        fill_table(cursor, 'config', data)
-    except sqlite3.Error:
-        conn.rollback()
-        raise
-    else:
-        conn.commit()
-    finally:
-        cursor.close()
-        return conn
+    fill_table(conn, cursor, tables_set, tabledata)
+
+    return conn
 
 
-def fill_table(cursor, tablename, tabledata):
-    """Заполнить таблицу указанными значениями.
+def set_initial_gpio_status(conn, units: dict):
+    """Записать текущее состояние всех компонентов единого семейства.
+
+    Параметры:
+      :param conn: — объект соединения с БД;
+      :param units: — кортеж из семейств компонентов устройства.
+
+    Вернуть объект соединения с БД.
+    """
+
+    timestamp = datetime.now().isoformat(sep=' ')
+    cursor = conn.cursor()
+    tables_set = {'gpio_status', 'gpio_status_archive'}
+
+    for family, group in units.items():
+        for k, v in group.items():
+            if family == 'couts':
+                for _ in (v.control, v.socket):
+                    tabledata = [timestamp, _.pin, family, _.id,
+                                 _.description, _.state]
+                    print(tabledata)
+                    fill_table(conn, cursor, tables_set, tabledata)
+            else:
+                tabledata = [timestamp, v.pin, family, k,
+                             v.description, v.state]
+                print(tabledata)
+                fill_table(conn, cursor, tables_set, tabledata)
+
+    return conn
+
+
+def fill_table(conn, cursor, tables_set: set, tabledata):
+    """Заполнить таблицы указанными значениями.
 
     Параметры:
       :param cursor: — объект указателя БД;
-      :param tablename: — название целевой таблицы;
+      :param tables_set: — набор наименований целевых таблиц;
       :param tabledata: — упорядоченная коллекция данных для заполнения.
     """
 
-    cursor.execute(SQL[tablename], tabledata)
+    for tablename in tables_set:
+        try:
+            cursor.execute(SQL[tablename], tabledata)
+        except sqlite3.Error:
+            print("Couldn't fill the %s table properly!" % tablename)
+            conn.rollback()
+        else:
+            print("The %s table has been filled with data." % tablename)
+            conn.commit()
 
 
-def get_device_id(cursor):
+def get_device_id(conn):
     """Возвратить имя устройства."""
 
+    cursor = conn.cursor()
     cursor.execute('SELECT device_id FROM config;')
 
     return cursor.fetchone()[0]
 
 
-def define_broker(cursor):
+def define_broker(conn):
     """Определить адрес хоста и порт, через который будет осуществляться
     обмен данными с посредником, а также допустимое время простоя между
     отправкой сообщений в секундах.
@@ -203,6 +212,7 @@ def define_broker(cursor):
     Вернуть кортеж вида: (адрес, порт, время простоя).
     """
 
+    cursor = conn.cursor()
     cursor.execute(
         'SELECT broker_host, broker_port, keep_alive FROM config;'
     )
@@ -216,13 +226,13 @@ GPIO_TABLE_STRUCTURE = {
 }
 
 SQL = {
-    'config': '''INSERT INTO config
-                        (device_id, device_location, broker_host, broker_port,
-                        keep_alive, cpu_min, cpu_max, cpu_threshold,
-                        cpu_hysteresis, cpu_timedelta, external_min,
-                        external_max, external_threshold, external_hysteresis,
-                        external_timedelta)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
+    'config': '''REPLACE INTO config
+                         (device_id, device_location, broker_host, broker_port,
+                         keep_alive, cpu_min, cpu_max, cpu_threshold,
+                         cpu_hysteresis, cpu_timedelta, external_min,
+                         external_max, external_threshold, external_hysteresis,
+                         external_timedelta)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
     'events': '''INSERT INTO events
                         (timestamp, type, family, unit, message)

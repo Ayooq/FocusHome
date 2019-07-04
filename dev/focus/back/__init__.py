@@ -5,6 +5,7 @@ from threading import Thread
 
 import paho.mqtt.client as mqtt
 
+
 from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
@@ -22,17 +23,11 @@ class Connector(Hardware):
         self.pin = None
         self.description = self.config['device']['location']
 
-        self.cursor = self.conn.cursor()
-        self.id = get_device_id(self.cursor)
-        self.broker, self.port, self.keepalive = define_broker(self.cursor)
-        self.cursor.close()
-        del self.cursor
+        self.id = get_device_id(self.conn)
+        self.broker, self.port, self.keepalive = define_broker(self.conn)
 
         self.reporter = Reporter(self.id)
         self.register_device(self.blink_on_report, self.report_on_topic)
-
-        msg_body = 'запуск %s' % self.id
-        log_and_report(self, msg_body, msg_type='info')
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
@@ -40,10 +35,22 @@ class Connector(Hardware):
         LWT = self.set_status_message('оффлайн', qos=1)
         self.client.will_set(**LWT)
 
+        msg_body = 'запуск %s' % self.id
+        log_and_report(self, msg_body, msg_type='info')
+
         self.is_connected = False
-        self.establish_connection(3)
+        # self.establish_connection(3)
+        self.client.connect(self.broker, self.port, self.keepalive)
 
         self.client.loop_start()
+
+    # The callback for when the client receives a CONNACK response from the server.
+    # def on_connect(self, client, userdata, flags, rc):
+    #     print("Connected with result code "+str(rc))
+
+    #     # Subscribing in on_connect() means that if we lose the connection and
+    #     # reconnect then subscriptions will be renewed.
+    #     client.subscribe("$SYS/#")
 
     def on_connect(self, client, userdata, flags, rc):
         if rc:
@@ -52,10 +59,10 @@ class Connector(Hardware):
         else:
             self.is_connected = True
             status = self.set_status_message('онлайн')
-            self.client.publish(**status)
+            client.publish(**status)
 
             # Подписка на акции.
-            self.client.subscribe(self.id + '/action/#', qos=2)
+            client.subscribe(self.id + '/action/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -64,20 +71,24 @@ class Connector(Hardware):
             msg_body = 'соединение прервано, код %s' % rc
             log_and_report(self, msg_body, msg_type='error')
 
-    # def on_message(self, client, userdata, message):
-    #     msg_body = 'Инструкция %s [%s]' % (
-    #         message.topic, str(message.payload))
-    #     self.logger.info(msg_body)
+    # The callback for when a PUBLISH message is received from the server.
+    def on_message(self, client, userdata, msg):
+        print(msg.topic+" "+str(msg.payload))
 
-    #     # Десериализация JSON запроса.
-    #     data = json.loads(message.payload)
+    # # def on_message(self, client, userdata, message):
+    # #     msg_body = 'Инструкция %s [%s]' % (
+    # #         message.topic, str(message.payload))
+    # #     self.logger.info(msg_body)
 
-    #     if data['method'] == 'getFocuspioStatus':
-    #         # Вернуть статус FocusPIO.
-    #         pass
-    #     elif data['method'] == 'setFocuspioStatus':
-    #         # Обновить статус FocusPIO и отправить ответ.
-    #         pass
+    # #     # Десериализация JSON запроса.
+    # #     data = json.loads(message.payload)
+
+    # #     if data['method'] == 'getFocuspioStatus':
+    # #         # Вернуть статус FocusPIO.
+    # #         pass
+    # #     elif data['method'] == 'setFocuspioStatus':
+    # #         # Обновить статус FocusPIO и отправить ответ.
+    # #         pass
 
     def register_device(self, *callbacks):
         """Зарегистрировать устройство и его компоненты для рапортирования.
@@ -134,8 +145,9 @@ class Connector(Hardware):
         timestamp = datetime.now().isoformat(sep=' ')
         tabledata = {
             'event': (timestamp, msg),
-            'status': (None, self.description, self.id + 'dev'),
+            'status': (self.id, None, self.description)
         }
+        print(tabledata)
 
         topic = '%s/status' % self.id
         payload = json.dumps(tabledata)
@@ -147,27 +159,28 @@ class Connector(Hardware):
             'retain': retain,
         }
 
-    def establish_connection(self, sec_to_wait: int):
-        """Установить соединение с посредником.
+    # def establish_connection(self, sec_to_wait: int):
+    #     """Установить соединение с посредником.
 
-        Делать попытки подключения до тех пор, пока связь не будет налажена.
+    #     Делать попытки подключения до тех пор, пока связь не будет налажена.
 
-        Параметры:
-          :param sec_to_wait: — время в секундах, определяющее интервал
-        между попытками подключения к посреднику.
-        """
+    #     Параметры:
+    #       :param sec_to_wait: — время в секундах, определяющее интервал
+    #     между попытками подключения к посреднику.
+    #     """
 
-        while not self.is_connected:
-            try:
-                self.client.connect(
-                    self.broker,
-                    self.port,
-                    self.keepalive)
-            except:
-                msg_body = 'не удаётся установить связь с посредником'
-                self.logger.error(msg_body)
+    #     while not self.is_connected:
+    #         try:
+    #             self.client.connect(
+    #                 self.broker,
+    #                 port=self.port,
+    #                 keepalive=self.keepalive
+    #             )
+    #         except:
+    #             msg_body = 'не удаётся установить связь с посредником'
+    #             self.logger.error(msg_body)
 
-                sleep(sec_to_wait)
+    #         sleep(sec_to_wait)
 
     def blink_on_report(self, msg: dict):
         """Моргать при регистрации событий.
@@ -258,7 +271,9 @@ class Connector(Hardware):
         """
 
         timestamp = datetime.now().isoformat(sep=' ')
-        tables_dict = {}
+        cursor = self.conn.cursor()
+        tables_set = {'events'}
+        result_dict = {}
 
         report = msg[msg.topic]
         msg_type = report['msg_type']
@@ -266,31 +281,24 @@ class Connector(Hardware):
 
         tabledata = [timestamp, msg_type, msg['to'], msg['from'], msg_body]
 
-        cursor = self.conn.cursor()
+        fill_table(self.conn, cursor, tables_set, tabledata)
 
-        try:
-            fill_table(cursor, 'events', tabledata)
-
+        if self.id != msg['from']:
             pin = report['gpio'][0]
             description = report['gpio'][1]
 
             tabledata[1] = pin
             tabledata.insert(-1, description)
 
-            if self.id != msg['from']:
-                fill_table(cursor, 'gpio_status', tabledata)
-                fill_table(cursor, 'gpio_status_archive', tabledata)
-        except:
-            self.conn.rollback()
-            raise
-        else:
-            self.conn.commit()
-        finally:
-            cursor.close()
+            tables_set.clear()
+            tables_set.update({'gpio_status', 'gpio_status_archive'})
 
-        tables_dict['event'] = tabledata[0], tabledata[-1]
-        tables_dict['status'] = (
-            tabledata[1], tabledata[-2], self.id + msg['from']
-        )
+            fill_table(self.conn, cursor, tables_set, tabledata)
 
-        return tables_dict
+            result_dict['status'] = (
+                self.id + '/' + msg['from'], tabledata[1], tabledata[-2]
+            )
+
+        result_dict['event'] = tabledata[0], tabledata[-1]
+
+        return result_dict

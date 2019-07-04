@@ -42,14 +42,7 @@ class Hardware:
 
         # Установка начальных параметров устройства и состояния его компонентов.
         set_config(self.conn, self.config)
-        gpio_units = (
-            self.indicators,
-            self.inputs,
-            self.complects,
-            self.temperature,
-            self.misc,
-        )
-        set_initial_gpio_status(self.conn, gpio_units)
+        set_initial_gpio_status(self.conn, self.units)
 
     def get_config(self, config_file: str):
         """Загрузка описателя оборудования из файла конфигурации.

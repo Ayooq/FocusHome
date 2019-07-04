@@ -73,7 +73,7 @@ class Reporter(Message):
             return func(report)
         except Exception:
             self._dumper(report)
-            pass
+            raise
 
     def _dumper(self, report: dict):
         """Тестовый вывод.
@@ -82,6 +82,10 @@ class Reporter(Message):
           :param report: — объект отчёта.
         """
 
-        print('Печатаю', json.dumps(report))
+        dump = json.dumps(report)
+
+        print('Печатаю:', end='')
+        for i in dump.split('{'):
+            print(i)
 
     _mapping = 'from', 'to'
