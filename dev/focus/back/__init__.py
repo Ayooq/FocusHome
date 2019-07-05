@@ -132,7 +132,6 @@ class Connector(Hardware):
             'event': (timestamp, msg),
             'status': (self.id, None, self.description)
         }
-        print(tabledata)
 
         topic = '%s/status' % self.id
         payload = json.dumps(tabledata)
@@ -158,8 +157,8 @@ class Connector(Hardware):
             try:
                 self.client.connect(
                     self.broker,
-                    port=self.port,
-                    keepalive=self.keepalive
+                    self.port,
+                    self.keepalive
                 )
             except:
                 msg_body = 'не удаётся установить связь с посредником'
@@ -263,7 +262,7 @@ class Connector(Hardware):
         report = msg[msg.topic]
         msg_type = report['msg_type']
         msg_body = report['msg_body']
-        
+
         if msg['from'] == self.id:
             msg['from'] = 'focuspro'
 
@@ -286,6 +285,8 @@ class Connector(Hardware):
             result_dict['status'] = (
                 self.id + '/' + msg['from'], tabledata[1], tabledata[-2]
             )
+        else:
+            result_dict['status'] = (self.id, None, self.description)
 
         result_dict['event'] = tabledata[0], tabledata[-1]
 
