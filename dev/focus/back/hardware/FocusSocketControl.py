@@ -3,6 +3,7 @@ import logging
 from .FocusSocket import FocusSocket
 from .FocusReceptor import FocusReceptor
 from ..reporting import Reporter
+from ..utils import log_and_report
 
 
 class FocusSocketControl:
@@ -38,14 +39,16 @@ class FocusSocketControl:
 
         if not self.control.lock:
             self.control.lock = True
-            self.socket.on()
+            self.socket.unit.on()
+            log_and_report(self, 1)
 
     def off(self):
         """Отключить контроль."""
 
         if self.control.lock:
             self.control.lock = False
-            self.socket.off()
+            self.socket.unit.off()
+            log_and_report(self, 0)
 
     @property
     def state(self):
