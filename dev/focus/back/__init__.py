@@ -1,7 +1,6 @@
 import json
 from time import sleep
 from datetime import datetime
-from threading import Thread
 
 import paho.mqtt.client as mqtt
 
@@ -9,7 +8,6 @@ import paho.mqtt.client as mqtt
 from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
-from .utils.concurrency import Worker
 from .utils.db_handlers import init_db, get_device_id, define_broker, fill_table
 from .utils.messaging_tools import register, log_and_report
 
@@ -40,9 +38,7 @@ class Connector(Hardware):
         log_and_report(self, msg_body, msg_type='info')
 
         self.is_connected = False
-        # self.establish_connection(3)
-        self.client.connect(self.broker, self.port, self.keepalive)
-
+        self.establish_connection(3)
         self.client.loop_start()
 
     def on_connect(self, client, userdata, flags, rc):
@@ -148,28 +144,28 @@ class Connector(Hardware):
             'retain': retain,
         }
 
-    # def establish_connection(self, sec_to_wait: int):
-    #     """Установить соединение с посредником.
+    def establish_connection(self, sec_to_wait: int):
+        """Установить соединение с посредником.
 
-    #     Делать попытки подключения до тех пор, пока связь не будет налажена.
+        Делать попытки подключения до тех пор, пока связь не будет налажена.
 
-    #     Параметры:
-    #       :param sec_to_wait: — время в секундах, определяющее интервал
-    #     между попытками подключения к посреднику.
-    #     """
+        Параметры:
+          :param sec_to_wait: — время в секундах, определяющее интервал
+        между попытками подключения к посреднику.
+        """
 
-    #     while not self.is_connected:
-    #         try:
-    #             self.client.connect(
-    #                 self.broker,
-    #                 port=self.port,
-    #                 keepalive=self.keepalive
-    #             )
-    #         except:
-    #             msg_body = 'не удаётся установить связь с посредником'
-    #             self.logger.error(msg_body)
+        while not self.is_connected:
+            try:
+                self.client.connect(
+                    self.broker,
+                    port=self.port,
+                    keepalive=self.keepalive
+                )
+            except:
+                msg_body = 'не удаётся установить связь с посредником'
+                self.logger.error(msg_body)
 
-    #         sleep(sec_to_wait)
+            sleep(sec_to_wait)
 
     def blink_on_report(self, msg: dict):
         """Моргать при регистрации событий.
