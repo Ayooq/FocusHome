@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 
-def init_db(filename: str):
+def init_db(filename: str, config: dict, units: dict):
     """Инициализировать БД SQLite3 в файле с именем :param filename:.
 
     Создать схему с таблицами:
@@ -14,6 +14,9 @@ def init_db(filename: str):
 
     Схема создаётся единожды при самом первом запуске устройства.
     Это обеспечивается проверкой наличия непустых строк в указанном файле.
+
+    После успешного создания схемы таблицы config и gpio_status* заполняются
+    предустановленными значениями.
 
     Возвратить объект соединения с БД.
     """
@@ -34,6 +37,15 @@ def init_db(filename: str):
         else:
             print('DB initiated.')
             conn.commit()
+
+        try:
+            set_config(conn, config)
+            set_initial_gpio_status(conn, units)
+        except:
+            print("Couldn't set initial data.")
+            raise
+        else:
+            print('Initial data is set.')
     else:
         print('The DB file is not empty, skipping the schema creation step.')
 
@@ -43,7 +55,7 @@ def init_db(filename: str):
 def _create_schema(cursor):
     _create_config_table(cursor)
 
-    _mapping = {
+    mapping = {
         'events': (
             'type TEXT',
             ',',
@@ -61,7 +73,7 @@ def _create_schema(cursor):
         ),
     }
 
-    for table, columns in _mapping.items():
+    for table, columns in mapping.items():
         _create_defined_table(cursor, table, columns)
 
 
@@ -95,7 +107,6 @@ def _create_defined_table(cursor, name, columns):
                             family TEXT,
                             unit TEXT{}
                             {});'''.format(name, col1, col2, col3)
-    print(sql_command)
     cursor.execute(sql_command)
 
 
@@ -142,7 +153,7 @@ def set_config(conn, config: dict):
 
 
 def set_initial_gpio_status(conn, units: dict):
-    """Записать текущее состояние всех компонентов единого семейства.
+    """Записать первоначальное состояние всех компонентов единого семейства.
 
     Параметры:
       :param conn: — объект соединения с БД;
@@ -176,6 +187,7 @@ def fill_table(conn, cursor, tables_set: set, tabledata):
     """Заполнить таблицы указанными значениями.
 
     Параметры:
+      :param conn: — объект соединения с БД;
       :param cursor: — объект указателя БД;
       :param tables_set: — набор наименований целевых таблиц;
       :param tabledata: — упорядоченная коллекция данных для заполнения.
@@ -190,6 +202,27 @@ def fill_table(conn, cursor, tables_set: set, tabledata):
         else:
             print("The %s table has been filled with data." % tablename)
             conn.commit()
+
+
+def change_column_data(conn, columns, values):
+    """Изменить значения указанных колонок в конфигурационной таблице.
+
+    Параметры:
+      :param conn: — объект соединения с БД;
+      :param columns: — список наименований колонок;
+      :param values: — список значений для указанных колонок.
+    """
+
+    cursor = conn.cursor()
+    res = []
+
+    for _ in columns, values:
+        res.append(','.join((el for el in _)))
+        cursor.execute(
+            '''REPLACE INTO config
+                       ({})
+                VALUES ({});'''.format(res[0], res[1])
+        )
 
 
 def get_device_id(conn):
@@ -207,7 +240,7 @@ def define_broker(conn):
     отправкой сообщений в секундах.
 
     Параметры:
-      :param cursor: — объект указателя БД.
+      :param conn: — объект соединения с БД.
 
     Вернуть кортеж вида: (адрес, порт, время простоя).
     """

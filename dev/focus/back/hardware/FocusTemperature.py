@@ -26,7 +26,6 @@ class FocusTemperature(CPUTemperature):
         super().__init__(**self.kwargs_)
 
         self.hysteresis = kwargs.pop('hysteresis', 1.0)
-        print('hysteresis:', self.hysteresis)
         self.timedelta = kwargs.pop('timedelta', 60)
 
         self.logger = logging.getLogger(__name__)
@@ -71,3 +70,10 @@ class FocusTemperature(CPUTemperature):
     @property
     def state(self):
         return self.temperature
+
+    @property
+    def is_active(self):
+        if super().is_active:
+            if self.temperature - self.hysteresis > self.threshold:
+                return True
+        return False

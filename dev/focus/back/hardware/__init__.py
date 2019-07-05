@@ -9,8 +9,7 @@ from .FocusSocketControl import FocusSocketControl
 from .FocusTemperature import FocusTemperature
 from .FocusVoltage import FocusVoltage
 from ..logger import Logger
-from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
-from ..utils.db_handlers import init_db, set_config, set_initial_gpio_status
+from ..utils import CONFIG_FILE, LOG_FILE
 from ..utils.messaging_tools import log_and_report
 
 
@@ -35,14 +34,6 @@ class Hardware:
 
         # Создание словаря компонентов с именами классов в качестве значений.
         self.make_units_dict()
-
-        # Инициализация локальной БД для записи необходимой информации и
-        # управления устройством.
-        self.conn = init_db(DB_FILE)
-
-        # Установка начальных параметров устройства и состояния его компонентов.
-        set_config(self.conn, self.config)
-        set_initial_gpio_status(self.conn, self.units)
 
     def get_config(self, config_file: str):
         """Загрузка описателя оборудования из файла конфигурации.
