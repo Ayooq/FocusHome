@@ -10,7 +10,7 @@ from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
 from .utils.concurrency import Worker
-from .utils.db_handlers import get_device_id, define_broker, fill_table
+from .utils.db_handlers import init_db, get_device_id, define_broker, fill_table
 from .utils.messaging_tools import register, log_and_report
 
 
@@ -23,6 +23,7 @@ class Connector(Hardware):
         self.pin = None
         self.description = self.config['device']['location']
 
+        self.conn = init_db(DB_FILE, self.config, self.units)
         self.id = get_device_id(self.conn)
         self.broker, self.port, self.keepalive = define_broker(self.conn)
 
@@ -32,10 +33,10 @@ class Connector(Hardware):
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         # self.client.on_message = self.on_message
-        LWT = self.set_status_message('оффлайн', qos=1)
+        LWT = self.set_status_message('offline', qos=1)
         self.client.will_set(**LWT)
 
-        msg_body = 'запуск %s' % self.id
+        msg_body = 'starting %s' % self.id
         log_and_report(self, msg_body, msg_type='info')
 
         self.is_connected = False
@@ -44,21 +45,12 @@ class Connector(Hardware):
 
         self.client.loop_start()
 
-    # The callback for when the client receives a CONNACK response from the server.
-    # def on_connect(self, client, userdata, flags, rc):
-    #     print("Connected with result code "+str(rc))
-
-    #     # Subscribing in on_connect() means that if we lose the connection and
-    #     # reconnect then subscriptions will be renewed.
-    #     client.subscribe("$SYS/#")
-
     def on_connect(self, client, userdata, flags, rc):
         if rc:
-            msg_body = 'проблемы с соединением, код %s' % rc
-            log_and_report(self, msg_body, msg_type='error')
+            log_and_report(self, rc, msg_type='error')
         else:
             self.is_connected = True
-            status = self.set_status_message('онлайн')
+            status = self.set_status_message('online')
             client.publish(**status)
 
             # Подписка на акции.
@@ -68,14 +60,11 @@ class Connector(Hardware):
         self.is_connected = False
 
         if rc:
-            msg_body = 'соединение прервано, код %s' % rc
-            log_and_report(self, msg_body, msg_type='error')
+            log_and_report(self, rc, msg_type='error')
 
-    # The callback for when a PUBLISH message is received from the server.
-    def on_message(self, client, userdata, msg):
-        print(msg.topic+" "+str(msg.payload))
+    def on_message(self, client, userdata, message):
+        print(message.topic, str(message.payload), sep='\n')
 
-    # # def on_message(self, client, userdata, message):
     # #     msg_body = 'Инструкция %s [%s]' % (
     # #         message.topic, str(message.payload))
     # #     self.logger.info(msg_body)
@@ -278,12 +267,15 @@ class Connector(Hardware):
         report = msg[msg.topic]
         msg_type = report['msg_type']
         msg_body = report['msg_body']
+        
+        if msg['from'] == self.id:
+            msg['from'] = 'focuspro'
 
         tabledata = [timestamp, msg_type, msg['to'], msg['from'], msg_body]
 
         fill_table(self.conn, cursor, tables_set, tabledata)
 
-        if self.id != msg['from']:
+        if msg['from'] != 'focuspro':
             pin = report['gpio'][0]
             description = report['gpio'][1]
 

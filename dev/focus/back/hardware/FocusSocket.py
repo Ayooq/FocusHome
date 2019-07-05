@@ -6,19 +6,19 @@ class FocusSocket(FocusLED):
     """Гнездо (выходной разъём) со световым индикатором."""
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(initial_value=None, **kwargs)
 
     def on(self):
         "Включить гнездо."
 
         super().on()
-        log_and_report(self, 'вкл.')
+        log_and_report(self, 1)
 
     def off(self):
         "Отключить гнездо."
 
         super().off()
-        log_and_report(self, 'откл.')
+        log_and_report(self, 0)
 
     def toggle(self):
         "Переключить гнездо."

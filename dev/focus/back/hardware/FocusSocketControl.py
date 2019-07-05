@@ -36,14 +36,16 @@ class FocusSocketControl:
     def on(self):
         """Включить контроль."""
 
-        if self.socket.state:
-            self.control.on()
+        if not self.control.lock:
+            self.control.lock = True
+            self.socket.on()
 
     def off(self):
         """Отключить контроль."""
 
-        if not self.socket.state:
-            self.control.off()
+        if self.control.lock:
+            self.control.lock = False
+            self.socket.off()
 
     @property
     def state(self):

@@ -19,14 +19,14 @@ class FocusReceptor(BaseUnit):
 
         if not self.lock:
             self.lock = True
-            log_and_report(self, 'вкл.')
+            log_and_report(self, 1)
 
     def off(self):
         """Разомкнуть цепь подачи сигнала."""
 
         if self.lock:
             self.lock = False
-            log_and_report(self, 'откл.')
+            log_and_report(self, 0)
 
     @property
     def state(self):
