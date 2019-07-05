@@ -4,7 +4,6 @@ from datetime import datetime
 
 import paho.mqtt.client as mqtt
 
-
 from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
@@ -31,7 +30,7 @@ class Connector(Hardware):
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         # self.client.on_message = self.on_message
-        LWT = self.set_status_message('offline', qos=2)
+        LWT = self.set_status_message('offline')
         self.client.will_set(**LWT)
 
         msg_body = 'starting %s' % self.id
@@ -153,7 +152,7 @@ class Connector(Hardware):
         между попытками подключения к посреднику.
         """
 
-        while not self.is_connected:
+        while not self.is_connected and sec_to_wait < 192:
             try:
                 self.client.connect(
                     self.broker,
@@ -163,8 +162,12 @@ class Connector(Hardware):
             except:
                 msg_body = 'не удаётся установить связь с посредником'
                 self.logger.error(msg_body)
+                
+                if sec_to_wait >= 192:
+                    raise
 
             sleep(sec_to_wait)
+            sec_to_wait *= 2
 
     def blink_on_report(self, msg: dict):
         """Моргать при регистрации событий.
