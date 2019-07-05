@@ -3,7 +3,7 @@ import logging
 from .FocusSocket import FocusSocket
 from .FocusReceptor import FocusReceptor
 from ..reporting import Reporter
-from ..utils import log_and_report
+from ..utils.messaging_tools import log_and_report
 
 
 class FocusSocketControl:
