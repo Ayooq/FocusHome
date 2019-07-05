@@ -30,7 +30,7 @@ class Connector(Hardware):
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         # self.client.on_message = self.on_message
-        LWT = self.set_status_message('offline')
+        LWT = self.set_status_message('offline', qos=2)
         self.client.will_set(**LWT)
 
         msg_body = 'starting %s' % self.id
