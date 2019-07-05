@@ -59,11 +59,9 @@ class FocusTemperature(CPUTemperature):
                 self._tick += self.timedelta
 
             if self.is_active and not self._exceeded:
-                print('Active:', self.is_active)
                 log_and_report(self, self.state, msg_type='warning')
                 self._exceeded = True
             elif self._exceeded and not self.is_active:
-                print('Active:', self.is_active)
                 log_and_report(self, self.state)
                 self._exceeded = False
 

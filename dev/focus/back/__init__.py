@@ -31,7 +31,7 @@ class Connector(Hardware):
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         # self.client.on_message = self.on_message
-        LWT = self.set_status_message('offline', qos=1)
+        LWT = self.set_status_message('offline', qos=2)
         self.client.will_set(**LWT)
 
         msg_body = 'starting %s' % self.id
@@ -46,7 +46,7 @@ class Connector(Hardware):
             log_and_report(self, rc, msg_type='error')
         else:
             self.is_connected = True
-            status = self.set_status_message('online')
+            status = self.set_status_message('online', qos=2)
             client.publish(**status)
 
             # Подписка на акции.
