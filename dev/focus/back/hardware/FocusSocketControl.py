@@ -38,16 +38,16 @@ class FocusSocketControl:
         """Включить контроль."""
 
         if not self.control.lock:
-            self.control.lock = True
             self.socket.unit.on()
+            self.control.lock = True
             log_and_report(self, 1)
 
     def off(self):
         """Отключить контроль."""
 
         if self.control.lock:
-            self.control.lock = False
             self.socket.unit.off()
+            self.control.lock = False            
             log_and_report(self, 0)
 
     @property

@@ -48,7 +48,7 @@
             </td>
             <td>{{ complects[unit].control.description }}</td>
 
-            {% if complects[unit].control.lock %}
+            {% if complects[unit].state[0] %}
               <td>Включён</td>
               <td>
                 <button>

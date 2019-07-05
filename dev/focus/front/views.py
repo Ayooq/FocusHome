@@ -26,9 +26,7 @@ def action(id_, action):
     units = c.complects
 
     if id_ in units.keys():
-        print('Switching complects')
         complect = units[id_]
-        print(complect)
 
         if action == 'on':
             complect.on()
