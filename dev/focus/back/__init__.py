@@ -128,8 +128,7 @@ class Connector(Hardware):
 
         timestamp = datetime.now().isoformat(sep=' ')
         tabledata = {
-            'event': (timestamp, msg),
-            'status': (self.id, None, self.description)
+            'status': (self.id, self.description, timestamp, msg),
         }
 
         topic = '%s/status' % self.id
@@ -227,6 +226,9 @@ class Connector(Hardware):
 
         report = msg[msg.topic]
         msg_type = report['msg_type']
+        
+        if msg['from'] == self.id:
+            msg['from'] = 'focuspro'
 
         topic = '%s/%s/%s/%s/%s' % (
             self.id,
