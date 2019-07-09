@@ -1,4 +1,4 @@
-from . import c, device
+from . import c
 from focus.back.utils import LOG_FILE
 
 
@@ -33,7 +33,7 @@ def get_data():
     update_values()
 
     data = {
-        'device': device,
+        'device': c,
         'inputs': c.inputs,
         'complects': c.complects,
         'temperature': c.temperature,
@@ -67,7 +67,7 @@ def get_log():
     events.reverse()
 
     data = {
-        'device': device,
+        'device': c,
         'log': events,
     }
 

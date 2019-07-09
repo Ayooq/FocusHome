@@ -11,11 +11,10 @@
     />
 
     {% if title %}
-      <title>{{ title }} | FocusPro</title>
+    <title>{{ title }} | FocusPro</title>
     {% else %}
-      <title>FocusPro. Обслуживание</title>
+    <title>FocusPro. Обслуживание</title>
     {% endif %}
-
   </head>
 
   <body>
@@ -24,17 +23,34 @@
         <div class="logo">
           <code>ID: {{ device.id }}</code>
         </div>
-        <nav class="menu_main">
-          <ul>
-            <li class="active"><a href="{{ url_for('index') }}">На главную</a></li>
-            <li><a href="{{ url_for('management') }}">Управление</a></li>
-            <li><a href="{{ url_for('log') }}">Журнал</a></li>
+        <nav class="menu">
+          <ul class="menu menu__list">
+            <li class="menu menu__item active">
+              <a
+                class="menu menu__link"
+                href="{{ url_for('index') }}"
+              >
+                На главную
+              </a>
+            </li>
+            <li class="menu menu__item">
+              <a
+                class="menu menu__link"
+                href="{{ url_for('management') }}"
+              >
+                Управление
+              </a>
+            </li>
+            <li class="menu menu__item">
+              <a class="menu menu__link" href="{{ url_for('log') }}">
+                Журнал
+              </a>
+            </li>
           </ul>
         </nav>
       </header>
 
       {% block main_content %}{% endblock %}
-
     </div>
   </body>
 </html>
