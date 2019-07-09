@@ -120,7 +120,13 @@
                 <code>{{ misc[unit].id }}</code>
               </td>
               <td>{{ misc[unit].description }}</td>
-              <td>{{ misc[unit].state }}</td>
+              
+              {% if misc[unit].state %}
+                <td>Напряжение в норме</td>
+              {% else %}
+                <td>Проблемы с питанием!</td>
+              {% endif %}
+              
             </tr>
           {% endfor %}
           

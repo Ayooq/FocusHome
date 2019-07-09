@@ -22,14 +22,14 @@ class Connector(Hardware):
 
         self.conn = init_db(DB_FILE, self.config, self.units)
         self.id = get_device_id(self.conn)
-        self.broker, self.port, self.keepalive = define_broker(self.conn)
 
         self.reporter = Reporter(self.id)
         self.register_device(self.blink_on_report, self.report_on_topic)
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
-        # self.client.on_message = self.on_message
+        self.client.on_disconnect = self.on_disconnect
+        self.client.on_message = self.on_message
         LWT = self.set_status_message('offline', qos=2)
         self.client.will_set(**LWT)
 
@@ -37,7 +37,7 @@ class Connector(Hardware):
         log_and_report(self, msg_body, msg_type='info')
 
         self.is_connected = False
-        self.establish_connection(3)
+        self.client.connect(*define_broker(self.conn))
         self.client.loop_start()
 
     def on_connect(self, client, userdata, flags, rc):
@@ -140,33 +140,6 @@ class Connector(Hardware):
             'qos': qos,
             'retain': retain,
         }
-
-    def establish_connection(self, sec_to_wait: int):
-        """Установить соединение с посредником.
-
-        Делать попытки подключения до тех пор, пока связь не будет налажена.
-
-        Параметры:
-          :param sec_to_wait: — время в секундах, определяющее интервал
-        между попытками подключения к посреднику.
-        """
-
-        while not self.is_connected and sec_to_wait < 192:
-            try:
-                self.client.connect(
-                    self.broker,
-                    self.port,
-                    self.keepalive
-                )
-            except:
-                msg_body = 'не удаётся установить связь с посредником'
-                self.logger.error(msg_body)
-                
-                if sec_to_wait >= 192:
-                    raise
-
-            sleep(sec_to_wait)
-            sec_to_wait *= 2
 
     def blink_on_report(self, msg: dict):
         """Моргать при регистрации событий.

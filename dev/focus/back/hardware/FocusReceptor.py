@@ -10,7 +10,7 @@ class FocusReceptor(BaseUnit):
     def __init__(self, **kwargs):
         super().__init__(unit=Button, **kwargs)
 
-        self.lock = True
+        self.lock = False
         self.unit.when_pressed = self.on
         self.unit.when_released = self.off
 

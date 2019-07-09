@@ -11,7 +11,6 @@ class FocusSocketControl:
 
     def __init__(self, **kwargs):
         self.id = kwargs.pop('id')
-        self.description = kwargs.pop('description', None)
 
         out = kwargs.pop('out')
         out['id'] = self.id + '/out'
@@ -21,6 +20,8 @@ class FocusSocketControl:
 
         self.socket = FocusSocket(**out)
         self.control = FocusReceptor(**cnt)
+        self.pin = self.control.pin
+        self.description = self.control.description
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
