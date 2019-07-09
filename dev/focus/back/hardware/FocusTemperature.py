@@ -72,6 +72,6 @@ class FocusTemperature(CPUTemperature):
     @property
     def is_active(self):
         if super().is_active:
-            if self.temperature - self.hysteresis > self.threshold:
-                return True
-        return False
+            return self.temperature - self.hysteresis > self.threshold
+
+        return self.temperature + self.hysteresis > self.threshold
