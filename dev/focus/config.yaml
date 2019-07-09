@@ -120,7 +120,7 @@ units:
       description: внутри банкомата
       min: 10.0
       max: 80.0
-      threshold: 50.0
+      threshold: 70.0
       hysteresis: 0.7
       timedelta: 45
 
