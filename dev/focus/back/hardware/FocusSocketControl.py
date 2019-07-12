@@ -13,10 +13,10 @@ class FocusSocketControl:
         self.id = kwargs.pop('id')
 
         out = kwargs.pop('out')
-        out['id'] = self.id + '/out'
+        out['id'] = self.id + '-s'
 
         cnt = kwargs.pop('cnt')
-        cnt['id'] = self.id + '/cnt'
+        cnt['id'] = self.id + '-c'
 
         self.socket = FocusSocket(**out)
         self.control = FocusReceptor(**cnt)
@@ -48,9 +48,13 @@ class FocusSocketControl:
 
         if self.control.lock:
             self.socket.unit.off()
-            self.control.lock = False            
+            self.control.lock = False
             log_and_report(self, 0)
 
-    @property
-    def state(self):
-        return(self.socket.state, self.control.state)
+    def toggle(self):
+        """Переключить контроль."""
+
+        self.control.lock = False if self.control.lock else True
+        self.socket.unit.toggle()
+
+        log_and_report(self, int(self.socket.state))

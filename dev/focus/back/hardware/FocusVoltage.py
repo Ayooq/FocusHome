@@ -20,7 +20,7 @@ class FocusVoltage(BaseUnit):
     def off(self):
         """Напряжение пропало."""
 
-        log_and_report(self, 0, msg_type='warning')
+        log_and_report(self, 0, type_='warning')
 
     @property
     def state(self):

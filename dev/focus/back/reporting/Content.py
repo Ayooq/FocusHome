@@ -18,9 +18,9 @@ class Content(dict):
         self.update(data)
 
     _mapping = (
-        'msg_type',
-        'msg_body',
+        'from',
+        'type',
+        'message',
         'qos',
         'retain',
-        'gpio',
     )

@@ -32,18 +32,13 @@ class FocusLED(BaseUnit):
 
         self.unit.blink(*args, **kwargs)
 
-    def _get_state(self):
+    @property
+    def state(self):
         return self.unit.is_lit
 
-    def _set_state(self, value):
-        if value == 1 or str(value.lower()) in ('on', 'вкл', 'включить'):
+    @state.setter
+    def state(self, value):
+        if value == 1 or str(value).lower() in ('on', 'вкл', 'включить'):
             self.on()
-        else:
+        elif value == 0 or str(value).lower() in ('off', 'выкл', 'выключить'):
             self.off()
-
-    @property
-    def state(self, value=None):
-        if value:
-            self._set_state(value)
-
-        return self._get_state()

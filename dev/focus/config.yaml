@@ -1,6 +1,6 @@
 # Общие параметры:
 device:
-  id: FP-
+  id: FP-1
   location: Адрес банкомата
   broker:
     host: 89.223.27.69

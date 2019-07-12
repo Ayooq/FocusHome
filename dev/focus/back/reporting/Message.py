@@ -17,5 +17,5 @@ class Message(dict):
           :param content: — кортеж из элементов, определяющих наполнение отчёта.
         """
 
-        payload = self[self.topic]
-        payload.inscribe(content)
+        report = self[self.topic]
+        report.inscribe(content)

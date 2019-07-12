@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for
 
-from . import app, c
+from . import app, focus
 from .models import get_data, get_log
 
 
@@ -23,16 +23,13 @@ def management():
 
 @app.route('/management/<id_>/<action>')
 def action(id_, action):
-    units = c.complects
+    complect = focus.complects.get(id_)
 
-    if id_ in units.keys():
-        complect = units[id_]
+    if complect and action == 'on':
+        complect.on()
 
-        if action == 'on':
-            complect.on()
-
-        elif action == 'off':
-            complect.off()
+    elif complect and action == 'off':
+        complect.off()
 
     return redirect(url_for('management'))
 

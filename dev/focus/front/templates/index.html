@@ -59,10 +59,10 @@
               </td>
               <td>{{ complects[unit].control.description }}</td>
 
-              {% if complects[unit].state[1] %}
+              {% if complects[unit].control.state %}
                 <td>Да</td>
 
-                {% if complects[unit].state[0] %}
+                {% if complects[unit].socket.state %}
                   <td>Активно</td>
                 {% else %}
                   <td>Неактивно</td>

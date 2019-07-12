@@ -15,6 +15,7 @@
     {% else %}
     <title>FocusPro. Обслуживание</title>
     {% endif %}
+    
   </head>
 
   <body>
@@ -26,18 +27,12 @@
         <nav class="menu">
           <ul class="menu menu__list">
             <li class="menu menu__item active">
-              <a
-                class="menu menu__link"
-                href="{{ url_for('index') }}"
-              >
+              <a class="menu menu__link" href="{{ url_for('index') }}">
                 На главную
               </a>
             </li>
             <li class="menu menu__item">
-              <a
-                class="menu menu__link"
-                href="{{ url_for('management') }}"
-              >
+              <a class="menu menu__link" href="{{ url_for('management') }}">
                 Управление
               </a>
             </li>
@@ -51,6 +46,7 @@
       </header>
 
       {% block main_content %}{% endblock %}
+
     </div>
   </body>
 </html>

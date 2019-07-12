@@ -30,24 +30,25 @@ def init_db(filename: str, config: dict, units: dict):
         cursor = conn.cursor()
 
         try:
+            print('Инициализация БД...')
             _create_schema(cursor)
         except sqlite3.Error:
             conn.rollback()
             raise
         else:
-            print('DB initiated.')
+            print('Таблицы созданы.')
             conn.commit()
 
         try:
             set_config(conn, config)
             set_initial_gpio_status(conn, units)
         except:
-            print("Couldn't set initial data.")
+            print('Ошибка в заполнении таблиц данными по умолчанию!')
             raise
         else:
-            print('Initial data is set.')
+            print('Инициализация БД прошла успешно!')
     else:
-        print('The DB file is not empty, skipping the schema creation step.')
+        print('Локальная БД уже существует. Инициализация не требуется.')
 
     return conn
 
@@ -57,19 +58,16 @@ def _create_schema(cursor):
 
     mapping = {
         'events': (
-            'type TEXT',
-            ',',
+            ', type TEXT,',
             'message TEXT',
         ),
-        'gpio_status': (
-            'pin INTEGER',
-            ' UNIQUE,',
-            'description TEXT, state TEXT',
-        ),
-        'gpio_status_archive': (
-            'pin INTEGER',
+        'status': (
             ',',
-            'description TEXT, state TEXT',
+            'state TEXT',
+        ),
+        'status_archive': (
+            ',',
+            'state TEXT',
         ),
     }
 
@@ -99,14 +97,11 @@ def _create_config_table(cursor):
 
 
 def _create_defined_table(cursor, name, columns):
-    col1, col2, col3 = columns
     sql_command = '''CREATE TABLE {}
                             (id INTEGER PRIMARY KEY,
-                            timestamp TEXT,
-                            {},
-                            family TEXT,
-                            unit TEXT{}
-                            {});'''.format(name, col1, col2, col3)
+                            timestamp TEXT{}
+                            unit TEXT,
+                            {});'''.format(name, *columns)
     cursor.execute(sql_command)
 
 
@@ -127,7 +122,8 @@ def set_config(conn, config: dict):
     external = temperature['ext']
 
     tabledata = (
-        device['id'] + str(uuid.uuid4())[:8],
+        # device['id'] + str(uuid.uuid4())[:4],
+        device['id'],
         device['location'],
         broker['host'],
         broker['port'],
@@ -164,20 +160,16 @@ def set_initial_gpio_status(conn, units: dict):
 
     timestamp = datetime.now().isoformat(sep=' ')
     cursor = conn.cursor()
-    tables_set = {'gpio_status', 'gpio_status_archive'}
+    tables_set = {'status', 'status_archive'}
 
     for family, group in units.items():
         for k, v in group.items():
             if family == 'couts':
                 for _ in (v.control, v.socket):
-                    tabledata = [timestamp, _.pin, family, _.id,
-                                 _.description, _.state]
-                    print(tabledata)
+                    tabledata = [timestamp, _.id, _.state]
                     fill_table(conn, cursor, tables_set, tabledata)
             else:
-                tabledata = [timestamp, v.pin, family, k,
-                             v.description, v.state]
-                print(tabledata)
+                tabledata = [timestamp, k, v.state]
                 fill_table(conn, cursor, tables_set, tabledata)
 
     return conn
@@ -197,10 +189,10 @@ def fill_table(conn, cursor, tables_set: set, tabledata):
         try:
             cursor.execute(SQL[tablename], tabledata)
         except sqlite3.Error:
-            print("Couldn't fill the %s table properly!" % tablename)
+            print('Не удалось заполнить таблицу %s!' % tablename)
             conn.rollback()
         else:
-            print("The %s table has been filled with data." % tablename)
+            print('Таблица %s успешно заполнена.' % tablename)
             conn.commit()
 
 
@@ -218,11 +210,12 @@ def change_column_data(conn, columns, values):
 
     for _ in columns, values:
         res.append(','.join((el for el in _)))
-        cursor.execute(
-            '''REPLACE INTO config
-                       ({})
-                VALUES ({});'''.format(res[0], res[1])
-        )
+
+    cursor.execute(
+        '''REPLACE INTO config
+                   ({})
+            VALUES ({});'''.format(res[0], res[1])
+    )
 
 
 def get_device_id(conn):
@@ -253,9 +246,9 @@ def define_broker(conn):
     return cursor.fetchall()[0]
 
 
-GPIO_TABLE_STRUCTURE = {
-    'columns': '(timestamp, pin, family, unit, description, state)',
-    'values': 'VALUES (?, ?, ?, ?, ?, ?);',
+STATUS_TABLES_STRUCTURE = {
+    'columns': '(timestamp, unit, state)',
+    'values': 'VALUES (?, ?, ?);',
 }
 
 SQL = {
@@ -268,14 +261,14 @@ SQL = {
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);''',
 
     'events': '''INSERT INTO events
-                        (timestamp, type, family, unit, message)
-                 VALUES (?, ?, ?, ?, ?);''',
+                        (timestamp, type, unit, message)
+                 VALUES (?, ?, ?, ?);''',
 
-    'gpio_status': 'REPLACE INTO gpio_status {} {}'.format(
-        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
+    'status': 'REPLACE INTO status {} {}'.format(
+        STATUS_TABLES_STRUCTURE['columns'], STATUS_TABLES_STRUCTURE['values']
     ),
 
-    'gpio_status_archive': 'INSERT INTO gpio_status_archive {} {}'.format(
-        GPIO_TABLE_STRUCTURE['columns'], GPIO_TABLE_STRUCTURE['values']
+    'status_archive': 'INSERT INTO status_archive {} {}'.format(
+        STATUS_TABLES_STRUCTURE['columns'], STATUS_TABLES_STRUCTURE['values']
     ),
 }

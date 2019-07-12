@@ -11,7 +11,7 @@ from .utils.db_handlers import init_db, get_device_id, define_broker, fill_table
 from .utils.messaging_tools import register, log_and_report
 
 
-class Connector(Hardware):
+class FocusPro(Hardware):
     """Обвязка функционала MQTT вокруг :class Hardware: без учета авторизации."""
 
     def __init__(self, **kwargs):
@@ -24,17 +24,18 @@ class Connector(Hardware):
         self.id = get_device_id(self.conn)
 
         self.reporter = Reporter(self.id)
-        self.register_device(self.blink_on_report, self.report_on_topic)
+        self.make_subscriptions(self.blink, self.publish)
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
-        LWT = self.set_status_message('offline', qos=2)
+
+        LWT = self.define_lwt()
         self.client.will_set(**LWT)
 
         msg_body = 'starting %s' % self.id
-        log_and_report(self, msg_body, msg_type='info')
+        log_and_report(self, msg_body, type_='info', swap=True)
 
         self.is_connected = False
         self.client.connect(*define_broker(self.conn))
@@ -42,20 +43,22 @@ class Connector(Hardware):
 
     def on_connect(self, client, userdata, flags, rc):
         if rc:
-            log_and_report(self, rc, msg_type='error')
+            log_and_report(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
-            status = self.set_status_message('online', qos=2)
-            client.publish(**status)
+            log_and_report(
+                self, 'online', type_='status', swap=True, retain=True
+            )
 
             # Подписка на акции.
             client.subscribe(self.id + '/action/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
+        log_and_report(self, 'offline', type_='status', swap=True, retain=True)
 
         if rc:
-            log_and_report(self, rc, msg_type='error')
+            log_and_report(self, rc, type_='error', swap=True)
 
     def on_message(self, client, userdata, message):
         print(message.topic, str(message.payload), sep='\n')
@@ -74,143 +77,114 @@ class Connector(Hardware):
     # #         # Обновить статус FocusPIO и отправить ответ.
     # #         pass
 
-    def register_device(self, *callbacks):
+    def make_subscriptions(self, *callbacks):
         """Зарегистрировать устройство и его компоненты для рапортирования.
 
-        Отправка отчётов осуществляется по трём каналам:
-        1) каждое событие регистрируется подсписчиком "blink", который
-        осуществляет световую индикацию, основанную на типе события;
-        2) события, связанные с взаимодействием устройства и посредника,
-        записываются на имя "dev" от имени самого устройства;
-        3) все компоненты разделяются на группы по функциональности, на имя
-        которых и направляются отчёты о состоянии этих компонентов.
-        """
-
-        self._register_self(*callbacks)
-        self._register_units(*callbacks)
-
-    def _register_self(self, *callbacks):
-        """Зарегистрировать само устройство для рапортирования.
-
-        Параметры:
-          :param callbacks: — кортеж из функций-обработчиков, которые будут
-        привязаны к экземпляру устройства.
+        События обрабатываются следующим образом:
+        1) подсписчик "blink" осуществляет световую индикацию, основанную на
+        типе события;
+        2) подписчик "pub" отвечает за отправку отчётов посреднику.
         """
 
         register(self, 'blink', callbacks[0])
-        register(self, 'dev', callbacks[1])
+        register(self, 'pub', callbacks[1])
 
-    def _register_units(self, *callbacks):
-        """Зарегистрировать все компоненты устройства для рапортирования.
-
-        Параметры:
-          :param callbacks: — кортеж из функций-обработчиков, которые будут
-        привязаны к каждому компоненту устройства.
-        """
-
-        for group_name, grouped_components in self.units.items():
-            for unit in grouped_components:
-                register(grouped_components[unit],
-                         'blink', callbacks[0])
-                register(grouped_components[unit], group_name, callbacks[1])
-
-    def set_status_message(self, msg, qos=0, retain=True):
-        """Определить сообщение о статусе устройства для отправки посреднику.
-
-        Параметры:
-          :param msg: — тело сообщения в виде строки состояния;
-          :param qos: — уровень доставки сообщения посреднику, от 0 до 2;
-          :param retain: — булевый показатель сохранения сообщения в качестве
-        последнего "надёжного", выдаваемого сразу при подписке на данную тему.
-
-        Вернуть объект словаря для связывания с методом publish() клиента MQTT.
-        """
-
-        timestamp = datetime.now().isoformat(sep=' ')
-        tabledata = {
-            'status': (self.id, self.description, timestamp, msg),
-        }
-
-        topic = '%s/status' % self.id
-        payload = json.dumps(tabledata)
-
-        return {
-            'topic': topic,
-            'payload': payload,
-            'qos': qos,
-            'retain': retain,
-        }
-
-    def blink_on_report(self, msg: dict):
+    def blink(self, sender: dict):
         """Моргать при регистрации событий.
 
         Индикация производится следующим образом:
         1) event — светодиод включается на секунду, затем выключается,
         однократно;
-        2) info — светодиод включается на секунду, отключается на одну, дважды;
+        2) info/status — светодиод включается на секунду, отключается на одну,
+        дважды;
         3) warning — светодиод включается на две секунды, отключается на одну,
         трижды;
-        4) error — светодиод включается на одну секунду, выключается на одну,
-        десять раз подряд.
+        4) error — светодиод включается на три секунды, выключается на одну,
+        трижды.
 
         Параметры:
-          :param msg: — объект компонента, осуществляющего отправку отчётов
+          :param sender: — объект компонента, осуществляющего отправку отчётов
         от своего имени через реализацию словаря с данными.
         """
 
-        msg_type = msg[msg.topic]['msg_type']
+        msg_type = sender[sender.topic]['type']
 
         if msg_type == 'event':
             self.indicators['led2'].blink(1, 1, 1)
-        elif msg_type == 'info':
+        elif msg_type in ('info', 'status'):
             self.indicators['led2'].blink(1, 1, 2)
         elif msg_type == 'warning':
             self.indicators['led2'].blink(2, 1, 3)
         elif msg_type == 'error':
-            self.indicators['led2'].blink(1, 1, 10)
+            self.indicators['led2'].blink(3, 1, 3)
 
-    def report_on_topic(self, msg: dict):
+    def publish(self, sender: dict):
         """Отправка отчёта посреднику по указанной теме.
 
         Рапортирование сопровождается световой индикацией.
 
         Параметры:
-          :param msg: — объект отчёта, содержащий необходимые данные
+          :param sender: — объект отчёта, содержащий необходимые данные
         для формирования структуры результирующего сообщения.
         """
 
-        publish_data = self._form_publish_data(msg)
-        tabledata = self._form_tabledata(msg)
-        publish_data['payload'] = json.dumps(tabledata)
+        report = sender[sender.topic]
+        payload = self._form_payload(report)
+        pub_data = self._form_pub_data(sender.topic, report, payload)
 
         self.indicators['led1'].on()
-        self.client.publish(**publish_data)
+        self.client.publish(**pub_data)
         self.indicators['led1'].off()
 
-    def _form_publish_data(self, msg: dict):
+    def _form_payload(self, report: dict):
+        """Сформировать JSON-строку с данными для отправки посреднику.
+
+        Записать данные в локальную БД, а затем вернуть строку JSON,
+        преобразованную из кортежа со значениями, необходимыми для операций с
+        БД на хосте посредника.
+
+        Параметры:
+          :param report: — словарь содержимого для отчёта.
+        """
+
+        msg_type = report['type']
+        msg_body = report['message']
+
+        if report['from'] == self.id:
+            report['from'] = 'self'
+
+        timestamp = datetime.now().isoformat(sep=' ')
+        tabledata = [timestamp, msg_type, report['from'], msg_body]
+
+        cursor = self.conn.cursor()
+        tables_set = {'events'}
+
+        fill_table(self.conn, cursor, tables_set, tabledata)
+
+        tabledata.pop(1)
+
+        tables_set.clear()
+        tables_set.update({'status', 'status_archive'})
+
+        fill_table(self.conn, cursor, tables_set, tabledata)
+
+        payload = timestamp, msg_type, msg_body
+
+        return json.dumps(payload)
+
+    def _form_pub_data(self, topic: str, report: dict, payload: str):
         """Сформировать объект с данными для публикации отчёта.
 
         Параметры:
-          :param msg: — объект отчёта, содержащий необходимые данные
-        для формирования структуры результирующего сообщения.
+          :param topic: — тема сообщения;
+          :param report: — словарь отчёта, содержащий необходимые данные
+        для подготовки сообщения к отправке;
+          :param payload: — строка с отправляемыми данными в формате JSON.
 
         Вернуть объект словаря для связывания с методом publish() клиента MQTT.
         """
 
-        report = msg[msg.topic]
-        msg_type = report['msg_type']
-        
-        if msg['from'] == self.id:
-            msg['from'] = 'focuspro'
-
-        topic = '%s/%s/%s/%s/%s' % (
-            self.id,
-            msg.topic,
-            msg['to'],
-            msg['from'],
-            msg_type,
-        )
-        payload = report['msg_body']
+        topic = '/'.join([self.id, topic, report['from']])
         qos = report['qos']
         retain = report['retain']
 
@@ -221,51 +195,23 @@ class Connector(Hardware):
             'retain': retain,
         }
 
-    def _form_tabledata(self, msg: dict):
-        """Сформировать объект табличных данных для отправки посреднику.
-
-        Записать данные в локальную БД, а затем вернуть объект словаря с
-        необходимыми значениями полей для заполнения БД на хосте посредника.
-
-        Параметры:
-          :param msg: — объект отчёта, содержащий необходимые данные
-        для формирования структуры результирующего сообщения.
+    def define_lwt(self):
+        """Определить завещание для отправки посреднику
+        в случае непредвиденного разрыва связи.
         """
 
         timestamp = datetime.now().isoformat(sep=' ')
-        cursor = self.conn.cursor()
-        tables_set = {'events'}
-        result_dict = {}
+        msg_type = 'status'
+        msg_body = 'offline'
 
-        report = msg[msg.topic]
-        msg_type = report['msg_type']
-        msg_body = report['msg_body']
+        topic = '/'.join([self.id, 'report', 'self'])
+        payload = timestamp, msg_type, msg_body
+        qos = 1
+        retain = True
 
-        if msg['from'] == self.id:
-            msg['from'] = 'focuspro'
-
-        tabledata = [timestamp, msg_type, msg['to'], msg['from'], msg_body]
-
-        fill_table(self.conn, cursor, tables_set, tabledata)
-
-        if msg['from'] != 'focuspro':
-            pin = report['gpio'][0]
-            description = report['gpio'][1]
-
-            tabledata[1] = pin
-            tabledata.insert(-1, description)
-
-            tables_set.clear()
-            tables_set.update({'gpio_status', 'gpio_status_archive'})
-
-            fill_table(self.conn, cursor, tables_set, tabledata)
-
-            result_dict['status'] = (
-                self.id + '/' + msg['from'], tabledata[1], tabledata[-2]
-            )
-        else:
-            result_dict['status'] = (self.id, None, self.description)
-
-        result_dict['event'] = tabledata[0], tabledata[-1]
-
-        return result_dict
+        return {
+            'topic': topic,
+            'payload': json.dumps(payload),
+            'qos': qos,
+            'retain': retain,
+        }

@@ -39,11 +39,11 @@ class FocusTemperature(CPUTemperature):
         """Отслеживание изменений показателей температурных датчиков.
 
         Каждые :int self.timedelta: секунд сообщать информацию
-        :attr msg_type='info': о текущем состоянии температуры внутри
+        :attr type_='info': о текущем состоянии температуры внутри
         банкомата, а также ЦПУ самого устройства. При превышении порогового
         значения :float self.threshold:, с учётом показателя
         :float self.hysteresis:, предупреждать о перегреве
-        :attr msg_type='warning': оборудования. В случае возвращения
+        :attr type_='warning': оборудования. В случае возвращения
         показателей в норму, отправлять соответствующее сообщение типа 'event'.
         """
 
@@ -55,11 +55,11 @@ class FocusTemperature(CPUTemperature):
             self._tick -= 1
 
             if not self._tick:
-                log_and_report(self, self.state, msg_type='info')
+                log_and_report(self, self.state, type_='info')
                 self._tick += self.timedelta
 
             if self.is_active and not self._exceeded:
-                log_and_report(self, self.state, msg_type='warning')
+                log_and_report(self, self.state, type_='warning')
                 self._exceeded = True
             elif self._exceeded and not self.is_active:
                 log_and_report(self, self.state)
