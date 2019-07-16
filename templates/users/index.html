@@ -1,0 +1,42 @@
+{% extends "parts/base.html" %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="bgc-white bd bdrs-3 p-20 mB-20">
+                {% if perms.Profiles.users_add %}
+                <div class="mb-12">
+                    <a class="btn btn-outline-primary" href="/users/add">добавить</a>
+                </div>
+                {% endif %}
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Клиент</th>
+                        <th>Фамилия Имя</th>
+                        <th>Адрес</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.client.name }}</td>
+                        <td>{{ user.firstname }} {{ user.lastname }}</td>
+                        <td>
+                            {% if perms.Profiles.users_edit %}
+                            <a class="" href="/users/edit/{{ user.id }}">редактировать</a>
+                        {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock content %}

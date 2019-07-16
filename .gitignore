@@ -1,0 +1,7 @@
+.gitinore
+resourses/react/node_modules/
+docs/
+env/
+readme
+*.pyc
+.idea/

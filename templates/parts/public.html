@@ -1,0 +1,20 @@
+{% load staticfiles %}
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{ page.title }}</title>
+        <link href="{% static 'bootstrap.css' %}" rel="stylesheet">
+        <link href="{% static 'style.css' %}" rel="stylesheet">
+    </head>
+
+    <body class="app">
+        <div class="container">
+            <h4 class="c-grey-900 mT-10 mB-30">{{ page.title }}</h4>
+            {% block content %}{% endblock content %}
+        </div>
+        <script src="{% static 'jquery.js' %}"></script>
+        <script src="{% static 'bootstrap.min.js' %}"></script>
+        <script src="{% static 'pretty-json-min.js' %}"></script>
+    </body>
+</html>

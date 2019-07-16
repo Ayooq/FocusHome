@@ -1,0 +1,197 @@
+{% extends "parts/public.html" %}
+
+{% block content %}
+    <div class="">
+        <h2></h2>
+        <div id="device_unit" class="">
+            <h3>Оборудование. Датчики</h3>
+            <div>
+                <code class="json-viewer" data-expand="expand">
+                    {
+                       "title": "STRING(255)",
+                       "type": "STRING(255)",
+                       "chart": "STRING(255)",
+                       "control": "STRING(255)",
+                       "values": {
+                            "value1": {
+                                "title": "STRING(255)",
+                                "class": "STRING(255)"
+                            },
+                            "value2": {
+                                "title": "STRING(255)",
+                                "class": "STRING(255)"
+                            },
+                            "valueN": {
+                                "title": "STRING(255)",
+                                "class": "STRING(255)"
+                            },
+                            "else": {
+                                "title": "STRING(255)",
+                                "class": "STRING(255)"
+                            }
+                        }
+                    }
+                </code>
+
+                <div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <td>Параметр</td>
+                                <td>Тип</td>
+                                <td>Значение<br>по умолчанию</td>
+                                <td>Описание</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>title</td>
+                                <td>строка 255 символов</td>
+                                <td>Передается устройством</td>
+                                <td>Заголовок виджета</td>
+                            </tr>
+                            <tr>
+                                <td>type</td>
+                                <td>строка 255 символов</td>
+                                <td>STRING</td>
+                                <td>
+                                    <div>Тип данных</div>
+                                    <div>
+                                        <code>STRING</code> <span>список строк</span><br/>
+                                        <code>INTEGER</code> <span>список целых чисел</span><br/>
+                                        <code>FLOAT_RANGE</code> <span>любое дробное число</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>chart</td>
+                                <td>строка 255 символов</td>
+                                <td>null</td>
+                                <td>
+                                    <div>Тип диаграммы</div>
+                                    <div>
+                                        <code>line</code> <span>линейная</span><br/>
+                                        <code>area</code> <span>столбчатая</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>control</td>
+                                <td>строка 255 символов</td>
+                                <td>null</td>
+                                <td>
+                                    <div>Кнопка управления</div>
+                                    <div>
+                                        <code>toggle</code> <span>переключение сочтояния (только для  <code>STRING</code>, <code>INTEGER</code>)</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>values</td>
+                                <td>json объект</td>
+                                <td></td>
+                                <td>
+                                    <div>Список возможных значений</div>
+                                    <div>
+                                        <div>Пример для <code>STRING</code></div>
+                                        <div>
+                                            <code class="json-viewer">
+                                                {
+                                                   "values": {
+                                                        "offline": {
+                                                            "title":"не в сети",
+                                                            "class": "text-danger"
+                                                        },
+                                                        "online": {
+                                                            "title":"в сети",
+                                                            "class": "text-success"
+                                                        },
+                                                        "else": {
+                                                            "class": "text-danger"
+                                                        }
+                                                    }
+                                                }
+                                            </code>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div>Пример для <code>INTEGER</code></div>
+                                        <div>
+                                            <code class="json-viewer">
+                                                {
+                                                   "values": {
+                                                        "0": {
+                                                            "title": "Выключено",
+                                                            "class": "bg-secondary text-white"
+                                                        },
+                                                        "1": {
+                                                            "title": "Включено",
+                                                            "class": "bg-success text-white"
+                                                        },
+                                                        "else": {
+                                                            "title": "Неизвестно",
+                                                            "class": "bg-light text-dark"
+                                                        }
+                                                    }
+                                                }
+                                            </code>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div>Пример для <code>FLOAT_RANGE</code></div>
+                                        <div>
+                                            <code class="json-viewer">
+                                                {
+                                                   "values": {
+                                                        "-100..0": {
+                                                            "class": "bg-warning text-white"
+                                                        },
+                                                        "0..35": {
+                                                            "class": "bg-success text-white"
+                                                        },
+                                                        "35..100": {
+                                                            "class": "bg-danger text-white"
+                                                        },
+                                                        "else": {
+                                                            "title": "Неизвестно",
+                                                            "class": "bg-light text-dark"
+                                                        }
+                                                    }
+                                                }
+                                            </code>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div><b>Пример</b></div>
+                <code class="json-viewer" data-expand="expand">
+                    {
+                       "title": "Вход 1",
+                       "type": "INTEGER",
+                       "chart": "line",
+                       "control": "toggle",
+                       "values": {
+                            "0": {
+                                "title": "Выключено",
+                                "class": "bg-secondary text-white"
+                            },
+                            "1": {
+                                "title": "Включено",
+                                "class": "bg-success text-white"
+                            },
+                            "else": {
+                                "title": "Неизвестно",
+                                "class": "bg-light text-dark"
+                            }
+                        }
+                    }
+                </code>
+            </div>
+        </div>
+    </div>
+
+{% endblock content %}

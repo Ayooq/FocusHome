@@ -1,0 +1,43 @@
+{% extends "parts/base.html" %}
+
+{% block content %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="bgc-white bd bdrs-3 p-20 mB-20">
+                {% if perms.Devices.devices_add %}
+                <div class="mb-12">
+                    <a class="btn btn-outline-primary" href="/devices/add">добавить</a>
+                </div>
+                {% endif %}
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Клиент</th>
+                        <th>Наименование</th>
+                        <th>Адрес</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>{{ device.id }}</td>
+                        <td>{{ device.client.name }}</td>
+                        <td>{{ device.name }}</td>
+                        <td>{{ device.address }}</td>
+                        <td>
+                            {% if perms.Devices.devices_edit %}
+                            <a class="" href="/devices/edit/{{ device.id }}">редактировать</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+{% endblock content %}

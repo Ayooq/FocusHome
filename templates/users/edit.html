@@ -1,0 +1,84 @@
+{% extends "parts/base.html" %}
+
+{% block content %}
+    <form method="POST">
+        {% csrf_token %}
+        <div class="row gap-20 masonry pos-r">
+            <div class="masonry-item col-md-6">
+                <div class="bgc-white p-20 bd"><h6 class="c-grey-900">{{ user.client.name }} / {{ user.firstname }} {{ user.lastname }}</h6>
+                    <div class="mT-30">
+                        {% if request.user.is_superuser == 1 %}
+                        <div class="form-group">
+                            <label>Роль</label>
+                            <select class="form-control" placeholder="" name="role_id">
+                                {% for role in roles %}
+                                    <option value="{{ role.id }}" {% if role.id == user.role_id %} selected="selected" {% endif %}
+                                    >{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted"></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Клиент</label>
+                            <select class="form-control" placeholder="" name="client_id">
+                                {% for client in clients %}
+                                    <option value="{{ client.id }}"
+                                            {% if client.id == user.client_id %} selected="selected" {% endif %}
+                                    >{{ client.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted"></small>
+                        </div>
+                        {% endif %}
+                        <div class="form-group">
+                            <label>Фамилия</label>
+                            <input type="text" class="form-control" placeholder="" name="firstname" value="{{ user.firstname }}">
+                            <small class="form-text text-muted"></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Имя</label>
+                            <input type="text" class="form-control" placeholder="" name="lastname" value="{{ user.lastname }}">
+                            <small class="form-text text-muted"></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Телефон</label>
+                            <input type="text" class="form-control" placeholder="" name="phone" value="{{ user.phone }}">
+                            <small class="form-text text-muted"></small>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="masonry-item col-md-6">
+                <div class="bgc-white p-20 bd mb-20"><h6 class="c-grey-900">Данные для входа в личный кабинет</h6>
+                    <div class="mT-30">
+                        <div class="form-group">
+                            <label>Электронная почта</label>
+                            <input type="text" class="form-control" placeholder="" name="email" value="{{ user.auth.email }}">
+                            <small class="form-text text-muted"></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Пароль</label>
+                            <input type="text" class="form-control" placeholder="" name="psw" value="">
+                            <small class="form-text text-muted"></small>
+                        </div>
+                    </div>
+                </div>
+
+                {% if perms.Profiles.users_perm and user.id %}
+                <div class="bgc-white p-20 bd"><h6 class="c-grey-900">Права пользователя</h6>
+                    <div class="mT-30">
+                        <a class="btn btn-outline-primary" href="/users/perm/{{ user.id }}">изменить</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="masonry-item col-md-12">
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </div>
+    </form>
+
+{% endblock content %}
