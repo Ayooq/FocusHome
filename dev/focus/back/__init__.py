@@ -38,7 +38,8 @@ class FocusPro(Hardware):
 
         self.is_connected = False
         self.conn = init_db(DB_FILE, self.config, self.units)
-        self.handler = Worker(on_event)
+        print('units:', self.units)
+        # self.handler = Worker(on_event)
         broker = self.define_broker(self.config['device']['broker'])
         self.client.connect(*broker)
         self.client.loop_start()
@@ -63,15 +64,16 @@ class FocusPro(Hardware):
             log_and_report(self, rc, type_='error', swap=True)
 
     def on_message(self, client, userdata, message):
-        print(message.topic, str(message.payload), sep='\n')
-        
-        command = message.topic.split('/')[-1]
-        payload = json.loads(message.payload)
-        changed_unit = payload[0]
-        target_unit = payload[1]
-        time_limit = payload[2]
+        pass
+##        print(message.topic, str(message.payload), sep='\n')
+ #       
+  #      command = message.topic.split('/')[-1]
+   #     payload = json.loads(message.payload)
+    #    changed_unit = payload[0]
+     #   target_unit = payload[1]
+      #  time_limit = payload[2]
 
-        on_event(command, changed_unit, target_unit, time_limit=time_limit)
+       # on_event(command, changed_unit, target_unit, time_limit=time_limit)
 
     # #     msg_body = 'Инструкция %s [%s]' % (
     # #         message.topic, str(message.payload))
@@ -96,6 +98,12 @@ class FocusPro(Hardware):
         2) подписчик "pub" отвечает за отправку отчётов посреднику.
         """
 
+        for family in self.units.values():
+            for unit in family.values():
+                print('registering unit', unit)
+                register(unit, 'blink', callbacks[0])
+                register(unit, 'pub', callbacks[1])
+            
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
 
@@ -139,6 +147,7 @@ class FocusPro(Hardware):
         """
 
         report = sender[sender.topic]
+        print('report:', report)
         payload = self._form_payload(report)
         pub_data = self._form_pub_data(sender.topic, report, payload)
 
@@ -159,12 +168,14 @@ class FocusPro(Hardware):
 
         msg_type = report['type']
         msg_body = report['message']
+        print('type, msg -->', msg_type, msg_body)
 
         if report['from'] == self.id:
             report['from'] = 'self'
 
         timestamp = datetime.now().isoformat(sep=' ')
         tabledata = [timestamp, msg_type, report['from'], msg_body]
+        print('tabledata:', tabledata)
 
         cursor = self.conn.cursor()
         tables_set = {'events'}
@@ -179,6 +190,7 @@ class FocusPro(Hardware):
         fill_table(self.conn, cursor, tables_set, tabledata)
 
         payload = timestamp, msg_type, msg_body
+        print('payload:', payload)
 
         return json.dumps(payload)
 

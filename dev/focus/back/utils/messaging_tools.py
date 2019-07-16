@@ -40,7 +40,9 @@ def log_and_report(
     """
 
     common_args = instance, str(msg)
+    print('common arguments:', common_args)
     report_args = type_, qos, retain
+    print('report arguments:', report_args)
 
     _log(*common_args, swap)
     _report(*common_args, *report_args)
@@ -55,6 +57,7 @@ def _log(instance, msg: str, swap: bool):
 
 def _report(instance, msg: str, type_: str, qos: int, retain: bool):
     content = instance.id, type_, msg, qos, retain
+    print(content)
 
     instance.reporter._formalize(content)
     instance.reporter.report()

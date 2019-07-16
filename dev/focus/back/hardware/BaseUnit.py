@@ -21,6 +21,7 @@ class BaseUnit:
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)
+        print(self.reporter)
 
     def __repr__(self):
         return '%s (id=%r, pin=%r, unit=%r, description=%r)' % (

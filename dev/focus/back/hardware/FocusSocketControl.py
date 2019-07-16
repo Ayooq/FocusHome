@@ -13,15 +13,18 @@ class FocusSocketControl:
         self.id = kwargs.pop('id')
         postfix = kwargs.pop('postfix')
         self.description = self.__doc__ + postfix
-        self.complect = []
+        
+        complect = [(id_, unit) for id_, unit in kwargs.items()]
+        print(complect)
+        
+        out = max(complect)
+        cnt = min(complect)
+        
+        print(out, cnt)
 
-        for id_, unit in kwargs.items():
-            unit['id'] = id_
-            self.complect.append(unit)
-
-        self.socket = FocusSocket(postfix=postfix, **self.complect[0])
+        self.socket = FocusSocket(id=out[0], postfix=postfix, **out[1])
         self.control = FocusReceptor(
-            descr='Контроль ', postfix=postfix, **self.complect[1]
+            id=cnt[0], descr='Контроль ', postfix=postfix, **cnt[1]
         )
 
         self.logger = logging.getLogger(__name__)
