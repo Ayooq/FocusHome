@@ -19,31 +19,31 @@
   </head>
 
   <body>
+    <header class="header clearfix">
+      <div class="logo">
+        <code>{{ device.id }}</code>
+      </div>
+      <nav class="menu">
+        <ul class="menu menu__list">
+          <li class="menu menu__item active">
+            <a class="menu menu__link active" href="{{ url_for('index') }}">
+              На главную
+            </a>
+          </li>
+          <li class="menu menu__item">
+            <a class="menu menu__link" href="{{ url_for('management') }}">
+              Управление
+            </a>
+          </li>
+          <li class="menu menu__item">
+            <a class="menu menu__link" href="{{ url_for('log') }}">
+              Журнал
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
     <div class="container">
-      <header class="header clearfix">
-        <div class="logo">
-          <code>ID: {{ device.id }}</code>
-        </div>
-        <nav class="menu">
-          <ul class="menu menu__list">
-            <li class="menu menu__item active">
-              <a class="menu menu__link" href="{{ url_for('index') }}">
-                На главную
-              </a>
-            </li>
-            <li class="menu menu__item">
-              <a class="menu menu__link" href="{{ url_for('management') }}">
-                Управление
-              </a>
-            </li>
-            <li class="menu menu__item">
-              <a class="menu menu__link" href="{{ url_for('log') }}">
-                Журнал
-              </a>
-            </li>
-          </ul>
-        </nav>
-      </header>
 
       {% block main_content %}{% endblock %}
 

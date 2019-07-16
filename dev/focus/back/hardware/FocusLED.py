@@ -4,27 +4,18 @@ from .BaseUnit import BaseUnit
 
 
 class FocusLED(BaseUnit):
-    """Световой индикатор.
-
-    Без логирования и публикации.
-    """
+    """Световой индикатор """
 
     def __init__(self, **kwargs):
         super().__init__(unit=LED, **kwargs)
 
     def on(self):
-        """Зажечь индикатор."""
-
         self.unit.on()
 
     def off(self):
-        """Погасить индикатор."""
-
         self.unit.off()
 
     def toggle(self):
-        """Изменить состояние индикатора на противоположное."""
-
         self.unit.toggle()
 
     def blink(self, *args, **kwargs):

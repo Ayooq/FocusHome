@@ -22,57 +22,51 @@
 */
 .col_25 {
   width: 23%;
-  margin: 0 2% 0 0;
+  padding: 2%;
   float: left;
 }
 .col_33 {
   width: 31%;
-  margin: 0 2% 0 0;
+  padding: 2%;
   float: left;
 }
 .col_50 {
   width: 48%;
-  margin: 0 2% 0 0;
+  padding: 2%;
   float: left;
 }
 .col_66 {
   width: 64%;
-  margin: 0 2% 0 0;
+  padding: 2%;
   float: left;
 }
 .col_75 {
   width: 73%;
-  margin: 0 2% 0 0;
+  padding: 2%;
   float: left;
 }
 .col_100 {
   width: 98%;
-  margin: 0 2% 0 0;
+  padding: 2%;
 }
 
 .col_25.wrap {
   width: 25%;
-  margin: 0;
 }
 .col_33.wrap {
   width: 33%;
-  margin: 0;
 }
 .col_50.wrap {
   width: 50%;
-  margin: 0;
 }
 .col_66.wrap {
   width: 66%;
-  margin: 0;
 }
 .col_75.wrap {
   width: 75%;
-  margin: 0;
 }
 .col_100.wrap {
   width: 100%;
-  margin: 0;
 }
 /* End columns */
 
@@ -167,7 +161,6 @@ a.button {
   .col_66,
   .col_50,
   .col_75 {
-    width: 98%;
     float: none;
   }
 
@@ -233,7 +226,6 @@ a.button {
   .col_33,
   .col_66,
   .col_50 {
-    width: 98%;
     float: none;
   }
 }

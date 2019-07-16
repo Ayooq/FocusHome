@@ -47,10 +47,10 @@ def log_and_report(
 
 
 def _log(instance, msg: str, swap: bool):
-    args = [msg, instance.description] if swap else [instance.description, msg]
-    debug_msg = '{}: {} | [{}]'.format(*args, repr(instance))
+    origin = instance.id if swap else instance.description
+    debug_msg = '{}: {} | [{}]'.format(origin, msg, repr(instance))
     instance.logger.debug(debug_msg)
-    instance.logger.info(': '.join(args))
+    instance.logger.info(': '.join([origin, msg]))
 
 
 def _report(instance, msg: str, type_: str, qos: int, retain: bool):

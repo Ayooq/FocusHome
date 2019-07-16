@@ -10,20 +10,20 @@ from ..utils.messaging_tools import log_and_report
 
 
 class FocusTemperature(CPUTemperature):
-    """Датчик температуры."""
+    """Датчик температуры """
 
     def __init__(self, **kwargs):
-        self.pin = None
         self.id = kwargs.pop('id')
-        self.description = kwargs.pop('description', None)
+        self.description = self.__doc__
+        self.description += 'ЦПУ' if self.id == 'cpu' else 'среды'
 
-        self.kwargs_ = {
+        self.__config = {
             'sensor_file': get_sensor_file(),
             'min_temp': kwargs.pop('min'),
             'max_temp': kwargs.pop('max'),
             'threshold': kwargs.pop('threshold'),
         }
-        super().__init__(**self.kwargs_)
+        super().__init__(**self.__config)
 
         self.hysteresis = kwargs.pop('hysteresis', 1.0)
         self.timedelta = kwargs.pop('timedelta', 60)
@@ -39,12 +39,12 @@ class FocusTemperature(CPUTemperature):
         """Отслеживание изменений показателей температурных датчиков.
 
         Каждые :int self.timedelta: секунд сообщать информацию
-        :attr type_='info': о текущем состоянии температуры внутри
+        :attr type_="info": о текущем состоянии температуры внутри
         банкомата, а также ЦПУ самого устройства. При превышении порогового
         значения :float self.threshold:, с учётом показателя
         :float self.hysteresis:, предупреждать о перегреве
-        :attr type_='warning': оборудования. В случае возвращения
-        показателей в норму, отправлять соответствующее сообщение типа 'event'.
+        :attr type_="warning": оборудования. В случае возвращения
+        показателей в норму, отправлять соответствующее сообщение типа "event".
         """
 
         self._tick = self.timedelta
@@ -72,6 +72,6 @@ class FocusTemperature(CPUTemperature):
     @property
     def is_active(self):
         if super().is_active:
-            return self.temperature - self.hysteresis > self.threshold
+            self.hysteresis = -self.hysteresis
 
         return self.temperature + self.hysteresis > self.threshold

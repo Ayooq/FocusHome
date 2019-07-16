@@ -7,8 +7,10 @@ import paho.mqtt.client as mqtt
 from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
-from .utils.db_handlers import init_db, get_device_id, define_broker, fill_table
+from .utils.db_handlers import init_db, fill_table
 from .utils.messaging_tools import register, log_and_report
+from .utils.concurrency import Worker
+from .utils.routines import on_event
 
 
 class FocusPro(Hardware):
@@ -17,11 +19,8 @@ class FocusPro(Hardware):
     def __init__(self, **kwargs):
         super().__init__()
 
-        self.pin = None
+        self.id = self.config['device']['id']
         self.description = self.config['device']['location']
-
-        self.conn = init_db(DB_FILE, self.config, self.units)
-        self.id = get_device_id(self.conn)
 
         self.reporter = Reporter(self.id)
         self.make_subscriptions(self.blink, self.publish)
@@ -34,11 +33,14 @@ class FocusPro(Hardware):
         LWT = self.define_lwt()
         self.client.will_set(**LWT)
 
-        msg_body = 'starting %s' % self.id
-        log_and_report(self, msg_body, type_='info', swap=True)
+        msg_body = 'Запуск %s' % self.id
+        self.logger.info(msg_body)
 
         self.is_connected = False
-        self.client.connect(*define_broker(self.conn))
+        self.conn = init_db(DB_FILE, self.config, self.units)
+        self.handler = Worker(on_event)
+        broker = self.define_broker(self.config['device']['broker'])
+        self.client.connect(*broker)
         self.client.loop_start()
 
     def on_connect(self, client, userdata, flags, rc):
@@ -47,7 +49,7 @@ class FocusPro(Hardware):
         else:
             self.is_connected = True
             log_and_report(
-                self, 'online', type_='status', swap=True, retain=True
+                self, 'online', swap=True, type_='status', retain=True
             )
 
             # Подписка на акции.
@@ -55,13 +57,21 @@ class FocusPro(Hardware):
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
-        log_and_report(self, 'offline', type_='status', swap=True, retain=True)
+        log_and_report(self, 'offline', swap=True, type_='status', retain=True)
 
         if rc:
             log_and_report(self, rc, type_='error', swap=True)
 
     def on_message(self, client, userdata, message):
         print(message.topic, str(message.payload), sep='\n')
+        
+        command = message.topic.split('/')[-1]
+        payload = json.loads(message.payload)
+        changed_unit = payload[0]
+        target_unit = payload[1]
+        time_limit = payload[2]
+
+        on_event(command, changed_unit, target_unit, time_limit=time_limit)
 
     # #     msg_body = 'Инструкция %s [%s]' % (
     # #         message.topic, str(message.payload))
@@ -195,7 +205,7 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def define_lwt(self):
+    def define_lwt(self, qos=1, retain=True):
         """Определить завещание для отправки посреднику
         в случае непредвиденного разрыва связи.
         """
@@ -206,8 +216,6 @@ class FocusPro(Hardware):
 
         topic = '/'.join([self.id, 'report', 'self'])
         payload = timestamp, msg_type, msg_body
-        qos = 1
-        retain = True
 
         return {
             'topic': topic,
@@ -215,3 +223,16 @@ class FocusPro(Hardware):
             'qos': qos,
             'retain': retain,
         }
+
+    def define_broker(self, broker: dict):
+        """Определить адрес хоста и порт, через который будет осуществляться
+        обмен данными с посредником, а также допустимое время простоя между
+        отправкой сообщений в секундах.
+
+        Параметры:
+        :param broker: — словарь с данными о посреднике.
+
+        Вернуть кортеж вида: (адрес, порт, время простоя).
+        """
+
+        return broker['host'], broker['port'], broker['keepalive']

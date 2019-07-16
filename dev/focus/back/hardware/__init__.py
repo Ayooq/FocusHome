@@ -3,8 +3,8 @@ import uuid
 import yaml
 from datetime import datetime
 
-from .FocusSocket import FocusSocket, FocusLED
-from .FocusReceptor import FocusReceptor, BaseUnit
+from .FocusSocket import FocusLED
+from .FocusReceptor import FocusReceptor
 from .FocusSocketControl import FocusSocketControl
 from .FocusTemperature import FocusTemperature
 from .FocusVoltage import FocusVoltage
@@ -18,6 +18,14 @@ class Hardware:
 
     Разбито на именованные группы.
     """
+
+    _mapping = {
+        'leds': FocusLED,
+        'ins': FocusReceptor,
+        'couts': FocusSocketControl,
+        'temp': FocusTemperature,
+        'misc': FocusVoltage,
+    }
 
     def __init__(self, config_file=CONFIG_FILE):
         try:
@@ -55,30 +63,25 @@ class Hardware:
 
         self.units = {}
 
-        for group in self.config['units']:
-            self.units[group] = self._set_context(self.config['units'][group])
+        for family, children in self.config['units'].items():
+            self.units[family] = self._set_context(family, children)
+            # self.config['units'][family])
 
-    def _set_context(self, family: dict):
-        """Установить контекст для компонентов единой группы.
+    def _set_context(self, family: str, children: dict):
+        """Установить контекст для компонентов единого семейства.
 
         Параметры:
-          :param family: — семейство компонентов устройства.
+          :param family: — семейство компонентов устройства;
 
         Вернуть объект контекста в виде словаря.
         """
 
-        class_ = family.pop('class', None)
-
-        if class_:
-            interface = eval(class_)
-            ctx = {
-                unit: interface(id=unit, **family[unit]) for unit in family
-            }
-        else:
-            ctx = {
-                'volt': FocusVoltage(id='volt', **family['volt']),
-                # 'block': FocusBlockage(id='block', **family['block']),
-            }
+        class_ = Hardware._mapping[family]
+        ctx = {
+            sibling: class_(
+                id=sibling, postfix=sibling[-1], **children[sibling]
+            ) for sibling in children
+        }
 
         return ctx
 

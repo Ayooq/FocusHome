@@ -1,6 +1,14 @@
 class Content(dict):
     """Структура содержимого для сообщений."""
 
+    _mapping = (
+        'from',
+        'type',
+        'message',
+        'qos',
+        'retain',
+    )
+
     def __init__(self):
         super().__init__()
 
@@ -16,11 +24,3 @@ class Content(dict):
 
         data = zip(Content._mapping, values)
         self.update(data)
-
-    _mapping = (
-        'from',
-        'type',
-        'message',
-        'qos',
-        'retain',
-    )

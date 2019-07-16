@@ -7,21 +7,22 @@ from ..utils.messaging_tools import log_and_report
 
 
 class FocusSocketControl:
-    """Комплект [Гнездо — Контроль состояния]."""
+    """Комплект [Выход — Контроль] """
 
     def __init__(self, **kwargs):
         self.id = kwargs.pop('id')
+        postfix = kwargs.pop('postfix')
+        self.description = self.__doc__ + postfix
+        self.complect = []
 
-        out = kwargs.pop('out')
-        out['id'] = self.id + '-s'
+        for id_, unit in kwargs.items():
+            unit['id'] = id_
+            self.complect.append(unit)
 
-        cnt = kwargs.pop('cnt')
-        cnt['id'] = self.id + '-c'
-
-        self.socket = FocusSocket(**out)
-        self.control = FocusReceptor(**cnt)
-        self.pin = self.control.pin
-        self.description = self.control.description
+        self.socket = FocusSocket(postfix=postfix, **self.complect[0])
+        self.control = FocusReceptor(
+            descr='Контроль ', postfix=postfix, **self.complect[1]
+        )
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
@@ -36,25 +37,15 @@ class FocusSocketControl:
         )
 
     def on(self):
-        """Включить контроль."""
-
-        if not self.control.lock:
-            self.socket.unit.on()
-            self.control.lock = True
-            log_and_report(self, 1)
+        self.control.on()
+        self.socket.on()
 
     def off(self):
-        """Отключить контроль."""
-
-        if self.control.lock:
-            self.socket.unit.off()
-            self.control.lock = False
-            log_and_report(self, 0)
+        self.control.off()
+        self.socket.off()
 
     def toggle(self):
-        """Переключить контроль."""
-
         self.control.lock = False if self.control.lock else True
-        self.socket.unit.toggle()
+        self.socket.toggle()
 
-        log_and_report(self, int(self.socket.state))
+        log_and_report(self.control, int(self.socket.state))

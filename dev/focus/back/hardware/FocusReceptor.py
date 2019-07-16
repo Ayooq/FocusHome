@@ -5,7 +5,7 @@ from ..utils.messaging_tools import log_and_report
 
 
 class FocusReceptor(BaseUnit):
-    """Концевой датчик (входной рецептор)."""
+    """Вход """
 
     def __init__(self, **kwargs):
         super().__init__(unit=Button, **kwargs)
@@ -15,15 +15,11 @@ class FocusReceptor(BaseUnit):
         self.unit.when_released = self.off
 
     def on(self):
-        """Замкнуть цепь на приём сигнала."""
-
         if not self.lock:
             self.lock = True
             log_and_report(self, 1)
 
     def off(self):
-        """Разомкнуть цепь подачи сигнала."""
-
         if self.lock:
             self.lock = False
             log_and_report(self, 0)

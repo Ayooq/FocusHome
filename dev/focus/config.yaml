@@ -7,85 +7,81 @@ device:
     port: 1883
     keepalive: 60
 
-# Раскладка по ПИНАМ:
-fields:
+# Датчики GPIO:
+gpio:
   led1: &l1
     pin: 17
-    description: Светодиод 1
 
   led2: &l2
     pin: 27
-    description: Светодиод 2
 
   out1: &o1
     pin: 5
-    description: Гнездо 1
 
   out2: &o2
     pin: 13
-    description: Гнездо 2
 
   out3: &o3
     pin: 26
-    description: Гнездо 3
 
   out4: &o4
     pin: 16
-    description: Гнездо 4
 
   in1: &i1
     pin: 21
-    description: Вxoдной рецептор 1
 
   in2: &i2
     pin: 18
-    description: Входной рецептор 2
 
   in3: &i3
     pin: 23
-    description: Входной рецептор 3
 
   in4: &i4
     pin: 24
-    description: Входной рецептор 4
 
   in5: &i5
     pin: 25
-    description: Входной рецептор 5
 
   cnt1: &c1
     pin: 6
-    description: Контроль 1
 
   cnt2: &c2
     pin: 19
-    description: Контроль 2
 
   cnt3: &c3
     pin: 12
-    description: Контроль 3
 
   cnt4: &c4
     pin: 20
-    description: Контроль 4
 
   volt: &v
     pin: 9
-    description: Контроль напряжения устройства
 
   block: &b
     pin: 11
-    description: Блокировка состояния выходов при перезагрузке
+
+# Аналоговые датчики:
+analog:
+  cpu: &t1
+    min: 0.0
+    max: 100.0
+    threshold: 80.0
+    hysteresis: 0.9
+    timedelta: 60
+  ext: &t2
+    min: 10.0
+    max: 80.0
+    threshold: 70.0
+    hysteresis: 0.7
+    timedelta: 45
 
 # Раскладка в группы по функциональности:
 units:
   leds: &u1
-    class: FocusLED
     led1: *l1
     led2: *l2
 
   ins: &u2
-    class: FocusReceptor
     in1: *i1
     in2: *i2
     in3: *i3
@@ -93,36 +89,22 @@ units:
     in5: *i5
 
   couts: &u3
-    class: FocusSocketControl
     cmp1:
-      out: *o1
-      cnt: *c1
+      out1: *o1
+      cnt1: *c1
     cmp2:
-      out: *o2
-      cnt: *c2
+      out2: *o2
+      cnt2: *c2
     cmp3:
-      out: *o3
-      cnt: *c3
+      out3: *o3
+      cnt3: *c3
     cmp4:
-      out: *o4
-      cnt: *c4
+      out4: *o4
+      cnt4: *c4
 
   temp: &u4
-    class: FocusTemperature
-    cpu: &t1
-      description: ЦПУ FocusPro
-      min: 0.0
-      max: 100.0
-      threshold: 80.0
-      hysteresis: 0.9
-      timedelta: 60
-    ext: &t2
-      description: внутри банкомата
-      min: 10.0
-      max: 80.0
-      threshold: 70.0
-      hysteresis: 0.7
-      timedelta: 45
+    cpu: *t1
+    ext: *t2
 
   misc: &u5
     volt: *v
