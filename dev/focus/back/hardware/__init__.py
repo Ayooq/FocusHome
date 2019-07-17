@@ -30,18 +30,14 @@ class Hardware:
     def __init__(self, config_file=CONFIG_FILE):
         try:
             self.config = self.get_config(config_file)
-
-            # Головной регистратор:
             self.logger = Logger(LOG_FILE).instance
-
         except:
             msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
             self.logger.error(msg_body) if self.logger else print(msg_body)
 
             raise
 
-        # Создание словаря компонентов с именами классов в качестве значений.
-        self.make_units_dict()
+        self._make_units_dict()
 
     def get_config(self, config_file: str):
         """Загрузка описателя оборудования из файла конфигурации.
@@ -58,20 +54,20 @@ class Hardware:
 
         return config_dict
 
-    def make_units_dict(self):
+    def _make_units_dict(self):
         """Создать словарь компонентов на основе словаря конфигурации."""
 
         self.units = {}
 
         for family, children in self.config['units'].items():
             self.units[family] = self._set_context(family, children)
-            # self.config['units'][family])
 
     def _set_context(self, family: str, children: dict):
         """Установить контекст для компонентов единого семейства.
 
         Параметры:
           :param family: — семейство компонентов устройства;
+          :param children:
 
         Вернуть объект контекста в виде словаря.
         """

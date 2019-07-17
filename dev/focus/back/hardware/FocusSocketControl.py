@@ -15,13 +15,10 @@ class FocusSocketControl:
         self.description = self.__doc__ + postfix
         
         complect = [(id_, unit) for id_, unit in kwargs.items()]
-        print(complect)
         
         out = max(complect)
         cnt = min(complect)
         
-        print(out, cnt)
-
         self.socket = FocusSocket(id=out[0], postfix=postfix, **out[1])
         self.control = FocusReceptor(
             id=cnt[0], descr='Контроль ', postfix=postfix, **cnt[1]

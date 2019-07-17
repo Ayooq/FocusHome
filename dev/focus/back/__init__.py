@@ -21,9 +21,18 @@ class FocusPro(Hardware):
 
         self.id = self.config['device']['id']
         self.description = self.config['device']['location']
+        self.conn = init_db(DB_FILE, self.config, self.units)
+        print(self.id, self.description, self.conn, sep='\n')
+        print('units:', self.units)
 
         self.reporter = Reporter(self.id)
         self.make_subscriptions(self.blink, self.publish)
+        
+#        services = {
+#            self.temperature['cpu'].state_monitor,
+#            self.temperature['ext'].state_monitor,
+#        }
+#        self.apply_workers(services)
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
@@ -36,11 +45,9 @@ class FocusPro(Hardware):
         msg_body = 'Запуск %s' % self.id
         self.logger.info(msg_body)
 
-        self.is_connected = False
-        self.conn = init_db(DB_FILE, self.config, self.units)
-        print('units:', self.units)
         # self.handler = Worker(on_event)
         broker = self.define_broker(self.config['device']['broker'])
+        self.is_connected = False
         self.client.connect(*broker)
         self.client.loop_start()
 
@@ -106,6 +113,12 @@ class FocusPro(Hardware):
             
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
+
+    def apply_workers(self, services):
+        self.workers = set()
+        
+        for service in services:
+            self.workers.add(Worker(service))
 
     def blink(self, sender: dict):
         """Моргать при регистрации событий.

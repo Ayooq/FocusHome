@@ -32,7 +32,7 @@ class FocusTemperature(CPUTemperature):
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)
-
+        
         self.service = Worker(self.state_monitor)
 
     def state_monitor(self):

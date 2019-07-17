@@ -57,7 +57,6 @@ def _log(instance, msg: str, swap: bool):
 
 def _report(instance, msg: str, type_: str, qos: int, retain: bool):
     content = instance.id, type_, msg, qos, retain
-    print(content)
 
     instance.reporter._formalize(content)
     instance.reporter.report()
