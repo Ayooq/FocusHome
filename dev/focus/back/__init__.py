@@ -7,10 +7,9 @@ import paho.mqtt.client as mqtt
 from .hardware import Hardware
 from .reporting import Reporter
 from .utils import DB_FILE
-from .utils.db_handlers import init_db, fill_table
 from .utils.messaging_tools import register, log_and_report
+from .utils.db_handlers import init_db, fill_table
 from .utils.concurrency import Worker
-from .utils.routines import on_event
 
 
 class FocusPro(Hardware):
@@ -21,18 +20,21 @@ class FocusPro(Hardware):
 
         self.id = self.config['device']['id']
         self.description = self.config['device']['location']
-        self.conn = init_db(DB_FILE, self.config, self.units)
-        print(self.id, self.description, self.conn, sep='\n')
-        print('units:', self.units)
+        print(self.id, self.description)
 
         self.reporter = Reporter(self.id)
         self.make_subscriptions(self.blink, self.publish)
-        
+
 #        services = {
 #            self.temperature['cpu'].state_monitor,
 #            self.temperature['ext'].state_monitor,
 #        }
 #        self.apply_workers(services)
+
+        msg_body = 'Запуск %s' % self.id
+        self.logger.info(msg_body)
+
+        self.db = init_db(DB_FILE, self.config, self.units)
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
@@ -42,12 +44,12 @@ class FocusPro(Hardware):
         LWT = self.define_lwt()
         self.client.will_set(**LWT)
 
-        msg_body = 'Запуск %s' % self.id
-        self.logger.info(msg_body)
-
-        # self.handler = Worker(on_event)
-        broker = self.define_broker(self.config['device']['broker'])
         self.is_connected = False
+        
+    def connect(self, timeout=0):
+        sleep(timeout)
+        device = self.config.get('device')
+        broker = self._define_broker(device['broker'])
         self.client.connect(*broker)
         self.client.loop_start()
 
@@ -56,12 +58,12 @@ class FocusPro(Hardware):
             log_and_report(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
+
             log_and_report(
                 self, 'online', swap=True, type_='status', retain=True
             )
 
-            # Подписка на акции.
-            client.subscribe(self.id + '/action/#', qos=2)
+            client.subscribe(self.id + '/cmd/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -71,9 +73,9 @@ class FocusPro(Hardware):
             log_and_report(self, rc, type_='error', swap=True)
 
     def on_message(self, client, userdata, message):
-        pass
-##        print(message.topic, str(message.payload), sep='\n')
- #       
+        print('Received msg topic:', message.topic)
+#        print(message.topic, str(message.payload), sep='\n')
+
   #      command = message.topic.split('/')[-1]
    #     payload = json.loads(message.payload)
     #    changed_unit = payload[0]
@@ -110,13 +112,13 @@ class FocusPro(Hardware):
                 print('registering unit', unit)
                 register(unit, 'blink', callbacks[0])
                 register(unit, 'pub', callbacks[1])
-            
+
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
 
     def apply_workers(self, services):
         self.workers = set()
-        
+
         for service in services:
             self.workers.add(Worker(service))
 
@@ -190,17 +192,17 @@ class FocusPro(Hardware):
         tabledata = [timestamp, msg_type, report['from'], msg_body]
         print('tabledata:', tabledata)
 
-        cursor = self.conn.cursor()
+        cursor = self.db.cursor()
         tables_set = {'events'}
 
-        fill_table(self.conn, cursor, tables_set, tabledata)
+        fill_table(self.db, cursor, tables_set, tabledata)
 
         tabledata.pop(1)
 
         tables_set.clear()
         tables_set.update({'status', 'status_archive'})
 
-        fill_table(self.conn, cursor, tables_set, tabledata)
+        fill_table(self.db, cursor, tables_set, tabledata)
 
         payload = timestamp, msg_type, msg_body
         print('payload:', payload)
@@ -249,7 +251,7 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def define_broker(self, broker: dict):
+    def _define_broker(self, broker: dict):
         """Определить адрес хоста и порт, через который будет осуществляться
         обмен данными с посредником, а также допустимое время простоя между
         отправкой сообщений в секундах.

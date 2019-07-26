@@ -9,8 +9,7 @@ from .FocusSocketControl import FocusSocketControl
 from .FocusTemperature import FocusTemperature
 from .FocusVoltage import FocusVoltage
 from ..logger import Logger
-from ..utils import CONFIG_FILE, LOG_FILE
-from ..utils.messaging_tools import log_and_report
+from ..utils import CONFIG_FILE, LOG_FILE, DB_FILE
 
 
 class Hardware:

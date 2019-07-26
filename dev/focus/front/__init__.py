@@ -14,5 +14,6 @@ if os.getenv('FLASK_ENV') == 'development':
     Device.pin_factory = MockFactory()
 
 focus = FocusPro()
+focus.connect(timeout=5)
 
 from . import views, models
