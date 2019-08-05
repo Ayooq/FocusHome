@@ -1,0 +1,58 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <form class="row gap-20 pos-r" method="POST">
+
+    {% csrf_token %}
+
+    <div class="col-md-6">
+      <div class="p-20 bd">
+
+        {% if profile.id %}
+          <h6 class="c-grey-900 mB-30">
+            {{ profile.client.name }} | {{ profile }}
+          </h6>
+        {% endif %}
+
+        <div>
+
+          {% for permission in permissions_list %}
+            <div class="form-group">
+              <div class="checkbox checkbox-circle checkbox-info peers ai-c">
+
+                {% if permission.id in profile_permissions %}
+                  <input
+                    type="checkbox"
+                    class="peer"
+                    id="check_{{ permission.id }}"
+                    name="perm_{{ permission.id }}"
+                    checked
+                  />
+                {% else %}
+                  <input
+                    type="checkbox"
+                    class="peer"
+                    id="check_{{ permission.id }}"
+                    name="perm_{{ permission.id }}"
+                  />
+                {% endif %}
+
+                <label
+                  for="check_{{ permission.id }}"
+                  class="peer peer-greed js-sb ai-c"
+                >
+                  <span class="peer peer-greed">{{ permission.name }}</span>
+                </label>
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-12">
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </div>
+  </form>
+{% endblock content %}

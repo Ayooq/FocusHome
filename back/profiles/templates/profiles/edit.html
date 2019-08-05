@@ -1,0 +1,148 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <form method="POST">
+  
+    {% csrf_token %}
+
+    <div class="row gap-20 pos-r">
+      <div class="col-md-6">
+        <div class="p-20 bd">
+ 
+          {% if profile.id %}
+            <h6 class="c-grey-900 mB-30">
+              {{ profile.client.name }} | {{ profile }}
+            </h6>
+          {% endif %}
+
+          <div>
+          
+            {% if request.user.is_superuser %}
+              <div class="form-group">
+                <label>Роль</label>
+                <select class="form-control" name="role_id">
+
+                  {% for role in roles %}
+                    {% if role.id != profile.role_id %}
+                      <option value="{{ role.id }}">
+                        {{ role.name }}
+                      </option>
+                    {% else %}
+                      <option value="{{ role.id }}" selected>
+                        {{ role.name }}
+                      </option>
+                    {% endif %}
+                  {% endfor %}
+
+                </select>
+                <small class="form-text text-muted"></small>
+              </div>
+
+              <div class="form-group">
+                <label>Клиент</label>
+                <select class="form-control" name="client_id">
+
+                  {% for client in clients %}
+                    {% if client.id != profile.client_id %}
+                      <option value="{{ client.id }}">
+                        {{ client.name }}
+                      </option>
+                    {% else %}
+                      <option value="{{ client.id }}" selected>
+                        {{ client.name }}
+                      </option>
+                    {% endif %}
+                  {% endfor %}
+                  
+                </select>
+                <small class="form-text text-muted"></small>
+              </div>
+            {% endif %}
+
+            <div class="form-group">
+              <label>Фамилия</label>
+              <input
+                type="text"
+                class="form-control"
+                name="firstname"
+                value="{{ profile.firstname }}"
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+
+            <div class="form-group">
+              <label>Имя</label>
+              <input
+                type="text"
+                class="form-control"
+                name="lastname"
+                value="{{ profile.lastname }}"
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+
+            <div class="form-group">
+              <label>Телефон</label>
+              <input
+                type="tel"
+                class="form-control"
+                name="phone"
+                value="{{ profile.phone }}"
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="p-20 bd mB-20">
+          <h6 class="c-grey-900">Данные для входа в личный кабинет</h6>
+
+          <div class="mT-30">
+            <div class="form-group">
+              <label>Электронная почта</label>
+              <input
+                type="email"
+                class="form-control"
+                name="email"
+                value="{{ profile.auth.email }}"
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+
+            <div class="form-group">
+              <label>Пароль</label>
+              <input
+                type="text"
+                class="form-control"
+                placeholder=""
+                name="psw"
+                value=""
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+          </div>
+        </div>
+
+        {% if perms.profiles.change_profile and profile.id %}
+          <div class="p-20 bd">
+            <h6 class="c-grey-900">Права пользователя</h6>
+            <div class="mT-30">
+              <a
+                class="btn btn-outline-primary"
+                href="{% url 'profiles:permit' pk=profile.id %}"
+              >
+                Изменить
+              </a>
+            </div>
+          </div>
+        {% endif %}
+
+      </div>
+      <div class="col-md-12">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </form>
+{% endblock content %}

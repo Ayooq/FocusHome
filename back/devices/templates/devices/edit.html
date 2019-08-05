@@ -1,0 +1,167 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <form method="POST">
+
+    {% csrf_token %}
+
+    <div class="row gap-20 masonry pos-r">
+      <div class="masonry-item col-md-6">
+        <div class="bgc-white p-20 bd">
+        
+          {% if device.id %}
+            <h6 class="c-grey-900">
+              {{ device.client.name }} / {{ device.name }}
+            </h6>
+          {% endif %}
+          
+          <div class="mT-30">
+
+            {% if request.user.is_superuser %}
+              <div class="form-group">
+                <label>Клиент</label>
+                <select class="form-control" name="client">
+
+                  {% for client in clients %}
+                    <option value="{{ client.id }}">
+                      {{ client.name }}
+                    </option>
+                  {% endfor %}
+                  
+                </select>
+                <small class="form-text text-muted"></small>
+              </div>
+            {% endif %}
+
+            <div class="form-group">
+              <label>Устройство</label>
+              <input
+                type="text"
+                class="form-control"
+                name="name"
+                value="{{ device.name }}"
+                placeholder="назначается автоматически"
+                readonly
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+            <!-- <div class="form-group">
+              <label>Наименование</label>
+              <input type="text" class="form-control" placeholder="" name="name" value="{{ device.name }}">
+              <small class="form-text text-muted"></small>
+            </div> -->
+            <div class="form-group">
+              <label>Адрес</label>
+              <input
+                type="text"
+                class="form-control"
+                name="address"
+                value="{{ device.address }}"
+              />
+              <small class="form-text text-muted"></small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="masonry-item col-md-6">
+        <div class="bgc-white p-20 bd">
+          <h6 class="c-grey-900"></h6>
+          <div class="mT-30">
+            <div class="form-group">
+              <label>Комментарий</label>
+              <textarea class="form-control" name="comment" rows="5">
+                {{ device.comment }}
+              </textarea>
+              <small class="form-text text-muted"></small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="masonry-item col-md-12">
+        <div class="bgc-white p-20 bd">
+          <h6 class="c-grey-900">
+            Датчики
+            <a href="{% url 'help' %}" target="_blank">
+              <i class="ti-help-alt"></i>
+            </a>
+          </h6>
+          <div class="mT-30">
+
+            {% if errors %}
+              <div class="alert-danger mb-3 p-5">
+
+                {% for error in errors.values %}
+                  {% for e in error %}
+                    <div>{{ e }}</div>
+                  {% endfor %}
+                {% endfor %}
+
+              </div>
+            {% endif %}
+
+            <div class="row gap-20 masonry pos-r">
+
+              {% for unit in units %}
+                <div class="masonry-item col-md-6 col-lg-4 col-xl-3">
+                  <div>
+                    <label> {{ unit.family_title }} / {{ unit.title }} </label>
+                  </div>
+                  <div class="form-group row">
+                    <label class="col-sm-2 col-form-label">PIN</label>
+                    <div class="col-sm-10">
+
+                      {% if unit.is_gpio %}
+                        <select
+                          class="form-control"
+                          name="pin_for_{{ unit.id }}"
+                        >
+                          <option value="-1" disabled>
+                            -- не выбрано --
+                          </option>
+
+                          {% for pin in pins %}
+                            {% if pin == unit.mounted_unit_pin %}
+                              <option value="{{ pin }}" selected>
+                                {{ pin }}
+                              </option>
+                            {% else %}
+                              <option value="{{ pin }}">
+                                {{ pin }}
+                              </option>
+                            {% endif %}
+                          {% endfor %}
+
+                        </select>
+                      {% else %}
+                        <input
+                          class="form-control"
+                          name="pin_for_{{ unit.id }}"
+                          disabled
+                        />
+                      {% endif %}
+
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Описание датчика</label>
+                    <textarea
+                      class="form-control"
+                      name="unit_definition_for_{{ unit.id }}"
+                      rows="5"
+                    >
+                      {{ unit.format }}
+                    </textarea>
+                  </div>
+                </div>
+              {% endfor %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="masonry-item col-md-12">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </form>
+{% endblock content %}

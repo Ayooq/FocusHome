@@ -1,0 +1,50 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="bd bdrs-3 p-20 mB-20">
+ 
+        {% if perms.profiles.add_profile %}
+          <div class="mb-12">
+            <a href="{% url 'profiles:add' %}" class="btn btn-outline-primary">
+              Добавить
+            </a>
+          </div>
+        {% endif %}
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Клиент</th>
+              <th>Фамилия Имя</th>
+              <th>Адрес</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {% for profile in profiles %}
+              <tr>
+                <td>{{ profile.id }}</td>
+                <td>{{ profile.client.name }}</td>
+                <td>{{ profile }}</td>
+                <td>
+
+                {% if perms.profiles.change_profile %}
+                  <a href="{% url 'profiles:edit' pk=profile.id %}">
+                    Редактировать
+                  </a>
+                {% endif %}
+
+                </td>
+              </tr>
+            {% endfor %}
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

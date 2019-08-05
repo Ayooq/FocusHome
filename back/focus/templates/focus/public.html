@@ -1,0 +1,24 @@
+{% load staticfiles %}
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ page.title }}</title>
+    <link href="{% static 'focus/bootstrap.css' %}" rel="stylesheet" />
+    <link href="{% static 'focus/style.css' %}" rel="stylesheet" />
+  </head>
+
+  <body>
+    <div class="container">
+      <h4 class="row justify-content-center c-grey-900 mT-20 mB-30">
+        {{ page.title }}
+      </h4>
+
+      {% block content %}{% endblock content %}
+
+    </div>
+    <script src="{% static 'focus/jquery.js' %}"></script>
+    <script src="{% static 'focus/bootstrap.min.js' %}"></script>
+    <script src="{% static 'focus/pretty-json-min.js' %}"></script>
+  </body>
+</html>

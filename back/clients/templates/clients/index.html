@@ -1,0 +1,47 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="bd p-20">
+
+        {% if perms.clients.add_client %}
+          <div class="mb-12">
+            <a class="btn btn-outline-primary" href="{% url 'clients:add' %}">
+              Добавить
+            </a>
+          </div>
+        {% endif %}
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Имя клиента</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {% for client in clients %}
+              <tr>
+                <td>{{ client.id }}</td>
+                <td>{{ client.name }}</td>
+                <td>
+
+                  {% if perms.clients.change_client %}
+                    <a href="{% url 'clients:edit' pk=client.id %}">
+                      Редактировать
+                    </a>
+                  {% endif %}
+                  
+                </td>
+              </tr>
+            {% endfor %}
+            
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

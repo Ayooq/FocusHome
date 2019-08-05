@@ -1,0 +1,49 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-md-12">
+      <div class="md-20 bd p-20">
+
+        {% if perms.devices.add_device %}
+          <div class="mb-12">
+            <a class="btn btn-outline-primary" href="{% url 'devices:add' %}">
+              Добавить
+            </a>
+          </div>
+        {% endif %}
+
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Клиент</th>
+              <th>Устройство</th>
+              <th>Адрес</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+
+            {% for device in devices %}
+              <tr>
+                <td>{{ device.client.name }}</td>
+                <td>{{ device.name }}</td>
+                <td>{{ device.address }}</td>
+                <td>
+
+                  {% if perms.devices.change_device %}
+                    <a href="{% url 'devices:edit' pk=device.id %}">
+                      Редактировать
+                    </a>
+                  {% endif %}
+
+                </td>
+              </tr>
+            {% endfor %}
+
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

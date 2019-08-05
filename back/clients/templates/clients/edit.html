@@ -1,0 +1,30 @@
+{% extends "focus/base.html" %}
+
+{% block content %}
+  <form method="POST">
+
+    {% csrf_token %}
+    
+    <div class="row gap-20 pos-r">
+      <div class="col-md-6">
+        <div class="bgc-white p-20 bd">
+          <h6 class="c-grey-900">{{ client.name }}</h6>
+          <div class="mT-30">
+            <div class="form-group">
+              <input
+                class="form-control"
+                type="text"
+                name="name"
+                value="{{ client.name }}"
+              />
+              <small class="form-text text-muted">Имя клиента</small>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-12">
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </div>
+  </form>
+{% endblock content %}
