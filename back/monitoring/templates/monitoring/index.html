@@ -2,12 +2,12 @@
 {% load staticfiles %}
 
 {% block content %}
-  <div id="react_app">
+  <div id="reactApp">
     Загрузка...
   </div>
 
   <script>
-    let update_interval = 1000 * {{ settings.monitoring_update_interval }};
+    let updateInterval = 1000 * {{ settings.monitoring_update_interval }};
   </script>
   <script src="{% static 'focus/monitoring.js' %}"></script>
 {% endblock content %}

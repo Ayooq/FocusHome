@@ -24,10 +24,7 @@ class PageIndex extends React.Component {
 
   componentDidMount() {
     this.updateList();
-    let timer = setInterval(
-      this.updateList.bind(this),
-      monitoring_update_interval
-    );
+    let timer = setInterval(this.updateList.bind(this), update_interval);
     this.setState({ timer });
   }
 
@@ -39,7 +36,7 @@ class PageIndex extends React.Component {
   updateList() {
     util.get({
       url: "/monitoring/api?action=devices",
-      data: { clientId: this.state.clientId },
+      data: { client_id: this.state.clientId },
       success: response => {
         this.setState({ data: response.data });
         //console.log(this.state.data.devices);

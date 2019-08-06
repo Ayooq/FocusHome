@@ -1,24 +1,23 @@
-import React from 'react';
+import React from "react";
 
-class modalChart extends React.Component{
+class modalChart extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      'chart_style': {
-        minWidth: '310px',
-        height: '500px',
-        margin: '0 auto'
+      chartStyle: {
+        minWidth: "310px",
+        height: "500px",
+        margin: "0 auto"
       }
     };
-    
+
     this.chart = null;
     this.chartBox = React.createRef();
     //this.handleInputChange = this.handleInputChange.bind(this);
   }
 
-  componentWillUnmount()
-  {
-    if ( this.chart ){
+  componentWillUnmount() {
+    if (this.chart) {
       this.chart.destroy();
       this.chart = null;
     }
@@ -28,19 +27,19 @@ class modalChart extends React.Component{
   //   this.props.onChange(value);
   // }
 
-  render(){
+  render() {
     let data = this.props.data.data || [];
-    
-    if ( this.chart ){
+
+    if (this.chart) {
       this.chart.destroy();
       this.chart = null;
     }
 
     if (this.chartBox.current && data.length) {
       let chartSettings = {};
-      switch(this.props.data.chartType) {
+      switch (this.props.data.chartType) {
         // default: this.props.data.chartType === "line"
-        case 'area':
+        case "area":
           chartSettings = {
             type: "area",
             plotOptions: {
@@ -49,7 +48,7 @@ class modalChart extends React.Component{
                 step: "left"
               }
             },
-            data: data//data.map(e => e[1])
+            data: data //data.map(e => e[1])
           };
           break;
         default:
@@ -70,7 +69,7 @@ class modalChart extends React.Component{
       this.chart = Highcharts.chart(this.props.id + "__chart", {
         chart: {
           type: chartSettings.type,
-          zoomType: 'x'
+          zoomType: "x"
         },
         title: {
           text: this.props.data.title
@@ -82,55 +81,81 @@ class modalChart extends React.Component{
           enabled: false
         },
         xAxis: {
-          type: 'datetime',
+          type: "datetime",
           labels: {
-            format: '{value:%Y-%m-%e %H:%M:%S}',
+            format: "{value:%Y-%m-%e %H:%M:%S}",
             rotation: -90
           }
         },
         yAxis: {
           title: {
-            text: 'Значение'
+            text: "Значение"
           }
         },
         plotOptions: chartSettings.plotOptions,
-        series: [{
-          name: '['+this.props.data.unit_code+']'+' '+this.props.data.title,
-          data: chartSettings.data,
-        }],
-        time:{
-          timezoneOffset: -60*3
+        series: [
+          {
+            name:
+              "[" +
+              this.props.data.unit_code +
+              "]" +
+              " " +
+              this.props.data.title,
+            data: chartSettings.data
+          }
+        ],
+        time: {
+          timezoneOffset: -60 * 3
           //useUTC: false
         }
       });
     }
-    
 
-
-    return <div className="modal fade" id={ this.props.id } tabIndex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-      <div className="modal-dialog modal-lg" role="document">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">{ this.props.title }</h5>
-            <button type="button" className="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
-          </div>
-          <div className="modal-body">
-            {this.props.children}
-            { data.length === 0 &&
-            <span>Нет данных для отображения</span>
-            }
-            <div id={ this.props.id + "__chart" } style={ this.state.chart_style } ref={this.chartBox}>
+    return (
+      <div
+        className="modal fade"
+        id={this.props.id}
+        tabIndex="-1"
+        role="dialog"
+        aria-labelledby="exampleModalLabel"
+        aria-hidden="true"
+      >
+        <div className="modal-dialog modal-lg" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">{this.props.title}</h5>
+              <button
+                type="button"
+                className="close"
+                data-dismiss="modal"
+                aria-label="Close"
+              >
+                <span aria-hidden="true">&times;</span>
+              </button>
             </div>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" data-dismiss="modal">Закрыть</button>
-            {/*<button type="button" className="btn btn-primary">Save changes</button>*/}
+            <div className="modal-body">
+              {this.props.children}
+              {data.length === 0 && <span>Нет данных для отображения</span>}
+              <div
+                id={this.props.id + "__chart"}
+                style={this.state.chartStyle}
+                ref={this.chartBox}
+              />
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                data-dismiss="modal"
+              >
+                Закрыть
+              </button>
+              {/*<button type="button" className="btn btn-primary">Save changes</button>*/}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    );
   }
 }
 

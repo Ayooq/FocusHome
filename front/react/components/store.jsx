@@ -13,7 +13,7 @@ const appSettings = function(state = {}, action) {
       let data = action.data;
       for (let key in data.group) {
         let value = data.group[key].value;
-        let typeId = data.group[key].type_id;
+        let typeId = data.group[key].datatype_id;
         switch (typeId) {
           case "integer":
             value = +value;
@@ -37,7 +37,7 @@ const appSettings = function(state = {}, action) {
 // The User Reducer
 // const profileReducer = function(state = {}, action) {
 //   switch (action.type) {
-//     case 'RPOFILE_UPLOADED':
+//     case 'ProfileUploaded':
 //       return {
 //         name:       action.data.name_i + ' ' + action.data.name_f,
 //         position:   action.data.position,

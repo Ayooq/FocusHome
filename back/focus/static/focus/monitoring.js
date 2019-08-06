@@ -2355,7 +2355,7 @@ var appSettings = function appSettings() {
 
   //console.log(action);
   switch (action.type) {
-    case 'appSettings_upload':
+    case 'appSettings':
       var data = action.data;
 
       for (var key in data.group) {
@@ -2419,14 +2419,14 @@ var store = Object(__WEBPACK_IMPORTED_MODULE_0_redux__["c" /* createStore */])(r
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return MyFunc; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return myFunc; });
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_axios__ = __webpack_require__(97);
 /* harmony import */ var __WEBPACK_IMPORTED_MODULE_0_axios___default = __webpack_require__.n(__WEBPACK_IMPORTED_MODULE_0_axios__);
 
 
 var _baseUrl = location.protocol + "//" + location.host;
 
-var MyFunc = {
+var myFunc = {
   //ajax
   get: function get(params) {
     return this._axios("GET", params);
@@ -2434,16 +2434,16 @@ var MyFunc = {
   post: function post(params) {
     return this._axios("POST", params);
   },
-  _axios: function _axios(method, params) {
+  _axios: function _axios(method, parameters) {
     //console.log(method + ':' +  _baseUrl + params.url, params);
     __WEBPACK_IMPORTED_MODULE_0_axios___default()({
-      method: method,
+      method,
       baseURL: _baseUrl,
-      url: params.url,
-      params: method === 'GET' ? params.data || {} : null,
-      data: method === 'POST' ? params.data || {} : null
+      url: parameters.url,
+      params: method === 'GET' ? parameters.data || {} : null,
+      data: method === 'POST' ? parameters.data || {} : null
     }).then(function (response) {
-      //console.log('MyFunc::get::success - ' + response.status);
+      //console.log('myFunc::get::success - ' + response.status);
       if (typeof params.success === 'function') {
         return params.success(response);
       }
@@ -2473,11 +2473,11 @@ var MyFunc = {
   },
   //functions
   //проверка наличия элемента в массиве
-  in_array: function in_array(value, array) {
+  inArray: function inArray(value, array) {
     return array.indexOf(value) != -1;
   },
   //удаление элемента масива по значению
-  array_unset: function array_unset(arr, value) {
+  arrayUnset: function arrayUnset(arr, value) {
     var pos = arr.indexOf(value);
 
     if (pos != -1) {
@@ -2485,13 +2485,13 @@ var MyFunc = {
     }
   },
   //форматирование числа
-  number_format: function number_format(number, decimals, dec_point, thousands_sep) {
+  numberFormat: function numberFormat(number, decimals, decPoint, thousandsSep) {
     number = (number + '').replace(/[^0-9+\-Ee.]/g, '');
 
     var n = !isFinite(+number) ? 0 : +number,
         prec = !isFinite(+decimals) ? 0 : Math.abs(decimals),
-        sep = typeof thousands_sep === 'undefined' ? ',' : thousands_sep,
-        dec = typeof dec_point === 'undefined' ? '.' : dec_point,
+        sep = typeof thousandsSep === 'undefined' ? ',' : thousandsSep,
+        dec = typeof decPoint === 'undefined' ? '.' : decPoint,
         s = '',
         toFixedFix = function toFixedFix(n, prec) {
       var k = Math.pow(10, prec);
@@ -5164,14 +5164,14 @@ Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
 
 
 
-__WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* MyFunc */].get({
+__WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* myFunc */].get({
   'url': '/monitoring/api?action=get_settings',
   'data': {
     'all': 'все'
   },
   'success': function success(response) {
     __WEBPACK_IMPORTED_MODULE_4_store_jsx__["a" /* default */].dispatch({
-      type: 'appSettings_upload',
+      type: 'appSettings',
       data: response.data
     });
   }
@@ -5190,14 +5190,14 @@ __WEBPACK_IMPORTED_MODULE_0_react_dom___default.a.render(__WEBPACK_IMPORTED_MODU
   component: __WEBPACK_IMPORTED_MODULE_6__pages_index_jsx__["a" /* default */]
 }), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_2_react_router_dom__["d" /* Route */], {
   exact: true,
-  path: "/monitoring/device/:deviceID",
+  path: "/monitoring/device/:deviceId",
   component: __WEBPACK_IMPORTED_MODULE_7__pages_device_jsx__["a" /* default */]
 }), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_2_react_router_dom__["d" /* Route */], {
   path: "*",
   render: function render() {
     return __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, "404");
   }
-})))))), document.getElementById("react_app")); // this.props.match.params.productID
+})))))), document.getElementById("reactApp")); // this.props.match.params.productID
 
 /***/ }),
 /* 47 */
@@ -13439,9 +13439,9 @@ function setOffsets(node, offsets) {
   // IE 11 uses modern selection, but doesn't support the extend method.
   // Flip backward selections, so we can set with a single range.
   if (!selection.extend && start > end) {
-    var temp = end;
+    var temporary = end;
     end = start;
-    start = temp;
+    start = temporary;
   }
 
   var startMarker = getNodeForCharacterOffset(node, start);
@@ -33584,8 +33584,8 @@ function (_React$Component) {
     _this = _possibleConstructorReturn(this, _getPrototypeOf(PageIndex).call(this, props));
     _this.state = {
       data: {},
-      client_id: 0,
-      timer_id: null
+      clientId: 0,
+      timer: null
     };
     return _this;
   }
@@ -33593,29 +33593,29 @@ function (_React$Component) {
   _createClass(PageIndex, [{
     key: "componentDidMount",
     value: function componentDidMount() {
-      this.update_list();
-      var timer_id = setInterval(this.update_list.bind(this), update_interval);
+      this.updateList();
+      var timer = setInterval(this.updateList.bind(this), updateInterval);
       this.setState({
-        timer_id: timer_id
+        timer
       });
     }
   }, {
     key: "componentWillUnmount",
     value: function componentWillUnmount() {
-      clearTimeout(this.state.timer_id);
+      clearTimeout(this.state.timer);
       this.setState({
-        timer_id: null
+        timer: null
       });
     }
   }, {
-    key: "update_list",
-    value: function update_list() {
+    key: "updateList",
+    value: function updateList() {
       var _this2 = this;
 
-      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* MyFunc */].get({
-        'url': '/monitoring/api?action=devices_list',
+      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* myFunc */].get({
+        'url': '/monitoring/api?action=devices',
         'data': {
-          'client_id': this.state.client_id
+          'client_id': this.state.clientId
         },
         'success': function success(response) {
           _this2.setState({
@@ -33640,7 +33640,7 @@ function (_React$Component) {
 
         for (var key in list) {
           var networkStatus = null;
-          var temps = {
+          var temp = {
             'cpu': null,
             'ext': null
           };
@@ -33649,14 +33649,14 @@ function (_React$Component) {
 
           if ("self" in list[key].status) {
             if ("self" in list[key].status.self) {
-              var t = list[key].status.self.self;
-              var ico = null;
+              let t = list[key].status.self.self;
+              let ico = null;
 
-              if (t.unit_format.value === 'online') {
+              if (t.state === 'online') {
                 ico = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                   className: "ti-light-bulb"
                 });
-              } else if (t.unit_format.value === 'offline') {
+              } else if (t.state === 'offline') {
                 ico = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                   className: "ti-light-bulb"
                 });
@@ -33667,48 +33667,48 @@ function (_React$Component) {
               }
 
               networkStatus = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("span", {
-                className: "text-uppercase " + t.unit_format["class"]
-              }, ico); //<span className={ "text-uppercase " + t.unit_format.class }>{ ico } { t.date } { t.unit_format.caption }</span>
+                className: "text-uppercase " + t.format["class"]
+              }, ico); //<span className={ "text-uppercase " + t.format.class }>{ ico } { t.date } { t.format.caption }</span>
             }
           }
 
           if ("temp" in list[key].status) {
-            for (var temp_key in list[key].status.temp) {
-              var _t = list[key].status.temp[temp_key];
-              temps[temp_key] = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
-                key: temp_key,
-                className: "device-ins-block-small " + _t.unit_format["class"],
-                title: _t.unit_format.title
-              }, _t.unit_format.caption);
+            for (let tSensor in list[key].status.temp) {
+              let _t = list[key].status.temp[tSensor];
+              temp[tSensor] = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
+                key: tSensor,
+                className: "device-ins-block-small " + _t.format["class"],
+                title: _t.title
+              }, _t.format.title);
             }
           }
 
           if ("ins" in list[key].status) {
-            for (var ins_key in list[key].status.ins) {
-              var _t2 = list[key].status.ins[ins_key];
+            for (let iUnit in list[key].status.ins) {
+              let _t2 = list[key].status.ins[iUnit];
               ins.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
-                key: ins_key,
-                className: "device-ins-block-small " + _t2.unit_format["class"],
-                title: _t2.unit_format.title
-              }, _t2.unit_format.title, ": ", _t2.unit_format.caption));
+                key: iUnit,
+                className: "device-ins-block-small " + _t2.format["class"],
+                title: _t2.title
+              }, _t2.format.title));
             }
           }
 
           if ("couts" in list[key].status) {
-            for (var couts_key in list[key].status.couts) {
-              var _t3 = list[key].status.couts[couts_key];
+            for (let cUnit in list[key].status.couts) {
+              let _t3 = list[key].status.couts[cUnit];
               couts.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
-                key: couts_key,
-                className: "device-ins-block-small " + _t3.unit_format["class"],
-                title: _t3.unit_format.title
-              }, _t3.unit_format.title, ": ", _t3.unit_format.caption));
+                key: cUnit,
+                className: "device-ins-block-small " + _t3.format["class"],
+                title: _t3.title
+              }, _t3.format.title));
             }
           }
 
           devices.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("tr", {
             key: list[key].id,
             className: "tr-device"
-          }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, networkStatus), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, list[key].uid), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, list[key].name), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("small", null, list[key].client__name)), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, list[key].address), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, temps.ext), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, temps.cpu), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_2_react_router_dom__["b" /* Link */], {
+          }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, networkStatus), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, list[key].name), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("small", null, list[key].client_name)), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, list[key].address), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, temp.ext), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, temp.cpu), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("td", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_2_react_router_dom__["b" /* Link */], {
             to: '/monitoring/device/' + list[key].id
           }, "\u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435"))));
           devices.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("tr", {
@@ -33720,17 +33720,17 @@ function (_React$Component) {
         }
       }
 
-      var block_title = "";
+      var blockTitle = "";
 
       if ('title' in this.state.data) {
-        block_title = this.state.data.title;
+        blockTitle = this.state.data.title;
       }
 
       var buttons = [{
         'caption': '',
         'title': 'обновить',
         'ico': 'ti-reload',
-        'onClick': this.update_list.bind(this)
+        'onClick': this.updateList.bind(this)
       }];
       var clients = [];
 
@@ -33743,27 +33743,25 @@ function (_React$Component) {
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
         className: "row"
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_10_tags_bgc__["a" /* default */], {
-        title: block_title,
+        title: blockTitle,
         buttons: buttons,
         col: "col-md-12"
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
         className: "mb-12"
-      }, this.state.data.client_change && __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_9_tags_inputs_select__["a" /* default */], {
+      }, this.state.data.client_editable && __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_9_tags_inputs_select__["a" /* default */], {
         list: clients,
-        value: this.state.client_id,
+        value: this.state.clientId,
         style: {
           'width': '150px',
           'display': 'inline-block'
         },
-        onChange: this.handleChange.bind(this, 'client_id'),
+        onChange: this.handleChange.bind(this, 'clientId'),
         label: "\u041A\u043B\u0438\u0435\u043D\u0442"
       })), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("table", {
         className: "table"
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("thead", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("tr", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", {
         width: "40px"
-      }), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", {
-        width: "125px"
-      }, "UID"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", null, "\u041D\u0430\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u0438\u0435"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", null, "\u0410\u0434\u0440\u0435\u0441"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", {
+      }), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", null, "\u041D\u0430\u0438\u043C\u0435\u043D\u043E\u0432\u0430\u043D\u0438\u0435"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", null, "\u0410\u0434\u0440\u0435\u0441"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", {
         width: "95px"
       }, "\u0422\u0435\u043C\u043F.", __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("br", null), "\u0441\u0440\u0435\u0434\u044B"), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("th", {
         width: "95px"
@@ -33849,7 +33847,7 @@ function (_React$Component) {
     _this = _possibleConstructorReturn(this, _getPrototypeOf(PageDevice).call(this, props));
     _this.state = {
       data: {},
-      timer_id: 0,
+      timer: 0,
       modal: {}
     };
     return _this;
@@ -33858,29 +33856,29 @@ function (_React$Component) {
   _createClass(PageDevice, [{
     key: "componentDidMount",
     value: function componentDidMount() {
-      this.update_list();
-      var timer_id = setInterval(this.update_list.bind(this), update_interval);
+      this.updateList();
+      var timer = setInterval(this.updateList.bind(this), updateInterval);
       this.setState({
-        timer_id: timer_id
+        timer: timer
       });
     }
   }, {
     key: "componentWillUnmount",
     value: function componentWillUnmount() {
-      clearTimeout(this.state.timer_id);
+      clearTimeout(this.state.timer);
       this.setState({
-        timer_id: null
+        timer: null
       });
     }
   }, {
-    key: "update_list",
-    value: function update_list() {
+    key: "updateList",
+    value: function updateList() {
       var _this2 = this;
 
-      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* MyFunc */].get({
+      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* myFunc */].get({
         'url': '/monitoring/api?action=device_info',
         'data': {
-          'device_id': this.props.match.params.deviceID
+          'device_id': this.props.match.params.deviceId
         },
         'success': function success(response) {
           _this2.setState({
@@ -33897,18 +33895,18 @@ function (_React$Component) {
     }
   }, {
     key: "chartShow",
-    value: function chartShow(deviceID, unitID, chartType) {
+    value: function chartShow(deviceId, unitId, chartType) {
       var _this3 = this;
 
       this.setState({
         modal: {}
       });
-      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* MyFunc */].get({
+      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* myFunc */].get({
         'url': '/monitoring/api?action=chart',
         'data': {
-          'device_id': deviceID,
-          'unitID': unitID,
-          'chartType': chartType
+          'device_id': deviceId,
+          'unit_id': unitId,
+          'chart_type': chartType
         },
         'success': function success(response) {
           //console.log(response);
@@ -33916,13 +33914,13 @@ function (_React$Component) {
             device: response.data.unit.device,
             title: response.data.unit.title,
             subtitle: '',
-            unit_code: response.data.unit.name,
-            chartType: chartType,
+            unitCode: response.data.unit.name,
+            chartType,
             data: response.data.data
           };
 
           _this3.setState({
-            modal: modal
+            modal
           });
         }
       });
@@ -33930,12 +33928,12 @@ function (_React$Component) {
     }
   }, {
     key: "unitToggle",
-    value: function unitToggle(deviceID, unitID) {
-      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* MyFunc */].get({
+    value: function unitToggle(deviceId, unitId) {
+      __WEBPACK_IMPORTED_MODULE_5_func_jsx__["a" /* myFunc */].get({
         'url': '/monitoring/api?action=unit_toggle',
         'data': {
-          'device_id': deviceID,
-          'unitID': unitID
+          'device_id': deviceId,
+          'unit_id': unitId
         },
         'success': function success(response) {
           console.log(response.data);
@@ -33949,19 +33947,19 @@ function (_React$Component) {
         return __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null);
       }
 
-      var block_title = "";
+      var blockTitle = "";
 
       if ('title' in this.state.data) {
-        block_title = this.state.data.title;
+        blockTitle = this.state.data.title;
       }
 
       var buttons = [{
         'caption': '',
         'title': 'обновить',
         'ico': 'ti-reload',
-        'onClick': this.update_list.bind(this)
+        'onClick': this.updateList.bind(this)
       }];
-      var temps = [];
+      var temp = [];
       var ins = [];
       var couts = [];
       var networkStatus = null;
@@ -33972,21 +33970,21 @@ function (_React$Component) {
             var t = this.state.data.data.status.temp[key];
             var chartBtn = null;
 
-            if (t.unit_format.chart) {
+            if (t.format.chart) {
               chartBtn = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("span", {
                 className: "float-right cur-p",
-                onClick: this.chartShow.bind(this, this.state.data.data.id, t.unit__id, t.unit_format.chart)
+                onClick: this.chartShow.bind(this, this.state.data.data.id, t.unit__id, t.format.chart)
               }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                 className: "ti-bar-chart"
               }));
             }
 
-            temps.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
+            temp.push(__WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
               key: key,
-              className: "p-20 mb-4 " + t.unit_format["class"]
-            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, t.unit_format.title, " ", chartBtn), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h1", {
+              className: "p-20 mb-4 " + t.format["class"]
+            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, t.format.title, " ", chartBtn), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h1", {
               className: "text-center"
-            }, t.unit_format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
+            }, t.format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
               className: "text-right"
             }, t.date))));
           }
@@ -33997,16 +33995,16 @@ function (_React$Component) {
             var _t = this.state.data.data.status.ins[_key];
             var _chartBtn = null;
 
-            if (_t.unit_format.chart) {
+            if (_t.format.chart) {
               _chartBtn = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("span", {
                 className: "float-right cur-p",
-                onClick: this.chartShow.bind(this, this.state.data.data.id, _t.unit__id, _t.unit_format.chart)
+                onClick: this.chartShow.bind(this, this.state.data.data.id, _t.unit__id, _t.format.chart)
               }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                 className: "ti-bar-chart"
               }));
             }
 
-            var ctrl = _t.unit_format.control || null;
+            var ctrl = _t.format.control || null;
             var ctrlBtn = null;
 
             if (ctrl === "toggle") {
@@ -34022,10 +34020,10 @@ function (_React$Component) {
               key: _key,
               className: "device-ins-block"
             }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
-              className: "p-10 " + _t.unit_format["class"]
-            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, _t.unit_format.title, " ", _chartBtn), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h4", {
+              className: "p-10 " + _t.format["class"]
+            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, _t.format.title, " ", _chartBtn), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h4", {
               className: "text-center"
-            }, _t.unit_format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
+            }, _t.format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
               className: "text-right"
             }, ctrlBtn, " ", _t.date)))));
           }
@@ -34036,16 +34034,16 @@ function (_React$Component) {
             var _t2 = this.state.data.data.status.couts[_key2];
             var _chartBtn2 = null;
 
-            if (_t2.unit_format.chart) {
+            if (_t2.format.chart) {
               _chartBtn2 = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("span", {
                 className: "float-right cur-p",
-                onClick: this.chartShow.bind(this, this.state.data.data.id, _t2.unit, _t2.unit_format.chart)
+                onClick: this.chartShow.bind(this, this.state.data.data.id, _t2.unit, _t2.format.chart)
               }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                 className: "ti-bar-chart"
               }));
             }
 
-            var _ctrl = _t2.unit_format.control || null;
+            var _ctrl = _t2.format.control || null;
 
             var _ctrlBtn = null;
 
@@ -34062,10 +34060,10 @@ function (_React$Component) {
               key: _key2,
               className: "device-ins-block"
             }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
-              className: "p-10 " + _t2.unit_format["class"]
-            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, _t2.unit_format.title, " ", _chartBtn2), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h4", {
+              className: "p-10 " + _t2.format["class"]
+            }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h6", null, _t2.format.title, " ", _chartBtn2), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("h4", {
               className: "text-center"
-            }, _t2.unit_format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
+            }, _t2.format.caption), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
               className: "text-right"
             }, _ctrlBtn, " ", _t2.date)))));
           }
@@ -34076,11 +34074,11 @@ function (_React$Component) {
             var _t3 = this.state.data.data.status.self.self;
             var ico = null;
 
-            if (_t3.unit_format.value === 'online') {
+            if (_t3.format.value === 'online') {
               ico = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                 className: "ti-light-bulb"
               });
-            } else if (_t3.unit_format.value === 'offline') {
+            } else if (_t3.format.value === 'offline') {
               ico = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
                 className: "ti-light-bulb"
               });
@@ -34091,8 +34089,8 @@ function (_React$Component) {
             }
 
             networkStatus = __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("span", {
-              className: "text-uppercase " + _t3.unit_format["class"]
-            }, ico, " ", _t3.date, " ", _t3.unit_format.caption);
+              className: "text-uppercase " + _t3.format["class"]
+            }, ico, " ", _t3.date, " ", _t3.format.caption);
           }
         }
       }
@@ -34104,7 +34102,7 @@ function (_React$Component) {
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", {
         className: "col-md-8"
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_10_tags_bgc__["a" /* default */], {
-        title: block_title,
+        title: blockTitle,
         buttons: buttons
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("div", null, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement("i", {
         className: "c-orange-500 ti-home"
@@ -34114,7 +34112,7 @@ function (_React$Component) {
         className: "col-md-4"
       }, __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_10_tags_bgc__["a" /* default */], {
         title: "\u0422\u0435\u043C\u043F\u0435\u0440\u0430\u0442\u0443\u0440\u0430"
-      }, temps))), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_11_tags_modalChart__["a" /* default */], {
+      }, temp))), __WEBPACK_IMPORTED_MODULE_1_react___default.a.createElement(__WEBPACK_IMPORTED_MODULE_11_tags_modalChart__["a" /* default */], {
         id: "modal_chart",
         title: this.state.modal.device,
         data: this.state.modal
@@ -34268,7 +34266,7 @@ function (_React$Component) {
           },
           plotOptions: chartSettings.plotOptions,
           series: [{
-            name: '[' + this.props.data.unit_code + ']' + ' ' + this.props.data.title,
+            name: '[' + this.props.data.unitCode + ']' + ' ' + this.props.data.title,
             data: chartSettings.data
           }],
           time: {

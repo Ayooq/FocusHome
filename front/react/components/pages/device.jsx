@@ -24,10 +24,7 @@ class PageDevice extends React.Component {
 
   componentDidMount() {
     this.updateList();
-    let timer = setInterval(
-      this.updateList.bind(this),
-      monitoring_update_interval
-    );
+    let timer = setInterval(this.updateList.bind(this), update_interval);
     this.setState({ timer });
   }
 
@@ -63,7 +60,7 @@ class PageDevice extends React.Component {
           title: response.data.unit.title,
           subtitle: "",
           code: response.data.unit.name,
-          chartType: chartType,
+          chartType,
           data: response.data.data
         };
 
@@ -85,7 +82,7 @@ class PageDevice extends React.Component {
 
   render() {
     if (!("data" in this.state.data)) {
-      return <div></div>;
+      return <div />;
     }
 
     let blockTitle = "";

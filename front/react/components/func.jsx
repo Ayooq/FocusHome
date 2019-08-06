@@ -4,32 +4,32 @@ const baseUrl = location.protocol + "//" + location.host;
 
 const myFunc = {
   //ajax
-  get: function(params) {
-    return this._axios("GET", params);
+  get: function(parameters) {
+    return this._axios("GET", parameters);
   },
-  post: function(params) {
-    return this._axios("POST", params);
+  post: function(parameters) {
+    return this._axios("POST", parameters);
   },
 
-  _axios: function(method, params) {
+  _axios: function(method, parameters) {
     //console.log(method + ':' +  _baseUrl + params.url, params);
     axios({
       method,
       baseUrl,
-      url: params.url,
-      params: method === "GET" ? params.data || {} : null,
-      data: method === "POST" ? params.data || {} : null
+      url: parameters.url,
+      params: method === "GET" ? parameters.data || {} : null,
+      data: method === "POST" ? parameters.data || {} : null
     })
       .then(response => {
         //console.log('myFunc::get::success - ' + response.status);
-        if (typeof params.success === "function") {
-          return params.success(response);
+        if (typeof parameters.success === "function") {
+          return parameters.success(response);
         }
       })
       .catch(function(error) {
         //console.log(error);
-        if (typeof params.error === "function") {
-          return params.error(error);
+        if (typeof parameters.error === "function") {
+          return parameters.error(error);
         }
       });
   },

@@ -48,7 +48,11 @@ ReactDOM.render(
           <Switch>
             <Redirect exact from="/react" to="/react/orders" />
             <Route exact path="/monitoring/" component={PageIndex} />
-            <Route exact path="/monitoring/device/:id" component={PageDevice} />
+            <Route
+              exact
+              path="/monitoring/device/:deviceId"
+              component={PageDevice}
+            />
 
             <Route path="*" render={() => <div>404</div>} />
           </Switch>

@@ -10,10 +10,9 @@ from clients.models import Client
 from configuration.models import Configuration
 from devices.models import Config, Device
 from focus import utils
+from focus.mqtt import client
 from profiles.models import Profile
 from units.models import Family, Unit
-
-from focus.mqtt import client
 from .models import Monitor
 
 
