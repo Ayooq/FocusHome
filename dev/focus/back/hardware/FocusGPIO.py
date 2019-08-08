@@ -5,7 +5,7 @@ from gpiozero import DigitalInputDevice
 from ..reporting import Reporter
 
 
-class BaseUnit:
+class FocusGPIO:
     """Базовый класс для устройств GPIO."""
 
     def __init__(self, unit=DigitalInputDevice, **kwargs):
@@ -21,7 +21,6 @@ class BaseUnit:
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)
-        print(self.reporter)
 
     def __repr__(self):
         return '%s (id=%r, pin=%r, unit=%r, description=%r)' % (

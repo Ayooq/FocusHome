@@ -1,0 +1,49 @@
+device:
+  broker:
+    host: 89.223.27.69
+    keepalive: 60
+    port: 1883
+  id: FP-2
+  location: "\u0433.\u041E\u043C\u0441\u043A"
+units:
+  couts:
+    cnt1:
+      pin: 6
+    cnt2:
+      pin: 19
+    cnt3:
+      pin: 12
+    cnt4:
+      pin: 20
+    out1:
+      pin: 5
+    out2:
+      pin: 13
+    out3:
+      pin: 26
+    out4:
+      pin: 16
+  ins:
+    in1:
+      pin: 21
+    in2:
+      pin: 18
+    in3:
+      pin: 23
+    in4:
+      pin: 24
+    in5:
+      pin: 25
+  leds:
+    led1:
+      pin: 17
+    led2:
+      pin: 27
+  misc:
+    block:
+      pin: 11
+    volt:
+      pin: 9
+  temp:
+    cpu: {}
+    ext: {}

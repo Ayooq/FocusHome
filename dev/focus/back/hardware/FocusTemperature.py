@@ -4,36 +4,44 @@ from time import sleep
 from gpiozero import CPUTemperature
 
 from ..reporting import Reporter
-from ..utils.one_wire import get_sensor_file
 from ..utils.concurrency import Worker
 from ..utils.messaging_tools import log_and_report
+from ..utils.one_wire import get_sensor_file
 
 
 class FocusTemperature(CPUTemperature):
     """Датчик температуры """
 
     def __init__(self, **kwargs):
-        self.id = kwargs.pop('id')
+        self.id = kwargs.get('id')
         self.description = self.__doc__
         self.description += 'ЦПУ' if self.id == 'cpu' else 'среды'
 
         self.__config = {
             'sensor_file': get_sensor_file(),
-            'min_temp': kwargs.pop('min'),
-            'max_temp': kwargs.pop('max'),
-            'threshold': kwargs.pop('threshold'),
+            'min_temp': kwargs.get('min', 0.0),
+            'max_temp': kwargs.get('max', 100.0),
+            'threshold': kwargs.get('threshold', 80.0),
         }
         super().__init__(**self.__config)
 
-        self.hysteresis = kwargs.pop('hysteresis', 1.0)
-        self.timedelta = kwargs.pop('timedelta', 60)
+        self.hysteresis = kwargs.get('hysteresis', 1.0)
+        self.timedelta = kwargs.get('timedelta', 60)
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
 
         self.reporter = Reporter(self.id)
-        
+
         self.service = Worker(self.state_monitor)
+
+    def __repr__(self):
+        return '%s (id=%r, unit=%r, description=%r)' % (
+            self.__class__.__name__,
+            self.id,
+            super().__repr__(),
+            self.description,
+        )
 
     def state_monitor(self):
         """Отслеживание изменений показателей температурных датчиков.

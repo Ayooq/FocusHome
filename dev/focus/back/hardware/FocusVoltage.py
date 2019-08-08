@@ -1,9 +1,9 @@
-from .BaseUnit import BaseUnit
 from ..utils.db_handlers import fill_table
 from ..utils.messaging_tools import log_and_report
+from .FocusGPIO import FocusGPIO
 
 
-class FocusVoltage(BaseUnit):
+class FocusVoltage(FocusGPIO):
     """Напряжение"""
 
     def __init__(self, **kwargs):

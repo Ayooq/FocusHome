@@ -1,10 +1,10 @@
 from gpiozero import Button
 
-from .BaseUnit import BaseUnit
 from ..utils.messaging_tools import log_and_report
+from .FocusGPIO import FocusGPIO
 
 
-class FocusReceptor(BaseUnit):
+class FocusReceptor(FocusGPIO):
     """Вход """
 
     def __init__(self, **kwargs):

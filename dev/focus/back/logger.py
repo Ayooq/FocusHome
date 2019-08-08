@@ -1,6 +1,5 @@
 import logging
 
-
 _formats_list = [
     '%(asctime)s %(name)s %(levelname)-11s %(message)s',
     '%(filename)-11s [LINE:%(lineno)d]  #%(levelname)-7s [%(asctime)s] %(message)s'

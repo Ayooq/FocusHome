@@ -1,8 +1,7 @@
-from flask import render_template, redirect, url_for
+from flask import redirect, render_template, url_for
 
-from . import app, focus
+from . import app, focus_pro
 from .models import get_data, get_log
-
 
 data = {}
 
@@ -23,7 +22,7 @@ def management():
 
 @app.route('/management/<id_>/<action>')
 def action(id_, action):
-    complect = focus.complects.get(id_)
+    complect = focus_pro.complects.get(id_)
 
     if complect and action == 'on':
         complect.on()

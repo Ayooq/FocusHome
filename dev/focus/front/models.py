@@ -1,5 +1,6 @@
-from . import focus
 from focus.back.utils import LOG_FILE
+
+from . import focus_pro
 
 
 def update_values():
@@ -10,23 +11,23 @@ def update_values():
 
 
 def _get_inputs_status():
-    for _ in focus.inputs.values():
+    for _ in focus_pro.inputs.values():
         _.state
 
 
 def _get_complects_status():
-    for _ in focus.complects.values():
+    for _ in focus_pro.complects.values():
         _.socket.state
         _.control.state
 
 
 def _get_temperature_status():
-    for _ in focus.temperature.values():
+    for _ in focus_pro.temperature.values():
         _.temperature
 
 
 def _get_miscellaneous_status():
-    for _ in focus.misc.values():
+    for _ in focus_pro.misc.values():
         _.state
 
 
@@ -34,11 +35,11 @@ def get_data():
     update_values()
 
     data = {
-        'device': focus,
-        'inputs': focus.inputs,
-        'complects': focus.complects,
-        'temperature': focus.temperature,
-        'misc': focus.misc,
+        'device': focus_pro,
+        'inputs': focus_pro.inputs,
+        'complects': focus_pro.complects,
+        'temperature': focus_pro.temperature,
+        'misc': focus_pro.misc,
     }
 
     return data
@@ -68,7 +69,7 @@ def get_log():
     events.reverse()
 
     data = {
-        'device': focus,
+        'device': focus_pro,
         'log': events,
     }
 

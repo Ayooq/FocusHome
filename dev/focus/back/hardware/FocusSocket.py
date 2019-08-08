@@ -1,5 +1,5 @@
-from .FocusLED import FocusLED
 from ..utils.messaging_tools import log_and_report
+from .FocusLED import FocusLED
 
 
 class FocusSocket(FocusLED):

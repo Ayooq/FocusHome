@@ -1,15 +1,17 @@
 import json
-from time import sleep
+import os
 from datetime import datetime
+from time import sleep
 
 import paho.mqtt.client as mqtt
+import yaml
 
 from .hardware import Hardware
 from .reporting import Reporter
-from .utils import DB_FILE
-from .utils.messaging_tools import register, log_and_report
-from .utils.db_handlers import init_db, fill_table
+from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, BROKER
 from .utils.concurrency import Worker
+from .utils.db_handlers import fill_table, init_db
+from .utils.messaging_tools import log_and_report, register
 
 
 class FocusPro(Hardware):
@@ -20,7 +22,8 @@ class FocusPro(Hardware):
 
         self.id = self.config['device']['id']
         self.description = self.config['device']['location']
-        print(self.id, self.description)
+
+        print('Инициализация', self.id)
 
         self.reporter = Reporter(self.id)
         self.make_subscriptions(self.blink, self.publish)
@@ -45,7 +48,7 @@ class FocusPro(Hardware):
         self.client.will_set(**LWT)
 
         self.is_connected = False
-        
+
     def connect(self, timeout=0):
         sleep(timeout)
         device = self.config.get('device')
@@ -63,7 +66,7 @@ class FocusPro(Hardware):
                 self, 'online', swap=True, type_='status', retain=True
             )
 
-            client.subscribe(self.id + '/cmd/#', qos=2)
+            client.subscribe(self.id + '/cnf/#', qos=2)
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -74,6 +77,71 @@ class FocusPro(Hardware):
 
     def on_message(self, client, userdata, message):
         print('Received msg topic:', message.topic)
+        _, topic, unit = message.topic.split('/')
+
+        if topic == 'cnf':
+            payload = json.loads(message.payload.decode())
+            print('Payload:', payload)
+            family, unit, pin, params = 0, 1, 2, 3
+            id_, location = payload.pop(-1)
+            new_config = {
+                'device': {
+                    'id': id_,
+                    'location': location,
+                    'broker': BROKER,
+                },
+                'units': {},
+            }
+
+            for i in payload:
+                print('Item:', i)
+                if i[family] not in new_config['units']:
+                    new_config['units'].update({i[family]: {}})
+
+                if i[pin] > 0:
+                    new_config['units'][i[family]][i[unit]] = {
+                        'pin': i[pin],
+                    }
+                elif i[params]:
+                    new_config['units'][i[family]][i[unit]] = i[params]
+                else:
+                    new_config['units'][i[family]][i[unit]] = {}
+
+            new_config.update({'complects': {'couts': {}}})
+
+            couts = new_config['units'].pop('couts')
+            new_config['complects']['couts'].update(
+                {
+                    'cmp1': {
+                        'out': couts.get('out1'),
+                        'cnt': couts.get('cnt1'),
+                    },
+                    'cmp2': {
+                        'out': couts.get('out2'),
+                        'cnt': couts.get('cnt2'),
+                    },
+                    'cmp3': {
+                        'out': couts.get('out3'),
+                        'cnt': couts.get('cnt3'),
+                    },
+                    'cmp4': {
+                        'out': couts.get('out4'),
+                        'cnt': couts.get('cnt4'),
+                    },
+                }
+            )
+
+            cf = open(CONFIG_FILE)
+
+            with open(BACKUP_FILE, 'w') as bf:
+                bf.writelines(cf.readlines())
+
+            cf.close()
+
+            with open(CONFIG_FILE, 'w') as cf:
+                yaml.dump(new_config, cf, default_flow_style=False)
+
+            os.system('reboot')
 #        print(message.topic, str(message.payload), sep='\n')
 
   #      command = message.topic.split('/')[-1]
@@ -109,9 +177,17 @@ class FocusPro(Hardware):
 
         for family in self.units.values():
             for unit in family.values():
-                print('registering unit', unit)
+                print('Регистрирую подписчиков для одиночного компонента', unit)
+
                 register(unit, 'blink', callbacks[0])
                 register(unit, 'pub', callbacks[1])
+
+        for family in self.complects.values():
+            for cmp in family.values():
+                print('Регистрирую подписчиков для составного компонента', cmp)
+
+                register(cmp.control, 'blink', callbacks[0])
+                register(cmp.control, 'pub', callbacks[1])
 
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
@@ -162,7 +238,6 @@ class FocusPro(Hardware):
         """
 
         report = sender[sender.topic]
-        print('report:', report)
         payload = self._form_payload(report)
         pub_data = self._form_pub_data(sender.topic, report, payload)
 
@@ -183,14 +258,12 @@ class FocusPro(Hardware):
 
         msg_type = report['type']
         msg_body = report['message']
-        print('type, msg -->', msg_type, msg_body)
 
         if report['from'] == self.id:
             report['from'] = 'self'
 
         timestamp = datetime.now().isoformat(sep=' ')
         tabledata = [timestamp, msg_type, report['from'], msg_body]
-        print('tabledata:', tabledata)
 
         cursor = self.db.cursor()
         tables_set = {'events'}
@@ -205,7 +278,6 @@ class FocusPro(Hardware):
         fill_table(self.db, cursor, tables_set, tabledata)
 
         payload = timestamp, msg_type, msg_body
-        print('payload:', payload)
 
         return json.dumps(payload)
 

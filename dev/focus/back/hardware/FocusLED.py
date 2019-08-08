@@ -1,9 +1,9 @@
 from gpiozero import LED
 
-from .BaseUnit import BaseUnit
+from .FocusGPIO import FocusGPIO
 
 
-class FocusLED(BaseUnit):
+class FocusLED(FocusGPIO):
     """Световой индикатор """
 
     def __init__(self, **kwargs):

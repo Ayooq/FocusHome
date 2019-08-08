@@ -41,9 +41,9 @@ units:
       pin: 25
   leds:
     led1:
-      pin: 27
-    led2:
       pin: 17
+    led2:
+      pin: 27
   misc:
     block:
       pin: 11
