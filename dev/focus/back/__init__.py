@@ -68,8 +68,7 @@ class FocusPro(Hardware):
 
             client.subscribe(
                 [
-                    (self.id + '/cnf/#', 2),
-                    ('FP-0/#', 2),
+                    (self.id + '/#', 2),
                 ]
             )
 
@@ -146,8 +145,15 @@ class FocusPro(Hardware):
             with open(CONFIG_FILE, 'w') as cf:
                 yaml.dump(new_config, cf, default_flow_style=False)
 
-            self.client.disconnect()
-            subprocess.run(['echo', 'Hello, world!'])
+            # os.system('sudo shutdown -r now')
+            # self.client.disconnect()
+            # f1 = open('f1.log', 'w')
+            # f2 = open('err.log', 'w')
+            subprocess.run('/usr/bin/sudo reboot', shell=True)
+            # f1.close()
+            # f2.close()
+            
+#        print(message.topic, str(message.payload), sep='\n')
 
   #      command = message.topic.split('/')[-1]
    #     payload = json.loads(message.payload)
