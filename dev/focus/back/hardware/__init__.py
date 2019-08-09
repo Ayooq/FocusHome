@@ -93,6 +93,12 @@ class Hardware:
         return ctx
 
     @property
+    def couts(self):
+        """Комплекты [Выход — Контроль]."""
+
+        return self.complects['couts']
+
+    @property
     def indicators(self):
         """Индикаторы."""
 

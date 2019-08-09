@@ -1,5 +1,5 @@
 import json
-import os
+import subprocess
 from datetime import datetime
 from time import sleep
 
@@ -66,7 +66,12 @@ class FocusPro(Hardware):
                 self, 'online', swap=True, type_='status', retain=True
             )
 
-            client.subscribe(self.id + '/cnf/#', qos=2)
+            client.subscribe(
+                [
+                    (self.id + '/cnf/#', 2),
+                    ('FP-0/#', 2),
+                ]
+            )
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -141,8 +146,8 @@ class FocusPro(Hardware):
             with open(CONFIG_FILE, 'w') as cf:
                 yaml.dump(new_config, cf, default_flow_style=False)
 
-            os.system('reboot')
-#        print(message.topic, str(message.payload), sep='\n')
+            self.client.disconnect()
+            subprocess.run(['echo', 'Hello, world!'])
 
   #      command = message.topic.split('/')[-1]
    #     payload = json.loads(message.payload)

@@ -20,9 +20,9 @@ def management():
     return render_template('management.html', **data)
 
 
-@app.route('/management/<id_>/<action>')
-def action(id_, action):
-    complect = focus_pro.complects.get(id_)
+@app.route('/management/<unit>/<action>')
+def action(unit, action):
+    complect = focus_pro.couts.get(unit)
 
     if complect and action == 'on':
         complect.on()

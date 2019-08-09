@@ -4,21 +4,21 @@ from . import focus_pro
 
 
 def update_values():
+    _get_couts_status()
     _get_inputs_status()
-    _get_complects_status()
     _get_temperature_status()
     _get_miscellaneous_status()
+
+
+def _get_couts_status():
+    for _ in focus_pro.couts.values():
+        _.socket.state
+        _.control.state
 
 
 def _get_inputs_status():
     for _ in focus_pro.inputs.values():
         _.state
-
-
-def _get_complects_status():
-    for _ in focus_pro.complects.values():
-        _.socket.state
-        _.control.state
 
 
 def _get_temperature_status():
@@ -37,7 +37,7 @@ def get_data():
     data = {
         'device': focus_pro,
         'inputs': focus_pro.inputs,
-        'complects': focus_pro.complects,
+        'complects': focus_pro.couts,
         'temperature': focus_pro.temperature,
         'misc': focus_pro.misc,
     }

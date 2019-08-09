@@ -2,24 +2,24 @@ complects:
   couts:
     cmp1:
       cnt:
-        pin: 6
+        pin: 9
       out:
-        pin: 5
+        pin: 8
     cmp2:
       cnt:
-        pin: 19
+        pin: 11
       out:
-        pin: 13
+        pin: 10
     cmp3:
       cnt:
-        pin: 12
+        pin: 13
       out:
-        pin: 26
+        pin: 12
     cmp4:
       cnt:
-        pin: 20
+        pin: 15
       out:
-        pin: 16
+        pin: 14
 device:
   broker:
     host: 89.223.27.69
@@ -30,25 +30,25 @@ device:
 units:
   ins:
     in1:
-      pin: 21
+      pin: 3
     in2:
-      pin: 18
+      pin: 4
     in3:
-      pin: 23
+      pin: 5
     in4:
-      pin: 24
+      pin: 6
     in5:
-      pin: 25
+      pin: 7
   leds:
     led1:
-      pin: 17
+      pin: 1
     led2:
-      pin: 27
+      pin: 2
   misc:
     block:
-      pin: 11
+      pin: 17
     volt:
-      pin: 9
+      pin: 16
   temp:
     cpu: {}
     ext: {}
