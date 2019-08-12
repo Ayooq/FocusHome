@@ -50,9 +50,10 @@ def connector(autocommit=True):
 
 
 snmp = focus_snmp_server.SNMP(connector=connector)
+# импортруем файл в БД
 snmp.load_file(file='PATH_TO_FILE', device_id='DEVICE_ID')
 
-conn.close()
+
 ```
 
 
