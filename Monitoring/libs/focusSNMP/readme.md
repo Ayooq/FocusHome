@@ -50,7 +50,7 @@ def connector(autocommit=True):
 
 
 snmp = focus_snmp_server.SNMP(connector=connector)
-snmp.load_file(file='PATH_TO_FILE', device_id="DEVICE_ID
+snmp.load_file(file='PATH_TO_FILE', device_id='DEVICE_ID')
 
 conn.close()
 ```
