@@ -31,6 +31,7 @@ snmp.getImage(nodes, file=filePath)
 ## Server
 ```python
 import Monitoring.libs.focusSNMP.server as focus_snmp_server
+import mysql.connector
 
 
 def connector(autocommit=True):
