@@ -49,8 +49,8 @@ def connector(autocommit=True):
     return None
 
 
-snmp = focus_snmp_server.SNMP(connector=connect)
-snmp.load_file(file='/var/www/servers/focus_web_app/docs/device_image_20190809113541.txt', device_id=1)
+snmp = focus_snmp_server.SNMP(connector=connector)
+snmp.load_file(file='PATH_TO_FILE', device_id="DEVICE_ID
 
 conn.close()
 ```
