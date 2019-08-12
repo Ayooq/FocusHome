@@ -3,7 +3,7 @@
 ## Client (малинка)
 
 ```python
-import PATH_TO.focusSNMP.server as focus_snmp_server
+import PATH_TO.focusSNMP.client as focus_snmp_server
 import time
 
 
