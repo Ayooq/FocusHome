@@ -35,10 +35,10 @@ import Monitoring.libs.focusSNMP.server as focus_snmp_server
 
 def connector(autocommit=True):
     try:
-        conn = mysql.connector.connect(host='89.223.27.69',
-                                       database='focus',
-                                       user='FocusCore',
-                                       password='GG1Dn9qUIKAd53Lp',
+        conn = mysql.connector.connect(host='HOST',
+                                       database='DATABASE',
+                                       user='USER',
+                                       password='PASSWORD',
                                        autocommit=autocommit)
         if conn.is_connected():
             return conn
