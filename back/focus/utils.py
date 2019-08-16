@@ -12,10 +12,18 @@ from focus.mqtt import client
 from profiles.models import Profile
 from units.models import Unit
 
-ITEM_PER_PAGE = 30
-
 # APP_NAME = 'FOCUS'
 APP_NAME = Configuration.objects.filter(code='app_name')[0].value
+
+DB = {
+    'NAME': 'focus',
+    'USER': 'FocusCore',
+    'PASSWORD': 'GG1Dn9qUIKAd53Lp',
+    'HOST': '89.223.27.69',
+    'PORT': '3306',
+}
+
+ITEM_PER_PAGE = 30
 
 
 def get_app_name(title=''):
@@ -69,22 +77,12 @@ def add_or_edit_device(request, device=None, errors={}):
         device.save()
 
     for unit in Unit.objects.all():
-        try:
-            config = Config.objects.get(
-                device=device.id,
-                unit=unit.id,
-            )
-        except Config.DoesNotExist:
-            config = Config()
+        pin = request.POST.get('pin_for_' + unit.name)
 
-        pin = request.POST.get(
-            'pin_for_' + str(unit.id)
-        )
-        pin = None if None else to_int(pin)
+        format_ = request.POST.get(
+            'unit_definition_for_' + unit.name, '')
 
-        format_ = request.POST.get('unit_definition_for_' + str(unit.id))
-
-        if format_:
+        if format_.strip():
             error = Device.validate(format_)
 
             if error and errors.get(format_):
@@ -94,15 +92,23 @@ def add_or_edit_device(request, device=None, errors={}):
 
             format_ = '' if error else format_
 
-        config.device_id = device.id
-        config.unit_id = unit.id
-        config.pin = pin
+        try:
+            config = Config.objects.get(
+                device=device.id,
+                unit=unit.id,
+            )
+        except Config.DoesNotExist:
+            config = Config(device=device.id, unit=unit.id)
+
+        config.pin = to_int(pin)
         config.format = format_
         config.save()
 
-    # Сформировать yaml и отправить посреднику.
-    new_config = config.form_json(device.id)
-    client.publish('FP-2/cnf/self', new_config, qos=2)
+    new_config = Config.form_json(device.id, device.name, device.address)
+
+    topic = device.name + '/cnf/self'
+    # topic = 'FP-0/cnf/self'
+    client.publish(topic, new_config, qos=2)
 
     return device
 
@@ -144,35 +150,39 @@ def add_or_edit_profile(request, user, pk=None):
     return profile
 
 
-def to_int(s):
-    if not s or s == 'None':
+def to_int(val):
+    if not val or val == 'None':
         return 0
 
-    elif s == 'on':
+    elif val == 'on':
         return 1
 
-    s = str(s)
-    s = s.replace(',', '.')
-    s = s.split('.')[0]
-    s = re.sub(r'[^\-\d\.e]', '', s)
+    try:
+        val = int(val)
+    except (TypeError, ValueError):
+        val = str(val)
+        val = val.replace(',', '.')
+        val = val.split('.')[0]
+        val = re.sub(r'[^\-\d\.e]', '', val)
+        val = int(val)
 
-    return int(s)
+    return val
 
 
-def to_float(s):
-    if not s or s == 'None':
+def to_float(val):
+    if not val or val == 'None':
         return 0.0
 
-    s = str(s)
-    s = s.replace(',', '.')
-    s = re.sub(r'[^\-\d\.e]', '', s)
+    val = str(val)
+    val = val.replace(',', '.')
+    val = re.sub(r'[^\-\d\.e]', '', val)
 
-    return float(s)
+    return float(val)
 
 
 # '10..25' => (10,25)
-def str_range_to_tuple(s, sep='..'):
-    slug = s.split(sep)
+def str_range_to_tuple(string, sep='..'):
+    slug = string.split(sep)
 
     if len(slug) == 2:
         return (to_float(slug[0]), to_float(slug[1]))

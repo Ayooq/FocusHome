@@ -19,7 +19,7 @@
 
             {% if request.user.is_superuser %}
               <div class="form-group">
-                <label>Клиент</label>
+                <label class="form-text">Клиент</label>
                 <select class="form-control" name="client">
 
                   {% for client in clients %}
@@ -29,12 +29,11 @@
                   {% endfor %}
                   
                 </select>
-                <small class="form-text text-muted"></small>
               </div>
             {% endif %}
 
             <div class="form-group">
-              <label>Устройство</label>
+              <label class="form-text">Наименование устройства</label>
               <input
                 type="text"
                 class="form-control"
@@ -43,22 +42,15 @@
                 placeholder="назначается автоматически"
                 readonly
               />
-              <small class="form-text text-muted"></small>
             </div>
-            <!-- <div class="form-group">
-              <label>Наименование</label>
-              <input type="text" class="form-control" placeholder="" name="name" value="{{ device.name }}">
-              <small class="form-text text-muted"></small>
-            </div> -->
             <div class="form-group">
-              <label>Адрес</label>
+              <label class="form-text">Адрес</label>
               <input
                 type="text"
                 class="form-control"
                 name="address"
                 value="{{ device.address }}"
               />
-              <small class="form-text text-muted"></small>
             </div>
           </div>
         </div>
@@ -68,11 +60,10 @@
           <h6 class="c-grey-900"></h6>
           <div class="mT-30">
             <div class="form-group">
-              <label>Комментарий</label>
+              <label class="form-text">Комментарий</label>
               <textarea class="form-control" name="comment" rows="5">
                 {{ device.comment }}
               </textarea>
-              <small class="form-text text-muted"></small>
             </div>
           </div>
         </div>
@@ -91,9 +82,11 @@
               <div class="alert-danger mb-3 p-5">
 
                 {% for error in errors.values %}
-                  {% for e in error %}
-                    <div>{{ e }}</div>
-                  {% endfor %}
+                  <ul>
+                    {% for e in error %}
+                      <li>{{ e }}</li>
+                    {% endfor %}
+                  </ul>
                 {% endfor %}
 
               </div>
@@ -113,14 +106,14 @@
                       {% if unit.is_gpio %}
                         <select
                           class="form-control"
-                          name="pin_for_{{ unit.id }}"
+                          name="pin_for_{{ unit.name }}"
                         >
                           <option value="-1" disabled>
                             -- не выбрано --
                           </option>
 
                           {% for pin in pins %}
-                            {% if pin == unit.mounted_unit_pin %}
+                            {% if pin == unit.pin %}
                               <option value="{{ pin }}" selected>
                                 {{ pin }}
                               </option>
@@ -135,7 +128,7 @@
                       {% else %}
                         <input
                           class="form-control"
-                          name="pin_for_{{ unit.id }}"
+                          name="no_pin_for_{{ unit.name }}"
                           disabled
                         />
                       {% endif %}
@@ -146,7 +139,7 @@
                     <label>Описание датчика</label>
                     <textarea
                       class="form-control"
-                      name="unit_definition_for_{{ unit.id }}"
+                      name="unit_definition_for_{{ unit.title }}"
                       rows="5"
                     >
                       {{ unit.format }}

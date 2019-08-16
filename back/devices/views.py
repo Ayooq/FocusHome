@@ -1,8 +1,10 @@
 import json
+from itertools import chain
 
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db import connection
+from django.db.models import F
 from django.shortcuts import redirect, render
 
 from clients.models import Client
@@ -34,38 +36,26 @@ def index(request):
 
 @permission_required('devices.add_device')
 def add(request):
-    if request.method == 'GET':
-        cursor = connection.cursor()
-        cursor.execute('''
-            SELECT
-                uft.name AS family_name,
-                uft.title AS family_title,
-                ut.id, ut.name, ut.title, ut.is_gpio
-            FROM {units_table} AS ut
-                INNER JOIN {units_family_table} AS uft
-                    ON uft.id = ut.family_id
-            WHERE ut.is_custom = 1
-            ORDER BY family_name, ut.name;
-        '''.format(
-            units_table=Unit._meta.db_table,
-            units_family_table=Family._meta.db_table,
-        ))
+    if request.method == 'POST':
+        utils.add_or_edit_device(request, errors=errors)
 
-        units = utils.list_fetchall(cursor)
-        cursor.close()
+        return redirect('devices:index')
 
-        return render(
-            request, 'devices/edit.html',
-            utils.set_context(
-                'Добавить оборудование',
-                Device(), units, errors,
-            ),
+    units = Unit.objects \
+        .select_related('family') \
+        .exclude(name='self') \
+        .values(
+            'id', 'is_gpio',
+            'title', 'family__title',
         )
 
-    elif request.method == 'POST':
-        device = utils.add_or_edit_device(request, errors=errors)
-
-        return redirect('devices:edit', pk=device.id)
+    return render(
+        request, 'devices/edit.html',
+        utils.set_context(
+            'Добавить оборудование',
+            Device(), units, errors,
+        ),
+    )
 
 
 @permission_required('devices.change_device')
@@ -75,43 +65,17 @@ def edit(request, pk):
     if request.method == 'POST':
         device = utils.add_or_edit_device(request, device, errors)
 
-    cursor = connection.cursor()
-    cursor.execute('''
-        SELECT
-            dt.id AS device_id,
-            dt.name AS device_name,
-            dt.address AS device_address,
-            ct.id AS client_id,
-            ct.name AS client_name,
-            uft.name AS family_name,
-            uft.title AS family_title,
-            ut.id, ut.name, ut.title, ut.is_gpio,
-            dct.pin AS mounted_unit_pin,
-            dct.format
-        FROM {devices_table} AS dt
-            INNER JOIN {clients_table} AS ct
-                ON ct.id = dt.client_id
-            INNER JOIN {units_table} AS ut
-                ON ut.is_gpio = 1
-            INNER JOIN {units_family_table} AS uft
-                ON uft.id = ut.family_id
-            LEFT JOIN {devices_config_table} AS dct
-                ON dct.device_id = dt.id
-                AND dct.unit_id = ut.id
-        WHERE dt.id={device_id}
-        ORDER BY device_id, family_name, name;
-    '''.format(
-        # client_id=device.client_id,
-        clients_table=Client._meta.db_table,
-        device_id=device.id,
-        devices_table=Device._meta.db_table,
-        devices_config_table=Config._meta.db_table,
-        units_table=Unit._meta.db_table,
-        units_family_table=Family._meta.db_table,
-    ))
-
-    units = utils.list_fetchall(cursor)
-    cursor.close()
+    units = Config.objects \
+        .select_related('unit') \
+        .filter(device=pk) \
+        .exclude(unit=1) \
+        .values(
+            'pin',
+            family_title=F('unit__family__title'),
+            title=F('unit__title'),
+            name=F('unit__name'),
+            is_gpio=F('unit__is_gpio'),
+        )
 
     return render(
         request, 'devices/edit.html',
@@ -119,4 +83,19 @@ def edit(request, pk):
             'Редактировать оборудование',
             device, units, errors,
         ),
+    )
+
+
+@permission_required('devices.delete_device')
+def delete(request, pk):
+    Device.objects.get(pk=pk).delete()
+
+    return render(
+        request, 'devices/index.html',
+        {
+            'page': {
+                'title': utils.get_app_name('Оборудование')
+            },
+            'devices': Device.objects.all(),
+        },
     )

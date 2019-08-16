@@ -25,7 +25,7 @@ class Unit(models.Model):
     is_custom = models.BooleanField(default=True)
     is_gpio = models.BooleanField(default=True)
     comment = models.CharField(max_length=40, blank=True)
-    format = models.TextField(blank=True, null=True)
+    format = models.TextField(blank=True)
 
     class Meta:
         db_table = 'units'

@@ -6,8 +6,8 @@
       <div class="md-20 bd p-20">
 
         {% if perms.devices.add_device %}
-          <div class="mb-12">
-            <a class="btn btn-outline-primary" href="{% url 'devices:add' %}">
+          <div class="row justify-content-end mb-12">
+            <a class="col-2 btn btn-outline-success" href="{% url 'devices:add' %}">
               Добавить
             </a>
           </div>
@@ -32,9 +32,19 @@
                 <td>
 
                   {% if perms.devices.change_device %}
-                    <a href="{% url 'devices:edit' pk=device.id %}">
-                      Редактировать
-                    </a>
+                    <button type="button" class="btn btn-link">
+                      <a href="{% url 'devices:edit' pk=device.id %}">
+                        Редактировать
+                      </a>
+                    </button>
+                  {% endif %}
+
+                  {% if perms.devices.delete_device %}
+                    <button type="button" class="btn btn-link">
+                      <a class="text-danger" href="{% url 'devices:delete' pk=device.id %}">
+                        Удалить
+                      </a>
+                    </button>
                   {% endif %}
 
                 </td>

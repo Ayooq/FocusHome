@@ -92,17 +92,20 @@ class Config(models.Model):
         related_name='config'
     )
     pin = models.SmallIntegerField(null=True)
-    format = models.TextField(blank=True, null=True)
+    format = models.TextField(blank=True)
 
     class Meta:
         verbose_name = 'Конфигурация'
         verbose_name_plural = 'Настройки'
 
     @staticmethod
-    def form_json(device_id):
+    def form_json(device_id, device_name, device_addr):
         config = Config.objects \
             .select_related('unit', 'unit__family', ) \
             .filter(device_id=device_id) \
+            .exclude(unit_id=1) \
             .values_list('unit__family__name', 'unit__name', 'pin', 'format')
+        config = list(config)
+        config.append([device_name, device_addr])
 
-        return json.dumps([json.dumps(unit) for unit in config])
+        return json.dumps(config)
