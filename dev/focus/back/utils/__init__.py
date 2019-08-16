@@ -12,3 +12,10 @@ BROKER = {
     'port': 1883,
     'keepalive': 60,
 }
+
+SNMP_CONFIG = {
+    'community': 'public',
+    'version': '2c',
+    'host': '192.168.3.246',   #'192.168.3.40' -- PRINTER
+    'flags': ['Oe','On'],
+}
