@@ -33,9 +33,19 @@
                 <td>
 
                 {% if perms.profiles.change_profile %}
-                  <a href="{% url 'profiles:edit' pk=profile.id %}">
-                    Редактировать
-                  </a>
+                  <button type="button" class="btn btn-link">
+                    <a href="{% url 'profiles:edit' pk=profile.id %}">
+                      Редактировать
+                    </a>
+                  </button>
+                {% endif %}
+
+                {% if perms.profiles.delete_profile %}
+                  <button type="button" class="btn btn-link">
+                    <a class="text-danger" href="{% url 'profiles:delete' pk=profile.id %}">
+                      Удалить
+                    </a>
+                  </button>
                 {% endif %}
 
                 </td>

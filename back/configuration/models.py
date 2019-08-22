@@ -56,40 +56,36 @@ class Configuration(models.Model):
         )
 
     @staticmethod
-    def get(code=''):
-        dict_ = {}
-
+    def fetch_settings(request=None, code=()):
         if code:
-            entries = Configuration.objects.filter(code=code)
+            dict_ = {}
+            entries = Configuration.objects.filter(code__in=code)
 
-            for e in entries.values('code', 'value'):
-                dict_[e['code']] = e['value']
+            for entry in entries.values('code', 'value'):
+                dict_[entry['code']] = entry['value']
 
-        return dict_
+            return dict_
 
-    @staticmethod
-    def all(request):
-        from clients.models import Client
+        elif request:
+            from clients.models import Client
 
-        dict_ = {
-            'app': {
-                'name': Configuration.objects.get(code='app_name').value
-            },
-            'clients': Client.get_clients(request),
-        }
+            dict_ = {
+                'app': {
+                    'name': Configuration.objects.get(code='app_name').value
+                },
+                'clients': Client.get_clients(request),
+            }
 
-        group_id = request.GET.get('group_id')
-
-        if group_id:
-            dict_['group'] = {}
-            entries = Configuration.objects.filter(group=group_id) \
-                .values('code', 'value')
+            group_id = request.GET.get('group_id', 0)
+            entries = Configuration.objects.filter(group=group_id)
 
             if entries:
+                dict_['group'] = {}
                 pattern = re.compile(r'(\n|\s+$)')
 
-                for e in entries:
-                    e['value'] = re.sub(pattern, '', e['value'])
-                    dict_['group'][e['code']] = e['value']
+                for entry in entries.values('code', 'value', 'datatype__type'):
+                    code = entry.pop('code')
+                    entry['value'] = re.sub(pattern, '', entry['value'])
+                    dict_['group'][code] = entry
 
-        return dict_
+            return dict_

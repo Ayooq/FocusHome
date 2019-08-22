@@ -1,11 +1,10 @@
+from clients.models import Client
+from devices.models import Device
 from django.contrib.auth.decorators import permission_required
 from django.contrib.auth.models import Group, Permission, User
 from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
-
-from clients.models import Client
-from devices.models import Device
 from focus import utils
 from profiles.models import Profile
 from roles.models import Role
@@ -31,28 +30,24 @@ def index(request):
 
 @permission_required('profiles.add_profile')
 def add(request):
-    if request.method == 'GET':
-        profile = Profile()
+    if request.method == 'POST':
+        profile = utils.add_or_edit_profile(request, Profile())
 
-        return render(
-            request, 'profiles/edit.html',
-            {
-                'page': {
-                    'title': utils.get_app_name(
-                        'Добавить новый профиль пользователя',
-                    ),
-                },
-                'profile': profile,
-                'roles': Role.objects.all(),
-                'clients': Client.objects.all(),
+        return redirect('profiles:index')
+
+    return render(
+        request, 'profiles/edit.html',
+        {
+            'page': {
+                'title': utils.get_app_name(
+                    'Добавить новый профиль пользователя',
+                ),
             },
-        )
-
-    elif request.method == 'POST':
-        profile = Profile()
-        profile = utils.add_or_edit_profile(request, profile)
-
-        return redirect('profiles:edit', pk=profile.id)
+            'profile': Profile(),
+            'roles': Role.objects.all(),
+            'clients': Client.objects.all(),
+        },
+    )
 
 
 @permission_required('profiles.change_profile')
@@ -61,6 +56,8 @@ def edit(request, pk):
 
     if request.method == 'POST':
         profile = utils.add_or_edit_profile(request, profile, pk)
+
+        return redirect('profiles:index')
 
     return render(
         request, 'profiles/edit.html',
@@ -77,6 +74,13 @@ def edit(request, pk):
     )
 
 
+@permission_required('profiles.delete_profile')
+def delete(request, pk):
+    Profile.objects.get(pk=pk).delete()
+
+    return redirect('profiles:index')
+
+
 @permission_required('profiles.change_profile')
 def permit(request, pk):
     profile = Profile.objects.get(pk=pk)
@@ -91,12 +95,14 @@ def permit(request, pk):
     if request.method == 'POST':
         for p in perms_list:
             if 'perm_' + str(p.id) in request.POST:
-                auth.user_permissions.add(p.id)
+                auth_user.user_permissions.add(p.id)
+
+        return redirect('profiles:edit', pk)
 
     elif request.method == 'DELETE':
         for p in perms_list:
             if 'perm_' + str(p.id) in request.DELETE:
-                auth.user_permissions.remove(p.id)
+                auth_user.user_permissions.remove(p.id)
 
     profile_permissions = auth_user.user_permissions.values_list(
         'id', flat=True)

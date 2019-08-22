@@ -1,14 +1,13 @@
 import json
 from itertools import chain
 
+from clients.models import Client
+from devices.models import Config, Device
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db import connection
 from django.db.models import F
 from django.shortcuts import redirect, render
-
-from clients.models import Client
-from devices.models import Config, Device
 from focus import utils
 from profiles.models import Profile
 from units.models import Family, Unit
@@ -65,6 +64,8 @@ def edit(request, pk):
     if request.method == 'POST':
         device = utils.add_or_edit_device(request, device, errors)
 
+        return redirect('devices:index')
+
     units = Config.objects \
         .select_related('unit') \
         .filter(device=pk) \
@@ -90,12 +91,4 @@ def edit(request, pk):
 def delete(request, pk):
     Device.objects.get(pk=pk).delete()
 
-    return render(
-        request, 'devices/index.html',
-        {
-            'page': {
-                'title': utils.get_app_name('Оборудование')
-            },
-            'devices': Device.objects.all(),
-        },
-    )
+    return redirect('devices:index')

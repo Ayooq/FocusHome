@@ -4,8 +4,8 @@
 <html>
   <head>
     <title>{{ page.title }}</title>
-    <link href="{% static 'focus/bootstrap.css' %}" rel="stylesheet" />
-    <link href="{% static 'focus/style.css' %}" rel="stylesheet" />
+    <link href="{% static 'focus/css/bootstrap.css' %}" rel="stylesheet" />
+    <link href="{% static 'focus/css/style.css' %}" rel="stylesheet" />
   </head>
 
   <body>
@@ -27,9 +27,6 @@
                       style="max-height:64px;"
                     />
                   </div>
-                </div>
-                <div class="peer peer-greed">
-                  <h5 class="lh-1 mB-0 logo-text">FOCUS</h5>
                 </div>
               </div>
             </div>
@@ -402,8 +399,8 @@
           </ul>
         </div>
       </div>
-      <main id="main-content" class="main-content container bgc-grey-100">
-        <h4 class="row c-grey-900 mT-20 mB-30">{{ page.title }}</h4>
+      <main id="main-content" class="main-content container-fluid bgc-grey-100">
+        <h4 class="row c-grey-900 mL-20 mT-20 mB-30">{{ page.title }}</h4>
         
         {% block content %}{% endblock content %}
 
@@ -417,9 +414,9 @@
       </footer>
     </div>
 
-    <script src="{% static 'focus/jquery.js' %}"></script>
-    <script src="{% static 'focus/bootstrap.min.js' %}"></script>
-    <script src="{% static 'focus/bundle.js' %}"></script>
-    <script src="{% static 'focus/highcharts.js' %}"></script>
+    <script type="text/javascript" src="{% static 'focus/js/jquery.js' %}"></script>
+    <script type="text/javascript" src="{% static 'focus/js/bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'focus/js/bundle.js' %}"></script>
+    <script type="text/javascript" src="{% static 'focus/js/highcharts.js' %}"></script>
   </body>
 </html>

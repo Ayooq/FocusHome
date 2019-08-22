@@ -2,7 +2,6 @@ from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-
 from focus import utils
 
 from .models import Client
@@ -28,18 +27,7 @@ def index(request):
 
 @permission_required('clients.add_client')
 def add(request):
-    if request.method == 'GET':
-        return render(
-            request, 'clients/edit.html',
-            {
-                'page': {
-                    'title': utils.get_app_name('Добавить клиента')
-                },
-                'client': Client()
-            }
-        )
-
-    elif request.method == 'POST':
+    if request.method == 'POST':
         client = Client()
         name = request.POST.get('name')
 
@@ -49,7 +37,17 @@ def add(request):
         client.name = name
         client.save()
 
-        return redirect('clients:edit', client.id)
+        return redirect('clients:index')
+
+    return render(
+        request, 'clients/edit.html',
+        {
+            'page': {
+                'title': utils.get_app_name('Добавить клиента')
+            },
+            'client': Client(),
+        }
+    )
 
 
 @permission_required('clients.change_client')
@@ -65,15 +63,24 @@ def edit(request, pk):
         client.name = name
         client.save()
 
+        return redirect('clients:index')
+
     return render(
         request, 'clients/edit.html',
         {
             'page': {
                 'title': utils.get_app_name('Редактировать клиента')
             },
-            'client': client
+            'client': client,
         }
     )
+
+
+@permission_required('clients.delete_client')
+def delete(request, pk):
+    Client.objects.get(pk=pk).delete()
+
+    return redirect('clients:index')
 
 
 @permission_required('clients.view_client')

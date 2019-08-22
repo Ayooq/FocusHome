@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'monitoring',
     'profiles',
     'roles',
+    'status',
     'units',
 ]
 
@@ -83,22 +84,15 @@ WSGI_APPLICATION = 'focus.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
-DB = {
-    'NAME': 'focus',
-    'USER': 'FocusCore',
-    'PASSWORD': 'GG1Dn9qUIKAd53Lp',
-    'HOST': '89.223.27.69',
-    'PORT': '3306',
-}
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': DB['NAME'],
-        'USER': DB['USER'],
-        'PASSWORD': DB['PASSWORD'],
-        'HOST': DB['HOST'],
-        'PORT': DB['PORT'],
+        'NAME': 'focus',
+        'USER': 'FocusCore',
+        'PASSWORD': 'GG1Dn9qUIKAd53Lp',
+        'HOST': '89.223.27.69',
+        'PORT': '3306',
     }
 }
 

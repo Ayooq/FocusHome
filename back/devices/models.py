@@ -2,9 +2,8 @@ import json
 import re
 
 import yaml
-from django.db import connection, models
-
 from clients.models import Client
+from django.db import connection, models
 from units.models import Unit
 
 
@@ -97,6 +96,11 @@ class Config(models.Model):
     class Meta:
         verbose_name = 'Конфигурация'
         verbose_name_plural = 'Настройки'
+
+    def __str__(self):
+        return 'Configured unit <{}> (device <{}>, general unit <{}>)'.format(
+            self.id, self.device, self.unit
+        )
 
     @staticmethod
     def form_json(device_id, device_name, device_addr):

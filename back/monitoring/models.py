@@ -1,9 +1,8 @@
 import json
 
-from django.db import connection, models
-
 from clients.models import Client
 from devices.models import Config, Device
+from django.db import connection, models
 from focus import utils
 from profiles.models import Profile
 from units.models import Family, Unit
@@ -12,17 +11,19 @@ from units.models import Family, Unit
 class Monitor(models.Model):
 
     @staticmethod
-    def get_devices_dict(request, device_id=None, **kwargs):
+    def get_devices_dict(request):
         tail = ''
 
         if request.user.is_superuser:
-            client_id = request.GET.get('client_id')
+            client_id = request.GET.get('client_id', '')
 
-            if client_id and client_id.isdigit():
+            if client_id.isdigit() and int(client_id) > 0:
                 tail += ' AND ct.id=' + client_id
         else:
             auth_user = Profile.objects.get(auth=request.user.id)
             tail += ' AND ct.id=' + str(auth_user.client_id)
+
+        device_id = request.GET.get('device_id')
 
         if device_id and device_id.isdigit():
             tail += ' AND dt.id=' + device_id
@@ -39,8 +40,8 @@ class Monitor(models.Model):
                 uft.name AS family_name,
                 ut.name AS unit_name,
                 ut.title AS unit_title,
-                dct.id AS mounted_unit_id,
                 ut.format,
+                dct.id AS mounted_unit_id,
                 st.state AS mounted_unit_state
             FROM {devices_table} AS dt
                 INNER JOIN {clients_table} AS ct
@@ -57,12 +58,12 @@ class Monitor(models.Model):
                 {tail}
             ORDER BY dt.id, ut.family_id;
         '''.format(
-            clients_table=Client._meta.db_table,
             devices_table=Device._meta.db_table,
+            clients_table=Client._meta.db_table,
             devices_config_table=Config._meta.db_table,
-            tail=tail,
             units_table=Unit._meta.db_table,
             units_family_table=Family._meta.db_table,
+            tail=tail
         ))
 
         entries = utils.list_fetchall(cursor)
@@ -70,30 +71,30 @@ class Monitor(models.Model):
 
         cursor.close()
 
-        for e in entries:
-            device_id = e['device_id']
+        for entry in entries:
+            device_id = entry['device_id']
 
             if not device_id in devices:
                 devices[device_id] = {
                     'id': device_id,
-                    'name': e['device_name'],
-                    'client_id': e['client_id'],
-                    'client_name': e['client_name'],
-                    'address': e['device_address'],
+                    'name': entry['device_name'],
+                    'address': entry['device_address'],
+                    'client_id': entry['client_id'],
+                    'client_name': entry['client_name'],
                     'status': {},
                 }
 
-            family_name = e['family_name']
+            family_name = entry['family_name']
 
             if not devices[device_id]['status'].get(family_name):
                 devices[device_id]['status'][family_name] = {}
 
             try:
-                format_ = json.loads(e['format'])
+                format_ = json.loads(entry['format'])
             except (json.decoder.JSONDecodeError, TypeError):
                 format_ = {}
 
-            state = e['mounted_unit_state']
+            state = entry['mounted_unit_state']
             format_values = format_.get('values', {})
             format_values_subkey = format_values.get(
                 state, format_values.get('else', {})
@@ -101,7 +102,7 @@ class Monitor(models.Model):
 
             mounted_unit_format = {
                 'title': format_.get(
-                    'title', e['unit_title'],
+                    'title', entry['unit_title'],
                 ),
                 'chart': format_.get('chart'),
                 'control': format_.get('control'),
@@ -115,22 +116,10 @@ class Monitor(models.Model):
 
             format_type = format_.get('type', '')
 
-            if format_type == 'STRING':
-                mounted_unit_format['state'] = state
-            elif format_type == 'INTEGER':
-                mounted_unit_format['state'] = utils.to_int(state)
-
-            mounted_unit_format['title'] = format_values_subkey.get(
-                'title', state,
-            )
-            mounted_unit_format['class'] = format_values_subkey.get(
-                'class', 'bg-light bd bdc-brown-100 text-dark',
-            )
-
             if format_type == 'FLOAT_RANGE':
                 state_float = utils.to_float(state)
                 mounted_unit_format['state'] = state_float
-                mounted_unit_format['title'] = format_ \
+                mounted_unit_format['caption'] = format_ \
                     .get('format', '{0:.2f}') \
                     .format(utils.to_float(state)) \
                     .replace('.', ',')
@@ -142,17 +131,30 @@ class Monitor(models.Model):
 
                     if range_tuple[0] <= state_float < range_tuple[1]:
                         mounted_unit_format['class'] = format_values[key] \
-                            .get('class', '')
+                            .get('class')
 
                         break
 
-            devices[device_id]['status'][family_name][e['unit_name']] = {
-                'id': e['mounted_unit_id'],
-                'name': e['unit_name'],
-                'title': e['unit_title'],
+            else:
+                if format_type == 'STRING':
+                    mounted_unit_format['state'] = state
+                elif format_type == 'INTEGER':
+                    mounted_unit_format['state'] = utils.to_int(state)
+
+                mounted_unit_format['caption'] = format_values_subkey.get(
+                    'title', state,
+                )
+                mounted_unit_format['class'] = format_values_subkey.get(
+                    'class', 'bg-light bd bdc-brown-100 text-dark',
+                )
+
+            devices[device_id]['status'][family_name][entry['unit_name']] = {
+                'id': entry['mounted_unit_id'],
+                'name': entry['unit_name'],
+                'title': entry['unit_title'],
                 'format': mounted_unit_format,
-                'timestamp': e['timestamp'],
-                'state': e['mounted_unit_state'],
+                'timestamp': entry['timestamp'],
+                'state': entry['mounted_unit_state'],
             }
 
         return devices

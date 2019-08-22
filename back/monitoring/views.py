@@ -1,17 +1,17 @@
 import json
 
+from clients.models import Client
+from configuration.models import Configuration
+from devices.models import Device
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
-
-from clients.models import Client
-from configuration.models import Configuration
-from devices.models import Config, Device
 from focus import utils
 from focus.mqtt import client
 from profiles.models import Profile
+from status.models import Status
 from units.models import Family, Unit
 
 from .models import Monitor
@@ -22,14 +22,18 @@ def index(request):
     auth_user = Profile.objects.get(auth=request.user.id)
 
     if request.user.is_superuser:
-        devices = Device.objects.all()
+        devices = Device.objects.all().order_by('name')
     else:
-        devices = Device.objects.filter(client=auth_user.client_id)
+        devices = Device.objects \
+            .filter(client=auth_user.client_id) \
+            .order_by('name')
 
-    devices = Device.objects.filter(pk__gte=1).order_by('name')
     paginator = Paginator(devices, utils.ITEM_PER_PAGE)
     page = request.GET.get('page')
     devices = paginator.get_page(page)
+    settings = Configuration.fetch_settings(
+        code=('monitoring_update_interval', )
+    )
 
     return render(
         request, 'monitoring/index.html',
@@ -38,7 +42,7 @@ def index(request):
                 'title': utils.get_app_name('Мониторинг')
             },
             'devices': devices,
-            'settings': Configuration.get(code='monitoring_update_interval')
+            'settings': settings,
         }
     )
 
@@ -52,7 +56,7 @@ def api(request):
     if action == 'device_info':
         return device_info(request)
     if action == 'get_settings':
-        return JsonResponse(Configuration.all(request), status=200)
+        return JsonResponse(Configuration.fetch_settings(request), status=200)
     if action == 'chart':
         return chart(request)
     if action == 'unit_toggle':
@@ -72,7 +76,7 @@ def devices(request):
             'cur_index': int(request.GET.get('page', 1)),
             'start_index': 0,
             'end_index': 0,
-            'client_editable': request.user.has_perm(
+            'client_choice': request.user.has_perm(
                 'monitoring.change_monitor',
             ),
         },
@@ -82,16 +86,20 @@ def devices(request):
 
 
 def device_info(request):
-    device_id = request.GET.get('device_id')
-    devices_dict = Monitor.get_devices_dict(request, device_id)
-    device = devices_dict[int(device_id)]
+    device_id = request.GET.get('device_id', '0')
+    devices = Monitor.get_devices_dict(request, device_id)
+
+    data = devices.get(int(device_id), {})
+    client = data.get('client_name')
+    device = data.get('name')
+    title = ' / '.join(
+        [client, device]
+    ) if client and device else 'Ничего не найдено'
 
     return JsonResponse(
         {
-            'title': device.get(
-                'client_name', 'Ничего не найдено') + ' / ' + device.get(
-                'name', 'Ничего не найдено'),
-            'data': device,
+            'title': title,
+            'data': data,
         },
 
         status=200,
@@ -104,14 +112,14 @@ def chart(request):
     data = []
     unit = {'title': unit_id}
 
-    if chart_type in ('line', 'area'):
+    if chart_type in ('spline', 'area'):
         tail = ''
 
         if not request.user.is_superuser:
             auth_user = Profile.objects.get(auth=request.user.id)
             tail += ' AND ct.id=' + str(auth_user.client_id)
 
-        device_id = request.GET.get('device')
+        device_id = request.GET.get('device_id')
 
         if device_id and device_id.isdigit():
             tail += ' AND dt.id=' + device_id
@@ -205,83 +213,38 @@ def chart(request):
 
 def unit_toggle(request):
     unit_id = request.GET.get('unit_id', '')
-    tail = ''
+    active_unit = Status.objects.get(unit=unit_id)
+    format_ = active_unit.unit.format or active_unit.unit.unit.format
 
-    if not request.user.is_superuser:
-        auth_user = Profile.objects.get(auth=request.user.id)
-        tail += ' AND ct.id=' + str(auth_user.client_id)
+    try:
+        format_ = json.loads(format_)
+    except json.decoder.JSONDecodeError:
+        format_ = {}
 
-    device_id = request.GET.get('device_id')
+    values_available = format_.get('values', {})
+    actual_values = list(
+        filter(
+            lambda x: x != 'else',
+            values_available.keys()
+        )
+    )
+    state = active_unit.state
+    payload = None
 
-    if device_id and device_id.isdigit():
-        tail += ' AND dt.id=' + device_id
-
-    cursor = connection.cursor()
-    cursor.execute('''
-        SELECT
-            dt.name AS device_name,
-            ut.name,
-            COALESCE(dct.format, ut.format, "{{}}") AS format,
-            st.state
-        FROM {devices_table} AS dt
-            INNER JOIN {clients_table} AS ct
-                ON ct.id = dt.client_id
-            INNER JOIN {units_table} AS ut
-                ON ut.is_custom = 1
-            INNER JOIN {device_config_table} AS dct
-                ON dct.id = {unit_id}
-            INNER JOIN status AS st
-                ON st.unit_id = {unit_id}
-        WHERE st.`timestamp` > DATE_SUB(NOW(),INTERVAL 1 MONTH)
-            {tail};
-    '''.format(
-        clients_table=Client._meta.db_table,
-        device_config_table=Config._meta.db_table,
-        devices_table=Device._meta.db_table,
-        tail=tail,
-        unit_id=unit_id,
-        units_table=Unit._meta.db_table,
-    ))
-
-    units = utils.list_fetchall(cursor)
-    print(units)
-    cursor.close()
-
-    state_current, payload = None, None
-
-    if len(units):
-        for unit in units:
+    for index, value in enumerate(actual_values):
+        if value == state:
             try:
-                format_ = json.loads(unit['format'])
-            except json.decoder.JSONDecodeError:
-                format_ = {}
+                payload = actual_values[index + 1]
+            except IndexError:
+                payload = actual_values[0]
 
-            values_available = format_.get('values', {})
-            actual_values = list(
-                filter(
-                    lambda x: x != 'else',
-                    values_available.keys(),
-                )
+            topic = '{}/cmd/{}'.format(
+                active_unit.unit.device.name,
+                active_unit.unit.unit.name,
             )
-            state_current = unit['state']
+            client.publish(topic, payload, qos=1)
 
-            if actual_values:
-                for index, value in enumerate(actual_values):
-                    if value == state_current:
-                        payload = actual_values[index + 1] if len(
-                            actual_values) > index + 1 else actual_values[0]
-
-                        topic = '{}/cmd/{}'.format(
-                            unit['device_name'],
-                            unit['name'],
-                        )
-                        print(topic)
-
-                        client.publish(topic, payload, qos=1)
-
-                        break
-
-    # ...
+            break
 
     return JsonResponse(
         {
@@ -289,9 +252,9 @@ def unit_toggle(request):
             .format(
                 __name__,
                 'unit_toggle',
-                device_id,
+                active_unit.unit.device.id,
                 unit_id,
-                state_current,
+                state,
                 payload,
             ),
         },

@@ -1,27 +1,18 @@
 import json
 import re
 
-from django.contrib.auth import authenticate
-from django.contrib.auth.models import User
-from django.template.context_processors import request
-
 from clients.models import Client
 from configuration.models import Configuration
 from devices.models import Config, Device
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.template.context_processors import request
 from focus.mqtt import client
 from profiles.models import Profile
 from units.models import Unit
 
 # APP_NAME = 'FOCUS'
 APP_NAME = Configuration.objects.filter(code='app_name')[0].value
-
-DB = {
-    'NAME': 'focus',
-    'USER': 'FocusCore',
-    'PASSWORD': 'GG1Dn9qUIKAd53Lp',
-    'HOST': '89.223.27.69',
-    'PORT': '3306',
-}
 
 ITEM_PER_PAGE = 30
 
@@ -35,7 +26,10 @@ def get_pins_total_count():
 
 
 def list_fetchall(cursor):
-    """Return all rows from a cursor as a list of dictionaries."""
+    """Вернуть список из всех строк, полученных из запроса в БД.
+
+    Каждая строка представлена в виде словаря {<имя колонки>: <значение>, ...}.
+    """
 
     columns = [col[0] for col in cursor.description]
     return [
@@ -137,7 +131,7 @@ def add_or_edit_profile(request, user, pk=None):
 
     else:
         auth = User.objects.create_user(
-            request.POST.get('user', ''),
+            f'{user.firstname} {user.lastname}',
             request.POST.get('email', ''),
             request.POST.get('psw', '')
         )

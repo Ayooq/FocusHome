@@ -4,8 +4,8 @@
 <html>
   <head>
     <title>{{ page.title }}</title>
-    <link href="{% static 'focus/bootstrap.css' %}" rel="stylesheet" />
-    <link href="{% static 'focus/style.css' %}" rel="stylesheet" />
+    <link href="{% static 'focus/css/bootstrap.css' %}" rel="stylesheet" />
+    <link href="{% static 'focus/css/style.css' %}" rel="stylesheet" />
   </head>
 
   <body>
@@ -17,8 +17,8 @@
       {% block content %}{% endblock content %}
 
     </div>
-    <script src="{% static 'focus/jquery.js' %}"></script>
-    <script src="{% static 'focus/bootstrap.min.js' %}"></script>
-    <script src="{% static 'focus/pretty-json-min.js' %}"></script>
+    <script src="{% static 'focus/js/jquery.js' %}"></script>
+    <script src="{% static 'focus/js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'focus/js/pretty-json-min.js' %}"></script>
   </body>
 </html>

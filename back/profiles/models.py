@@ -1,7 +1,6 @@
+from clients.models import Client
 from django.contrib.auth.models import Group, User
 from django.db import models
-
-from clients.models import Client
 
 
 class Profile(models.Model):

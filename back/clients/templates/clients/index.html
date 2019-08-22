@@ -7,7 +7,7 @@
 
         {% if perms.clients.add_client %}
           <div class="mb-12">
-            <a class="btn btn-outline-primary" href="{% url 'clients:add' %}">
+            <a class="btn btn-outline-success" href="{% url 'clients:add' %}">
               Добавить
             </a>
           </div>
@@ -30,11 +30,21 @@
                 <td>
 
                   {% if perms.clients.change_client %}
-                    <a href="{% url 'clients:edit' pk=client.id %}">
-                      Редактировать
-                    </a>
+                    <button type="button" class="btn btn-link">
+                      <a href="{% url 'clients:edit' pk=client.id %}">
+                        Редактировать
+                      </a>
+                    </button>
                   {% endif %}
-                  
+
+                  {% if perms.clients.delete_client %}
+                    <button type="button" class="btn btn-link">
+                      <a class="text-danger" href="{% url 'clients:delete' pk=client.id %}">
+                        Удалить
+                      </a>
+                    </button>
+                  {% endif %}
+
                 </td>
               </tr>
             {% endfor %}
