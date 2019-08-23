@@ -9,7 +9,7 @@ from django.db import models
 
 
 class Status(models.Model):
-    unit = models.ForeignKey('devices.Config', models.DO_NOTHING, unique=True)
+    unit = models.OneToOneField('devices.Config', models.DO_NOTHING)
     timestamp = models.DateTimeField()
     state = models.CharField(max_length=8)
 

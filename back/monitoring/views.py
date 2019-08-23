@@ -1,18 +1,19 @@
 import json
+from datetime import datetime
+from dateutil import relativedelta as delta
 
-from clients.models import Client
 from configuration.models import Configuration
 from devices.models import Device
+from events.models import Event
 from django.contrib.auth.decorators import permission_required
 from django.core.paginator import Paginator
-from django.db import connection
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
+from django.utils.timezone import make_aware
 from focus import utils
 from focus.mqtt import client
 from profiles.models import Profile
 from status.models import Status
-from units.models import Family, Unit
 
 from .models import Monitor
 
@@ -81,13 +82,13 @@ def devices(request):
             ),
         },
 
-        status=200,
+        status=200
     )
 
 
 def device_info(request):
     device_id = request.GET.get('device_id', '0')
-    devices = Monitor.get_devices_dict(request, device_id)
+    devices = Monitor.get_devices_dict(request, device_id=device_id)
 
     data = devices.get(int(device_id), {})
     client = data.get('client_name')
@@ -102,7 +103,7 @@ def device_info(request):
             'data': data,
         },
 
-        status=200,
+        status=200
     )
 
 
@@ -113,93 +114,41 @@ def chart(request):
     unit = {'title': unit_id}
 
     if chart_type in ('spline', 'area'):
-        tail = ''
+        month_interval = datetime.now() - delta.relativedelta(months=1)
+        queryset = Event.objects \
+            .filter(timestamp__gte=make_aware(month_interval), unit=unit_id) \
+            .select_related('unit', 'unit__unit', 'unit__device',
+                            'unit__unit__family') \
+            .values('message', 'timestamp', 'unit__device__name',
+                    'unit__unit__name', 'unit__unit__family__title',
+                    'unit__unit__format', 'unit__format', 'unit__unit__title'
+                    )[:1]
 
-        if not request.user.is_superuser:
-            auth_user = Profile.objects.get(auth=request.user.id)
-            tail += ' AND ct.id=' + str(auth_user.client_id)
+        if queryset.count():
+            entry = queryset[0]
 
-        device_id = request.GET.get('device_id')
+            try:
+                format_ = entry['unit__format'] or entry['unit__unit__format']
+                format_ = json.loads(format_)
+            except json.decoder.JSONDecodeError:
+                format_ = {}
 
-        if device_id and device_id.isdigit():
-            tail += ' AND dt.id=' + device_id
+            unit['name'] = entry['unit__unit__name']
+            unit['title'] = format_.get('title', entry['unit__unit__title'])
+            unit['device'] = entry['unit__device__name']
 
-        cursor = connection.cursor()
-        cursor.execute('''
-            SELECT
-                dt.id AS device_id,
-                dt.name AS device_name,
-                dt.address AS device_address,
-                DATE_FORMAT(et.`timestamp`, "%d.%m.%Y %H:%i:%s") AS `timestamp`,
-                uft.title AS family_title,
-                ut.name AS unit_name,
-                et.message AS message
-            FROM {devices_table} AS dt
-                INNER JOIN {clients_table} AS ct
-                    ON ct.id = dt.client_id
-                LEFT JOIN events AS et
-                    ON et.unit_id = '{unit_id}'
-                LEFT JOIN {devices_config_table} AS dct
-                    ON dct.id = et.unit_id
-                LEFT JOIN {units_table} AS ut
-                    ON ut.id = dct.unit_id
-                LEFT JOIN {units_family_table} AS uft
-                    ON uft.id = ut.family_id
-            WHERE et.`timestamp` > DATE_SUB(NOW(),INTERVAL 1 MONTH)
-                {tail}
-        '''.format(
-            clients_table=Client._meta.db_table,
-            devices_table=Device._meta.db_table,
-            devices_config_table=Config._meta.db_table,
-            tail=tail,
-            unit_id=unit_id,
-            units_table=Unit._meta.db_table,
-            units_family_table=Family._meta.db_table,
-        ))
-
-        entries = utils.list_fetchall(cursor)
-
-        if entries:
-            cursor.execute('''
-                SELECT
-                    COALESCE(dct.format, ut.format, "{{}}") AS format
-                FROM {units_table} AS ut
-                    LEFT JOIN {devices_config_table} AS dct
-                        ON dct.id = '{unit_id}'
-                LIMIT 1
-            '''.format(
-                devices_config_table=Config._meta.db_table,
-                unit_id=unit_id,
-                units_table=Unit._meta.db_table,
-            ))
-
-            units = utils.list_fetchall(cursor)
-
-            if units:
-                try:
-                    format_ = json.loads(units[0]['format'])
-                except json.decoder.JSONDecodeError:
-                    format_ = {}
-
-                unit['name'] = entries[0]['unit_name']
-                unit['title'] = format_.get('title', unit_id)
-                unit['device'] = entries[0]['device_name']
-
-        for e in entries:
-            msg = e['message']
+            msg = entry['message']
 
             try:
                 utils.to_float(msg)
                 data.append(
                     (
-                        e['timestamp'],
+                        entry['timestamp'],
                         msg,
                     )
                 )
             except ValueError:
                 pass
-
-        cursor.close()
 
     return JsonResponse(
         {
@@ -207,7 +156,7 @@ def chart(request):
             'data': data,
         },
 
-        status=200,
+        status=200
     )
 
 
@@ -259,5 +208,5 @@ def unit_toggle(request):
             ),
         },
 
-        status=200,
+        status=200
     )

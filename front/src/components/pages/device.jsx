@@ -15,28 +15,18 @@ class PageDevice extends React.Component {
       timer: 0,
       modal: {}
     };
-
-    this.handleChange = this.handleChange.bind(this);
-    this.updateList = this.updateList.bind(this);
-    this.chartShow = this.chartShow.bind(this);
-    this.unitToggle = this.unitToggle.bind(this);
   }
 
   // Хуки.
   componentDidMount() {
     this.updateList();
-    let timer = setInterval(this.updateList, updateInterval);
+    let timer = setInterval(this.updateList.bind(this), updateInterval);
     this.setState({ timer });
   }
 
   componentWillUnmount() {
     clearTimeout(this.state.timer);
-    this.setState({ timer: null });
-  }
-
-  // Обработчики.
-  handleChange(propertyName, value) {
-    this.setState({ [propertyName]: value });
+    // this.setState({ timer: null });
   }
 
   // Пользовательские функции.
@@ -49,18 +39,22 @@ class PageDevice extends React.Component {
       },
 
       success: response => {
+        console.log(response);
         this.setState({ data: response.data });
+      },
+      error: error => {
+        console.log(error);
+        console.log(this.props);
       }
     });
   }
 
-  chartShow(deviceId, unitId, chartType) {
+  chartShow(unitId, chartType) {
     this.setState({ modal: {} });
     utils.get({
       url: "/monitoring/api",
       data: {
         action: "chart",
-        device_id: deviceId,
         unit_id: unitId,
         chart_type: chartType
       },
@@ -76,9 +70,12 @@ class PageDevice extends React.Component {
         };
 
         this.setState({ modal });
+      },
+      error: error => {
+        console.log(error);
       }
     });
-    $("#modal_chart").modal();
+    $("#modal-chart").modal();
   }
 
   unitToggle(unitId) {
@@ -110,7 +107,7 @@ class PageDevice extends React.Component {
         title: "",
         title: "обновить",
         ico: "ti-reload",
-        onClick: this.updateList
+        onClick: this.updateList.bind(this)
       }
     ];
 
@@ -129,11 +126,7 @@ class PageDevice extends React.Component {
             chartBtn = (
               <span
                 className="float-right cur-p"
-                onClick={this.chartShow(
-                  this.state.data.data.id,
-                  t.id,
-                  t.format.chart
-                )}
+                onClick={this.chartShow.bind(this, t.id, t.format.chart)}
               >
                 <i className="ti-bar-chart" />
               </span>
@@ -163,11 +156,7 @@ class PageDevice extends React.Component {
             chartBtn = (
               <span
                 className="float-right cur-p"
-                onClick={this.chartShow(
-                  this.state.data.data.id,
-                  t.id,
-                  t.format.chart
-                )}
+                onClick={this.chartShow.bind(this, t.id, t.format.chart)}
               >
                 <i className="ti-bar-chart" />
               </span>
@@ -181,7 +170,7 @@ class PageDevice extends React.Component {
             ctrlBtn = (
               <span
                 className="float-left btn-toggle"
-                onClick={this.unitToggle(t.id)}
+                onClick={this.unitToggle.bind(this, t.id)}
               >
                 <i className="ti-power-off" />
               </span>
@@ -215,11 +204,7 @@ class PageDevice extends React.Component {
             chartBtn = (
               <span
                 className="float-right cur-p"
-                onClick={this.chartShow(
-                  this.state.data.data.id,
-                  t.unit,
-                  t.format.chart
-                )}
+                onClick={this.chartShow.bind(this, t.unit, t.format.chart)}
               >
                 <i className="ti-bar-chart" />
               </span>
@@ -232,7 +217,7 @@ class PageDevice extends React.Component {
             ctrlBtn = (
               <span
                 className="float-left btn-toggle"
-                onClick={this.unitToggle(t.id)}
+                onClick={this.unitToggle.bind(this, t.id)}
               >
                 <i className="ti-power-off" />
               </span>
@@ -288,7 +273,7 @@ class PageDevice extends React.Component {
             </BGC>
           </div>
           <div className="col-md-4">
-            <BGC title="Температура">{temps}</BGC>
+            <BGC title="Температура">{temp}</BGC>
           </div>
         </div>
 

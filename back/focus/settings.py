@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'clients',
     'configuration',
     'devices',
+    'events',
+    'messages.apps.MessagesConfig',
     'monitoring',
     'profiles',
     'roles',

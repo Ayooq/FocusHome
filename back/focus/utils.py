@@ -101,7 +101,6 @@ def add_or_edit_device(request, device=None, errors={}):
     new_config = Config.form_json(device.id, device.name, device.address)
 
     topic = device.name + '/cnf/self'
-    # topic = 'FP-0/cnf/self'
     client.publish(topic, new_config, qos=2)
 
     return device

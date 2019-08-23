@@ -11,7 +11,7 @@ from units.models import Family, Unit
 class Monitor(models.Model):
 
     @staticmethod
-    def get_devices_dict(request):
+    def get_devices_dict(request, **kwargs):
         tail = ''
 
         if request.user.is_superuser:
@@ -23,7 +23,7 @@ class Monitor(models.Model):
             auth_user = Profile.objects.get(auth=request.user.id)
             tail += ' AND ct.id=' + str(auth_user.client_id)
 
-        device_id = request.GET.get('device_id')
+        device_id = kwargs.get('device_id') or request.GET.get('device_id')
 
         if device_id and device_id.isdigit():
             tail += ' AND dt.id=' + device_id

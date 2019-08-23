@@ -13,11 +13,10 @@ class PageIndex extends React.Component {
 
     this.state = {
       data: {},
-      clientId: 4,
+      clientId: 0,
       timer: null
     };
 
-    this.handleChange = this.handleChange.bind(this);
     this.updateList = this.updateList.bind(this);
   }
 
@@ -30,7 +29,7 @@ class PageIndex extends React.Component {
 
   componentWillUnmount() {
     clearTimeout(this.state.timer);
-    this.setState({ timer: null });
+    // this.setState({ timer: null });
   }
 
   // Обработчики.
@@ -196,7 +195,7 @@ class PageIndex extends React.Component {
                     display: "inline-block",
                     marginLeft: "1em"
                   }}
-                  onChange={this.handleChange("clientId")}
+                  onChange={this.handleChange.bind(this, "clientId")}
                   label="Клиент"
                 />
               )}
