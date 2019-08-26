@@ -19,7 +19,7 @@ from .models import Monitor
 
 
 @permission_required('monitoring.view_monitor')
-def index(request):
+def index(request, id=None):
     auth_user = Profile.objects.get(auth=request.user.id)
 
     if request.user.is_superuser:
@@ -141,7 +141,7 @@ def chart(request):
 
             try:
                 utils.to_float(msg)
-                data.append(
+                data.extend(
                     (
                         entry['timestamp'],
                         msg,

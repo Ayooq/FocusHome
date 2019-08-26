@@ -19,7 +19,6 @@ utils.get({
   },
 
   success: response => {
-    console.log(response);
     store.dispatch({
       type: "settings",
       data: response.data

@@ -1,4 +1,5 @@
 import React from "react";
+import "moment";
 
 class modalChart extends React.Component {
   constructor(props) {
@@ -13,7 +14,6 @@ class modalChart extends React.Component {
 
     this.chart = null;
     this.chartBox = React.createRef();
-    //this.handleInputChange = this.handleInputChange.bind(this);
   }
 
   componentWillUnmount() {
@@ -22,10 +22,6 @@ class modalChart extends React.Component {
       this.chart = null;
     }
   }
-  // handleInputChange(event){
-  //   let value = event.target.value;
-  //   this.props.onChange(value);
-  // }
 
   render() {
     let data = this.props.data.data || [];
@@ -38,7 +34,6 @@ class modalChart extends React.Component {
     if (this.chartBox.current && data.length) {
       let chartSettings = {};
       switch (this.props.data.chartType) {
-        // default: this.props.data.chartType === "line"
         case "area":
           chartSettings = {
             type: "area",
@@ -48,21 +43,20 @@ class modalChart extends React.Component {
                 step: "left"
               }
             },
-            data: data //data.map(e => e[1])
+            data
           };
           break;
         default:
           chartSettings = {
             type: "spline",
             plotOptions: {
-              line: {
+              spline: {
                 dataLabels: {
-                  enabled: false
-                },
-                enableMouseTracking: true
+                  enabled: true
+                }
               }
             },
-            data: data
+            data
           };
       }
 
@@ -83,8 +77,7 @@ class modalChart extends React.Component {
         xAxis: {
           type: "datetime",
           labels: {
-            format: "{value:%Y-%m-%e %H:%M:%S}",
-            rotation: -90
+            format: "{value:%Y-%m-%e %H:%M:%S}"
           }
         },
         yAxis: {
@@ -96,19 +89,16 @@ class modalChart extends React.Component {
         series: [
           {
             name:
-              "[" +
-              this.props.data.unit_code +
-              "]" +
-              " " +
-              this.props.data.title,
+              "[" + this.props.data.code + "]" + " " + this.props.data.title,
             data: chartSettings.data
           }
         ],
         time: {
-          timezoneOffset: -60 * 3
-          //useUTC: false
+          timezone: "Asia/Omsk"
         }
       });
+      console.log("------------------------------");
+      console.log(this.chart.series[0].data);
     }
 
     return (
@@ -134,8 +124,12 @@ class modalChart extends React.Component {
               </button>
             </div>
             <div className="modal-body">
-              {this.props.children}
-              {data.length === 0 && <span>Нет данных для отображения</span>}
+              {/* {this.props.children} */}
+              {/* {setTimeout(
+                () =>
+                  data.length === 0 && <span>Нет данных для отображения</span>,
+                1000
+              )} */}
               <div
                 id={this.props.id + "__chart"}
                 style={this.state.chartStyle}
@@ -164,7 +158,6 @@ Number.defaultProps = {
   id: "modal_1",
   title: "",
   data: []
-  //onChange: (value)=>{""}
 };
 
 export default modalChart;

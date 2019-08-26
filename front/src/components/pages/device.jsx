@@ -39,12 +39,10 @@ class PageDevice extends React.Component {
       },
 
       success: response => {
-        console.log(response);
         this.setState({ data: response.data });
       },
       error: error => {
         console.log(error);
-        console.log(this.props);
       }
     });
   }
@@ -84,10 +82,6 @@ class PageDevice extends React.Component {
       data: {
         action: "unit_toggle",
         unit_id: unitId
-      },
-
-      success: response => {
-        console.log(response.data);
       }
     });
   }
@@ -204,7 +198,7 @@ class PageDevice extends React.Component {
             chartBtn = (
               <span
                 className="float-right cur-p"
-                onClick={this.chartShow.bind(this, t.unit, t.format.chart)}
+                onClick={this.chartShow.bind(this, t.id, t.format.chart)}
               >
                 <i className="ti-bar-chart" />
               </span>
@@ -281,9 +275,7 @@ class PageDevice extends React.Component {
           id="modal-chart"
           title={this.state.modal.device}
           data={this.state.modal}
-        >
-          <div />
-        </ModalChart>
+        ></ModalChart>
       </div>
     );
   }
