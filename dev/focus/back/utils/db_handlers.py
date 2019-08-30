@@ -9,7 +9,8 @@ def init_db(filename: str, config: dict, units: dict):
     Создать схему с таблицами:
     1) events — все зарегистрированные события;
     2) status — текущее состояние компонентов устройства;
-    3) status_archive — история состояний компонентов за всё время.
+    3) status_archive — история состояний компонентов за всё время;
+    4) routines — доступные рутины.
 
     Схема создаётся единожды при самом первом запуске устройства.
     Это обеспечивается проверкой наличия непустых строк в указанном файле.
@@ -21,6 +22,8 @@ def init_db(filename: str, config: dict, units: dict):
     """
 
     conn = sqlite3.connect(filename, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+
     db_file = open(filename, 'rb')
     db_initiated = db_file.read(1)
     db_file.close()
@@ -55,28 +58,33 @@ def _create_schema(cursor):
     mapping = {
         'events': (
             ', type TEXT,',
+            ',',
             'message TEXT',
         ),
         'status': (
             ',',
+            ' UNIQUE,',
             'state TEXT',
         ),
         'status_archive': (
+            ',',
             ',',
             'state TEXT',
         ),
     }
 
     for table, columns in mapping.items():
-        _create_defined_table(cursor, table, columns)
+        _create_bootstrapped_table(cursor, table, columns)
 
 
-def _create_defined_table(cursor, name, columns):
-    sql_command = '''CREATE TABLE {}
-                            (id INTEGER PRIMARY KEY,
-                            timestamp TEXT{}
-                            unit TEXT,
-                            {});'''.format(name, *columns)
+def _create_bootstrapped_table(cursor, name, columns):
+    sql_command = '''
+        CREATE TABLE {}
+            (id INTEGER PRIMARY KEY,
+            timestamp TEXT{}
+            unit TEXT{}
+            {});
+        '''.format(name, *columns)
     cursor.execute(sql_command)
 
 
@@ -121,10 +129,10 @@ def fill_table(conn, cursor, tables_set: set, tabledata):
         try:
             cursor.execute(SQL[tablename], tabledata)
         except sqlite3.Error:
-            print('Не удалось заполнить таблицу %s!' % tablename)
+            print(f'Не удалось заполнить таблицу {tablename}!')
             conn.rollback()
         else:
-            print('Таблица %s успешно заполнена.' % tablename)
+            print(f'Таблица {tablename} успешно заполнена.')
             conn.commit()
 
 
@@ -134,15 +142,23 @@ STATUS_TABLES_STRUCTURE = {
 }
 
 SQL = {
-    'events': '''INSERT INTO events
-                        (timestamp, type, unit, message)
-                 VALUES (?, ?, ?, ?);''',
+    'events': '''
+        INSERT INTO events
+            (timestamp, type, unit, message)
+        VALUES (?, ?, ?, ?);
+        ''',
 
-    'status': 'REPLACE INTO status {} {}'.format(
-        STATUS_TABLES_STRUCTURE['columns'], STATUS_TABLES_STRUCTURE['values']
+    'status': '''
+        REPLACE INTO status {} {}
+        '''.format(
+        STATUS_TABLES_STRUCTURE['columns'],
+        STATUS_TABLES_STRUCTURE['values']
     ),
 
-    'status_archive': 'INSERT INTO status_archive {} {}'.format(
-        STATUS_TABLES_STRUCTURE['columns'], STATUS_TABLES_STRUCTURE['values']
+    'status_archive': '''
+        INSERT INTO status_archive {} {}
+        '''.format(
+        STATUS_TABLES_STRUCTURE['columns'],
+        STATUS_TABLES_STRUCTURE['values']
     ),
 }

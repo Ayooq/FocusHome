@@ -1,6 +1,6 @@
 import logging
 
-from ..reporting import Reporter
+from ..feedback.Reporter import Reporter
 from ..utils.messaging_tools import log_and_report
 from .FocusReceptor import FocusReceptor
 from .FocusSocket import FocusSocket
@@ -22,28 +22,20 @@ class FocusSocketControl:
         cnt = min(complect)
         cnt_id = cnt[0] + postfix
 
-        print(out_id, out, cnt_id, cnt)
-
         self.socket = FocusSocket(id=out_id, postfix=postfix, **out[1])
-        print(self.socket)
         self.control = FocusReceptor(
             id=cnt_id, descr='Контроль ', postfix=postfix, **cnt[1]
         )
-        print(self.control)
+
         self.logger = logging.getLogger(__name__)
-        self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
+        msg_body = f'Подготовка {self.id}, {repr(self)}'
+        self.logger.debug(msg_body)
 
         self.reporter = Reporter(self.id)
         self.control.reporter = Reporter(self.control.id)
 
     def __repr__(self):
-        return '%s (id=%r, units=[%r, %r], description=%r)' % (
-            self.__class__.__name__,
-            self.id,
-            self.socket,
-            self.control,
-            self.description,
-        )
+        return f'<id: {self.id}, descr: {self.description}>'
 
     def on(self):
         self.control.on()

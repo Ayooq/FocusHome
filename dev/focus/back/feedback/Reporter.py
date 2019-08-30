@@ -65,5 +65,6 @@ class Reporter(Message):
         dump = json.dumps(report)
 
         print('Печатаю:', end='')
+
         for i in dump.split('{'):
             print(i)

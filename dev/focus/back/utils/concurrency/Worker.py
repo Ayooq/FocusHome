@@ -6,7 +6,11 @@ class Worker:
 
     Параметры:
       :param service: — функция-обработчик, для исполнения которой
-    требуется выделение отдельного потока.
+    требуется выделение отдельного потока;
+      :param args: — опциональный кортеж аргументов для передачи
+    функции-обработчику;
+      :param kwargs: — опциональный словарь именованных аргументов для передачи
+    функции-обработчику;
 
     Свойства:
       :attr receiver_thread: — объект выделенного потока;
@@ -18,8 +22,9 @@ class Worker:
       :meth quit: — завершить процесс, подождав, пока поток не будет уничтожен.
     """
 
-    def __init__(self, service):
-        self.receiver_thread = Thread(target=service, daemon=True)
+    def __init__(self, service, *args, **kwargs):
+        self.receiver_thread = Thread(
+            target=service, daemon=True, args=args, kwargs=kwargs)
         self.receiver_thread.start()
 
         self.message_received = 'Обработчик не установлен!'

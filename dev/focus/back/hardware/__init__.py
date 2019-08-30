@@ -4,7 +4,7 @@ from datetime import datetime
 
 import yaml
 
-from ..logger import Logger
+from ..feedback.Logger import Logger
 from ..utils import CONFIG_FILE, DB_FILE, LOG_FILE
 from .FocusReceptor import FocusReceptor
 from .FocusSocket import FocusLED
@@ -32,7 +32,7 @@ class Hardware:
             self.config = self.get_config(config_file)
             self.logger = Logger(LOG_FILE).instance
         except:
-            msg_body = 'ошибка конфигурирования в файле [%s]' % config_file
+            msg_body = f'ошибка конфигурирования в файле {config_file}'
             self.logger.error(msg_body) if self.logger else print(msg_body)
 
             raise

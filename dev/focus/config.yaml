@@ -2,54 +2,53 @@ complects:
   couts:
     cmp1:
       cnt:
-        pin: 6
+        pin: 9
       out:
-        pin: 5
+        pin: 8
     cmp2:
       cnt:
-        pin: 19
+        pin: 11
       out:
-        pin: 13
+        pin: 10
     cmp3:
       cnt:
-        pin: 12
+        pin: 13
       out:
-        pin: 26
+        pin: 12
     cmp4:
       cnt:
-        pin: 20
+        pin: 15
       out:
-        pin: 16
+        pin: 14
 device:
   broker:
     host: 89.223.27.69
     keepalive: 60
     port: 1883
-  id: FP-1
-  location: "\u0433.\u041E\u043C\u0441\u043A, \u0443\u043B.\u041C\u0438\u0440\u0430\
-    , \u0434.33\u0410"
+  id: FP-2
+  location: "\u0433.\u041F\u0430\u0432\u043B\u043E\u0434\u0430\u0440"
 units:
   ins:
     in1:
-      pin: 21
+      pin: 3
     in2:
-      pin: 18
+      pin: 4
     in3:
-      pin: 23
+      pin: 5
     in4:
-      pin: 24
+      pin: 6
     in5:
-      pin: 25
+      pin: 7
   leds:
     led1:
-      pin: 17
+      pin: 1
     led2:
-      pin: 27
+      pin: 2
   misc:
     block:
-      pin: 11
+      pin: 17
     volt:
-      pin: 9
+      pin: 16
   temp:
     cpu: {}
     ext: {}

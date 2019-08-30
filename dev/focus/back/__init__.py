@@ -6,12 +6,13 @@ from time import sleep
 import paho.mqtt.client as mqtt
 import yaml
 
+from .feedback.Reporter import Reporter
 from .hardware import Hardware
-from .reporting import Reporter
 from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, BROKER
-from .utils.concurrency import Worker
+from .utils.concurrency.Worker import Worker
 from .utils.db_handlers import fill_table, init_db
 from .utils.messaging_tools import log_and_report, register
+from .utils.routines.Handler import Handler
 
 
 class FocusPro(Hardware):
@@ -34,10 +35,11 @@ class FocusPro(Hardware):
 #        }
 #        self.apply_workers(services)
 
-        msg_body = 'Запуск %s' % self.id
+        msg_body = f'Запуск {self.id}'
         self.logger.info(msg_body)
 
         self.db = init_db(DB_FILE, self.config, self.units)
+        self.handler = Handler(self.reporter)
 
         self.client = mqtt.Client(self.id, False)
         self.client.on_connect = self.on_connect
@@ -48,6 +50,7 @@ class FocusPro(Hardware):
         self.client.will_set(**LWT)
 
         self.is_connected = False
+        self.recent_messages = set()
 
     def connect(self, timeout=0):
         sleep(timeout)
@@ -81,11 +84,13 @@ class FocusPro(Hardware):
 
     def on_message(self, client, userdata, message):
         print('Received msg topic:', message.topic)
-        _, topic, unit = message.topic.split('/')
+
+        _, topic, *routine = message.topic.split('/')
+        payload = json.loads(message.payload.decode())
+
+        print('Payload:', payload)
 
         if topic == 'cnf':
-            payload = json.loads(message.payload.decode())
-            print('Payload:', payload)
             family, unit, pin, params = 0, 1, 2, 3
             id_, location = payload.pop(-1)
             new_config = {
@@ -99,6 +104,7 @@ class FocusPro(Hardware):
 
             for i in payload:
                 print('Item:', i)
+
                 if i[family] not in new_config['units']:
                     new_config['units'].update({i[family]: {}})
 
@@ -145,14 +151,12 @@ class FocusPro(Hardware):
             with open(CONFIG_FILE, 'w') as cf:
                 yaml.dump(new_config, cf, default_flow_style=False)
 
-            # os.system('sudo shutdown -r now')
-            # self.client.disconnect()
-            # f1 = open('f1.log', 'w')
-            # f2 = open('err.log', 'w')
-            subprocess.run('/usr/bin/sudo reboot', shell=True)
-            # f1.close()
-            # f2.close()
-            
+            # subprocess.run('/usr/bin/sudo reboot', shell=True)
+
+        elif topic == 'cmd':
+            dispatch_command(tail)
+
+
 #        print(message.topic, str(message.payload), sep='\n')
 
   #      command = message.topic.split('/')[-1]
@@ -162,20 +166,6 @@ class FocusPro(Hardware):
       #  time_limit = payload[2]
 
        # on_event(command, changed_unit, target_unit, time_limit=time_limit)
-
-    # #     msg_body = 'Инструкция %s [%s]' % (
-    # #         message.topic, str(message.payload))
-    # #     self.logger.info(msg_body)
-
-    # #     # Десериализация JSON запроса.
-    # #     data = json.loads(message.payload)
-
-    # #     if data['method'] == 'getFocuspioStatus':
-    # #         # Вернуть статус FocusPIO.
-    # #         pass
-    # #     elif data['method'] == 'setFocuspioStatus':
-    # #         # Обновить статус FocusPIO и отправить ответ.
-    # #         pass
 
     def make_subscriptions(self, *callbacks):
         """Зарегистрировать устройство и его компоненты для рапортирования.
@@ -250,6 +240,13 @@ class FocusPro(Hardware):
 
         report = sender[sender.topic]
         payload = self._form_payload(report)
+
+        if isinstance(payload, ()):
+            msg_body = f'Сообщение было продублировано: {payload}'
+            self.logger.info(msg_body)
+
+            return
+
         pub_data = self._form_pub_data(sender.topic, report, payload)
 
         self.indicators['led1'].on()
@@ -267,14 +264,20 @@ class FocusPro(Hardware):
           :param report: — словарь содержимого для отчёта.
         """
 
-        msg_type = report['type']
         msg_body = report['message']
 
         if report['from'] == self.id:
             report['from'] = 'self'
 
+        payload = report['from'], msg_body
+        print('Полезная нагрузка до проверки:', payload)
+
+        if self.is_duplicate(payload):
+            return payload
+
         timestamp = datetime.now().isoformat(sep=' ')
-        tabledata = [timestamp, msg_type, report['from'], msg_body]
+        msg_type = report['type']
+        tabledata = [timestamp, msg_type, *payload]
 
         cursor = self.db.cursor()
         tables_set = {'events'}
@@ -346,3 +349,16 @@ class FocusPro(Hardware):
         """
 
         return broker['host'], broker['port'], broker['keepalive']
+
+    def is_duplicate(self, data: list):
+        """Определить, является ли подготовленное сообщение дубликатом
+        предыдущего по данной теме.
+
+        Параметры:
+        :param data: — список из элементов, формирующих структуру сообщения.
+        """
+
+        if data in self.recent_messages:
+            return True
+
+        return False

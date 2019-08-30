@@ -3,8 +3,8 @@ from time import sleep
 
 from gpiozero import CPUTemperature
 
-from ..reporting import Reporter
-from ..utils.concurrency import Worker
+from ..feedback.Reporter import Reporter
+from ..utils.concurrency.Worker import Worker
 from ..utils.messaging_tools import log_and_report
 from ..utils.one_wire import get_sensor_file
 
@@ -29,19 +29,15 @@ class FocusTemperature(CPUTemperature):
         self.timedelta = kwargs.get('timedelta', 60)
 
         self.logger = logging.getLogger(__name__)
-        self.logger.debug('Подготовка %s [%s]', self.id, repr(self))
+        msg_body = f'Подготовка {self.id}, {repr(self)}'
+        self.logger.debug(msg_body)
 
         self.reporter = Reporter(self.id)
 
         self.service = Worker(self.state_monitor)
 
     def __repr__(self):
-        return '%s (id=%r, unit=%r, description=%r)' % (
-            self.__class__.__name__,
-            self.id,
-            super().__repr__(),
-            self.description,
-        )
+        return f'<id: {self.id}, descr: {self.description}>'
 
     def state_monitor(self):
         """Отслеживание изменений показателей температурных датчиков.

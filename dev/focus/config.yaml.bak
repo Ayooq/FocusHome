@@ -25,8 +25,9 @@ device:
     host: 89.223.27.69
     keepalive: 60
     port: 1883
-  id: FP-1
-  location: "\u0433.\u041E\u043C\u0441\u043A, \u0443\u043B.\u041C\u0438\u0440\u0430\
+  id: FP-2
+  location:
+    "\u0433.\u041E\u043C\u0441\u043A, \u0443\u043B.\u041C\u0438\u0440\u0430\
     , \u0434.33\u0410"
 units:
   ins:
