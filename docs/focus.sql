@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Хост: localhost:3306
--- Время создания: Сен 06 2019 г., 11:51
+-- Время создания: Сен 06 2019 г., 11:55
 -- Версия сервера: 5.7.27-0ubuntu0.18.04.1
 -- Версия PHP: 7.2.19-0ubuntu0.18.04.1
 
@@ -19,6 +19,273 @@ SET time_zone = "+00:00";
 --
 -- База данных: `focus`
 --
+
+DELIMITER $$
+--
+-- Процедуры
+--
+CREATE DEFINER=`FocusCore`@`%` PROCEDURE `broker_dispatcher_log_add` (IN `_user_id` INT, IN `_device_id` VARCHAR(255), IN `_topic` VARCHAR(255), IN `_payload` TEXT, IN `_source` VARCHAR(100), IN `_result_code` INT, IN `_result_message` TEXT)  BEGIN
+	INSERT INTO broker_dispatcher_log
+	(
+		`created`, `user_id`, `device_id`, `topic`, `payload`, `source`, `result_code`, `result_message`
+	)
+	VALUES(
+		now(), _user_id, _device_id, _topic, _payload, _source, _result_code, _result_message
+	);
+END$$
+
+CREATE DEFINER=`FocusCore`@`%` PROCEDURE `broker_report_add` (IN `_device_name` VARCHAR(255), IN `_unit_name` VARCHAR(255), IN `_date` VARCHAR(255), IN `_msg_type` VARCHAR(255), IN `_state` TEXT)  proc_exit:
+BEGIN
+	SET @device_id = (SELECT id FROM devices WHERE name = _device_name);
+	if @device_id is null THEN
+		CALL broker_dispatcher_log_add(	
+			null, 
+			null, 
+			CONCAT_WS('/', _device_name, 'report', _unit_name),
+			json_array(_date, _msg_type, _state),
+			_device_name,
+			0, 
+			'Неудалось определить оборудование'
+		);
+		LEAVE proc_exit;
+	END IF;
+	
+	SET @unit_id = (
+		SELECT 
+			dc.id 
+		FROM devices_config as dc
+			inner join units as u
+				on u.id = dc.unit_id
+		WHERE dc.device_id = @device_id
+			and u.name = _unit_name
+	);
+	if @unit_id is null THEN
+		CALL broker_dispatcher_log_add(	
+			null, 
+			@device_id, 
+			CONCAT_WS('/', _device_name, 'report', _unit_name),
+			json_array(_date, _msg_type, _state),
+			_device_name,
+			0, 
+			'Неудалось определить датчик оборудования'
+		);
+		LEAVE proc_exit;
+	END IF;
+	
+	SET @type_id = (SELECT id FROM msg_types WHERE type = _msg_type);
+	if @type_id is null THEN
+		CALL broker_dispatcher_log_add(	
+			null, 
+			null, 
+			CONCAT_WS('/', _device_name, 'report', _unit_name),
+			json_array(_date, _msg_type, _state),
+			_device_name,
+			0, 
+			'Неудалось определить тип сообщения'
+		);
+		LEAVE proc_exit;
+	END IF;
+	
+	SET @date = TIMESTAMP(_date);
+	if @date is null THEN
+		CALL broker_dispatcher_log_add(	
+			null, 
+			null, 
+			CONCAT_WS('/', _device_name, 'report', _unit_name),
+			json_array(_date, _msg_type, _state),
+			_device_name,
+			0, 
+			'Неудалось определить время'
+		);
+		LEAVE proc_exit;
+	END IF;
+	
+	# запись в таблицу события    INSERT INTO events
+        (
+        	unit_id, type_id, timestamp, message
+        )
+    VALUES
+        (
+        	@unit_id, @type_id, @date, _state
+        );
+       
+    # запись в таблицу текущее состояние    INSERT INTO status (
+    	unit_id, `timestamp`, state
+    ) VALUES (
+    	@unit_id, @date, _state
+    )
+	ON DUPLICATE KEY UPDATE
+	    `timestamp` = VALUES (`timestamp`),
+	    `state` = VALUES (`state`);
+	
+	# пишем в логи	CALL broker_dispatcher_log_add(	
+		null, 
+		@device_id, 
+		CONCAT_WS('/', _device_name, 'report', _unit_name),
+		json_array(_date, _msg_type, _state),
+		_device_name,
+		1, 
+		null
+	);
+	   
+	select 
+		 @device_id as device_id
+		,@unit_id as unit_id
+		,@type_id as type_id
+		,@date as date
+	;
+END$$
+
+CREATE DEFINER=`FocusCore`@`%` PROCEDURE `snmp_value_add` (IN `_device_id` INT, IN `_addr` VARCHAR(255), IN `_value_type` VARCHAR(255), IN `_value` VARCHAR(255), IN `_mib_name` VARCHAR(255), IN `_mib_syntax` TEXT, IN `_mib_value` VARCHAR(255), IN `_mib_node_name` TEXT, IN `_mib_node_desc` TEXT, IN `_is_history` TINYINT(1))  MODIFIES SQL DATA
+proc_exit:
+BEGIN
+	DECLARE _date_now DATETIME;
+	DECLARE _history_id INT;
+	DECLARE _n_condition VARCHAR(255);
+	DECLARE _n_value VARCHAR(255);
+    DECLARE _is_warn BOOL;
+    DECLARE _v_float DECIMAL;
+    DECLARE _v DECIMAL;
+    DECLARE _message TEXT DEFAULT null;
+   
+	DECLARE _done integer default 0;
+	DECLARE snmp_notifications_cursor Cursor for 
+        select
+            `sn`.`condition`, `sn`.`value`
+        from snmp_notifications as `sn`
+        where `sn`.`device_id`=_device_id and `sn`.`addr`=_addr;
+    DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET _done = 1;
+  
+	
+	set _date_now = now();
+	set _is_warn = false;
+	
+	# обновляем snmp_device    INSERT INTO snmp_device
+        (
+            `updated`,
+            `device_id`,`addr`,`value_type`,`value`,
+            `mib_name`,`mib_syntax`,`mib_value`,`mib_node_name`,`mib_node_desc`
+        )
+    VALUES
+        (
+            _date_now,
+            _device_id, _addr, _value_type, _value,
+            _mib_name, _mib_syntax, _mib_value, _mib_node_name, _mib_node_desc
+        )
+    ON DUPLICATE KEY UPDATE
+        `updated` = VALUES (`updated`),
+        `value_type` = VALUES (`value_type`),
+        `value` = VALUES (`value`),
+        `mib_name` = VALUES (`mib_name`),
+        `mib_syntax` = VALUES (`mib_syntax`),
+        `mib_value` = VALUES (`mib_value`),
+        `mib_node_name` = VALUES (`mib_node_name`),
+        `mib_node_desc` = VALUES (`mib_node_desc`)
+	;
+	
+	if _is_history = 0 THEN
+		LEAVE proc_exit;
+	END IF;
+	
+	# добавляем значение в таблицу с историей показаний    INSERT INTO snmp_history
+        (
+            `updated`,
+            `device_id`,`addr`,`value`,
+            `mib_value`
+        )
+    VALUES
+        (
+            _date_now,
+            _device_id, _addr, _value,
+            _mib_value
+        )
+    ;
+
+    set _history_id = LAST_INSERT_ID();
+        
+	# проверка о необходимости уведомлении      Open snmp_notifications_cursor;
+	WHILE _done = 0 DO 
+		FETCH snmp_notifications_cursor INTO _n_condition, _n_value;
+
+        set _v_float = null;
+        set _is_warn = False;
+
+		if concat('',_n_value * 1) = _n_value then
+			set _v_float = CAST(_n_value AS DECIMAL(20,6));
+		end if;
+
+        if concat('',_value * 1) = _value and _v_float is not null then
+            set _v = CAST(_value AS DECIMAL(20,6));
+
+            if _n_condition = 'lt' then  # <                if _v < _v_float then
+                    # текущее значение меньше, указаного в уведомлениях                    set _is_warn = True;
+                end if;
+            end if;
+            if _n_condition = 'gt' then  # >                if _v > _v_float then
+                    # текущее значение больше, указаного в уведомлениях                    set _is_warn = True;
+                end if;
+            end if;
+        end if;
+
+        if _n_condition = 'like' then
+            if instr(lower(convert(_value, CHAR(255))), lower(_n_value)) > 0 then
+                # текущее значение содержит указанное в уведомлениях                set _is_warn = True;
+            end if;
+        end if;
+        if _n_condition = 'not_like' then
+            if instr(lower(convert(_value, CHAR(255))), lower(_n_value)) = 0 then
+                # текущее значение не содержит указанное в уведомлениях                set _is_warn = True;
+            end if;
+        end if;
+
+        if _n_condition = 'eq' then  # =            if lower(convert(_value, CHAR(255))) = lower(convert(_n_value, CHAR(255))) then
+                # значения совпадают                set _is_warn = True;
+            end if;
+        end if;
+
+        if _is_warn = True then
+        	set _message = concat("Оповещение на устройстве");
+			
+        	IF EXISTS (select `id` from `snmp_alert` where `device_id`=_device_id and `addr`=_addr and `is_read`=0 and `n_condition`=_n_condition and `n_value`=_n_value)
+            THEN
+            	#select 'update', n_condition, n_value;                UPDATE `snmp_alert`
+                SET `updated`=_date_now, `history_id`=_history_id, `message`=_message
+                WHERE `device_id`=_device_id and `addr`=_addr and `n_condition`=_n_condition and `n_value`=_n_value;
+            ELSE
+            	#select 'update', n_condition, n_value;                INSERT INTO `snmp_alert`
+                    (
+                        `device_id`, `addr`,
+                        `created`, `updated`,
+                        `is_read`, `user_read`,
+                        `message`, `history_id`,
+                        `link_type`, `type`,
+                        `n_condition`, `n_value`
+                    )
+                VALUES
+                    (
+                        _device_id, _addr,
+                        _date_now, _date_now,
+                        0, NULL,
+                        _message, _history_id,
+                        'snmp_addr', 'snmp',
+                        _n_condition, _n_value
+                    );
+             end if;
+            
+             #select device_id, addr, date_now, message, history_id, 'snmp_addr' as `link_type`, n_condition as `n_condition`, n_value as `n_value`, 'snmp' as `type`;
+        end if;
+
+	END WHILE;
+	
+	Close snmp_notifications_cursor;
+	
+	select `device_id`, `addr`, `created`, `updated`, `message`, `history_id`, `link_type`, `n_condition`, `n_value`, `type`
+	from `snmp_alert` 
+	where `device_id`=_device_id and `addr`=_addr and `is_read`=0 and `updated`=_date_now;
+
+END$$
+
+DELIMITER ;
 
 -- --------------------------------------------------------
 
