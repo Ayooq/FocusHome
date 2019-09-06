@@ -1,5 +1,6 @@
 .gitinore
 resourses/react/node_modules/
+node_server/node_modules/
 docs/
 env/
 readme
