@@ -1,18 +1,3 @@
-"""Django URL Configuration
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/2.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.generic.base import RedirectView
@@ -24,13 +9,18 @@ urlpatterns = [
 
     path('', RedirectView.as_view(url='login', permanent=False)),
     path('/', RedirectView.as_view(url='login', permanent=False)),
+
     path('login', views.log_in),
     path('logout', views.log_out),
-    re_path('^help', views.help),
 
-    path('clients', include('Clients.urls')),
-    path('devices', include('Devices.urls')),
-    path('users', include('Profiles.urls')),
-    path('monitoring', include('Monitoring.urls')),
+    re_path(r'^api/devices', include('Devices.urls')),
+    re_path(r'^api/clients', include('Clients.urls')),
+    re_path(r'^api/users', include('Profiles.urls')),
+    re_path(r'^api/monitoring', include('Monitoring.urls')),
+    re_path(r'^api/notifications', include('Monitoring.urls')),
+
+    re_path(r'^api/settings', views.settings),
+
+    re_path(r'^', views.react_view),
 
 ]

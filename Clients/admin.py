@@ -1,5 +1,5 @@
-from django.contrib import admin
-from Clients.models import Clients
-
-# Register your models here.
-admin.site.register(Clients)
+# from django.contrib import admin
+# from Clients.models import Clients
+#
+#
+# admin.site.register(Clients)

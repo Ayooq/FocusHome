@@ -1,7 +1,4 @@
 from django.db import models
-from Devices.models import Devices
-from Profiles.models import Profiles
-from Clients.models import Clients
 from django.db import connection
 import Django.util as util
 import json
@@ -9,23 +6,19 @@ import json
 
 class Monitoring(models.Model):
 
+
     @staticmethod
     def get_devices_list(request, **kwargs):
-        user_auth = Profiles.objects.get(auth_id=request.user.id)
+        VALUES_ELSE_NAME = 'иначе'
 
         where = ""
-        if request.user.is_superuser == 1:
-            client_id = request.GET.get('client_id', '')
-            client_id = int(client_id) if client_id.isdigit() else 0
-            if client_id > 0:
-                    where += " and ct.id=" + str(client_id)
-        else:
-            where += " and ct.id=" + str(user_auth.client_id)
+        device_id = util.toInt(request.GET.get('device_id', 0))
+        client_id = util.toInt(request.GET.get('client_id', 0))
 
-        device_id = request.GET.get('device_id', False)
-        if device_id:
-            if device_id.isdigit():
-                where += " and dt.id="+str(device_id)
+        if device_id > 0:
+            where += " and dt.id="+str(device_id)
+        if client_id > 0:
+            where += " and dt.client_id="+str(client_id)
 
         cursor = connection.cursor()
         cursor.execute("""
@@ -33,7 +26,7 @@ class Monitoring(models.Model):
                 dt.id as id,
                 dt.name as name,
                 dt.address as address,
-                dt.uid as uid,
+                dt.id as uid,
                 ct.id as client__id,
                 ct.name as client__name,
                 DATE_FORMAT(ds.`timestamp`, "%d.%m.%Y %H:%i:%s") as `date`, 
@@ -43,23 +36,23 @@ class Monitoring(models.Model):
                 duu.title as annotation,
                 ds.state,
                 COALESCE(dug.format, duu.format, "{{}}") as state_format
-            from {devices_table} as dt
-                inner join {clients_table} as ct
+                ,duu.format as duu_format
+            from devices as dt
+                inner join clients as ct
                     on ct.id = dt.client_id
-                inner join DeviceUnits_gpioconfig as dug
+                inner join devices_config as dug
                     on dug.device_id = dt.id
-                inner join DeviceUnits_units as duu
+                inner join units as duu
                     on duu.id = dug.unit_id
-                inner join DeviceUnits_family as duf
+                inner join units_family as duf
                     on duf.id = duu.family_id
                 inner join status as ds
                     on ds.unit_id = dug.id
             where (1)
+                """ + (" and d.client_id = %(client_id)s" if request.user.role_code == 'clients' else '') + """
                 {where}
             ORDER by dt.id, duu.family_id
             """.format(
-                devices_table=Devices._meta.db_table,
-                clients_table=Clients._meta.db_table,
                 where=where
             )
         )
@@ -88,14 +81,23 @@ class Monitoring(models.Model):
             if dev['family'] is not None:
                 unit_value = str(dev.get("state",""))
                 state_format = json.loads(dev['state_format']) if util.is_json(dev['state_format']) else {}
-                state_format_values = state_format.get("values", {})
-                state_format_value_index = state_format_values.get(unit_value, state_format_values.get("else", {}))
+                state_format_values = state_format.get("values", [])
+                state_format_values_else = {}
+                state_format_value_index = {}
+                controlValues = []
+                for format_value in state_format_values:
+                    if str(format_value['value']) == unit_value:
+                        state_format_value_index = format_value
+                        if format_value['value'] != VALUES_ELSE_NAME:
+                            controlValues.append(format_value['value'])
+                        else:
+                            state_format_values_else = format_value
 
                 unit_format = {
                     "title": state_format.get("title", dev['annotation']),
                     "chart": state_format.get("chart", None),
-                    "control": state_format.get("control", None),
-                    "controlValues": list(filter(lambda x : x != 'else', list(state_format_values.keys())))
+                    "controls": state_format.get("controls", []),
+                    "controlValues": controlValues
                 }
 
                 unit_format__type = state_format.get("type", "")
@@ -111,19 +113,17 @@ class Monitoring(models.Model):
                     unit_value_float = util.toFloat(unit_value)
                     unit_format["value"] = unit_value_float
                     unit_format["caption"] = state_format.get("format", "{0:.2f}").format(util.toFloat(unit_value)).replace('.',',')
-                    unit_format["class"] = state_format_values.get("else", {}).get("class", "")
-                    for key in state_format_values:
-                        if not key == "else":
-                            keyTuple = util.strRangeToTuple(key)
+                    unit_format["class"] = state_format_values_else.get("class", "")
+                    for item in state_format_values:
+                        if not item['value'] == VALUES_ELSE_NAME:
+                            keyTuple = util.strRangeToTuple(item['value'])
                             if keyTuple[0] <= unit_value_float < keyTuple[1]:
-                                unit_format["class"] = state_format_values[key].get("class", "")
+                                unit_format["class"] = item.get("class", "")
                                 break
                 else:
                     unit_format["value"] = unit_value
                     unit_format["caption"] = unit_value
                     unit_format["class"] = "bd bdc-brown-100 bg-light text-dark"
-
-
 
                 devices[device_id]['status'][dev['family']][dev['unit']] = {
                     'date': dev['date'],

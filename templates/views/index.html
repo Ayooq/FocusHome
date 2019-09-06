@@ -1,0 +1,14 @@
+{% extends "parts/base.html" %}
+{% load staticfiles %}
+
+{% block content %}
+
+<div id="react_app">
+    загрузка...
+</div>
+<script>
+    global_monitoring_update_period = 1000 * {{ settings.monitoring_update_interval }};
+</script>
+<script src="{% static 'cabinet.js' %}"></script>
+
+{% endblock content %}

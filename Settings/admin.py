@@ -1,7 +1,7 @@
-from django.contrib import admin
-from Settings.models import Settings, Groups, Types
-# Register your models here.
+# from django.contrib import admin
+# from Settings.models import Settings, Groups, Types
 
-admin.site.register(Groups)
-admin.site.register(Types)
-admin.site.register(Settings)
+
+# admin.site.register(Groups)
+# admin.site.register(Types)
+# admin.site.register(Settings)

@@ -1,6 +1,6 @@
 import React from 'react';
 
-class Text extends React.Component{
+class InputText extends React.Component{
   constructor(props) {
     super(props);
     this.handleInputChange = this.handleInputChange.bind(this);
@@ -16,9 +16,9 @@ class Text extends React.Component{
   }
 }
 
-Text.defaultProps = {
+InputText.defaultProps = {
   className: "form-control",
   onChange: (value)=>{""}
 };
 
-export default Text;
+export default InputText;

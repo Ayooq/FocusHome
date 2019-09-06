@@ -3,8 +3,19 @@ from django.views.decorators.http import require_http_methods
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 import Django.util as util
-from Clients.models import Clients
 from django.contrib.auth.decorators import login_required
+from Settings.models import Settings
+from django.http import JsonResponse
+
+
+@login_required(login_url='log_in')
+def react_view(request):
+    return render(
+        request, 'views/index.html',
+        {
+            'settings': Settings.get(code=('monitoring_update_interval',))
+        }
+    )
 
 
 def log_in(request):
@@ -16,7 +27,7 @@ def log_in(request):
             request, 'auth/login.html',
             {
                 'page': {
-                    'title': util.get_app_name('Вход в личный кабинет')
+                    'title': 'Вход в личный кабинет'
                 }
             }
         )
@@ -32,10 +43,11 @@ def log_in(request):
 
         return redirect('/monitoring/')
 
+
 def log_out(request):
     logout(request)
 
-    return redirect('/monitoring')
+    return redirect('/login')
 
 
 @login_required(login_url='log_in')
@@ -44,8 +56,11 @@ def help(request):
     return render(
         request, 'help/index.html', {
             'page': {
-                'title': util.get_app_name('Справка')
+                'title': 'Справка'
             },
         }
     )
 
+
+def settings(request):
+    return JsonResponse(Settings.all(request), status=200)

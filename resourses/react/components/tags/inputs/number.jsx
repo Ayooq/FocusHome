@@ -1,6 +1,6 @@
 import React from 'react';
 
-class Number extends React.Component{
+class InputNumber extends React.Component{
   constructor(props) {
     super(props);
     this.handleInputChange = this.handleInputChange.bind(this);
@@ -12,13 +12,15 @@ class Number extends React.Component{
   }
   
   render(){
-    return <input type="number" className={this.props.className} value={this.props.value} onChange={this.handleInputChange} />
+    return <input type="number" min={this.props.min} max={this.props.max} className={this.props.className} value={this.props.value} onChange={this.handleInputChange} />
   }
 }
 
-Number.defaultProps = {
+InputNumber.defaultProps = {
   className: "form-control",
-  onChange: (value)=>{""}
+  onChange: (value)=>{""},
+  min: "",
+  max: ""
 };
 
-export default Number;
+export default InputNumber;

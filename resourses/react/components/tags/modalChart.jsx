@@ -1,4 +1,5 @@
 import React from 'react';
+import {MyFunc as util} from 'func.jsx';
 
 class modalChart extends React.Component{
   constructor(props) {
@@ -8,7 +9,9 @@ class modalChart extends React.Component{
         minWidth: '310px',
         height: '500px',
         margin: '0 auto'
-      }
+      },
+      data: this.props.data,
+      id: this.props.id || "modal_" + util.random(0,10000)
     };
     
     this.chart = null;
@@ -16,6 +19,16 @@ class modalChart extends React.Component{
     //this.handleInputChange = this.handleInputChange.bind(this);
   }
 
+  componentWillReceiveProps(nextProps) {
+    if ( nextProps.data.date != this.state.data.date ) {
+      this.setState({data: nextProps.data});
+    }
+  }
+
+  shouldComponentUpdate(nextProps) {
+    return nextProps.data.date != this.state.data.date;
+  }
+  
   componentWillUnmount()
   {
     if ( this.chart ){
@@ -23,13 +36,9 @@ class modalChart extends React.Component{
       this.chart = null;
     }
   }
-  // handleInputChange(event){
-  //   let value = event.target.value;
-  //   this.props.onChange(value);
-  // }
 
   render(){
-    let data = this.props.data.data || [];
+    let data = this.state.data.data || [];
     
     if ( this.chart ){
       this.chart.destroy();
@@ -38,7 +47,7 @@ class modalChart extends React.Component{
 
     if (this.chartBox.current && data.length) {
       let chartSettings = {};
-      switch(this.props.data.chartType) {
+      switch(this.state.data.chartType) {
         // default: this.props.data.chartType === "line"
         case 'area':
           chartSettings = {
@@ -73,10 +82,10 @@ class modalChart extends React.Component{
           zoomType: 'x'
         },
         title: {
-          text: this.props.data.title
+          text: this.state.data.unit_code || this.state.data.title
         },
         subtitle: {
-          text: this.props.data.subtitle
+          text: this.state.data.subtitle
         },
         legend: {
           enabled: false
@@ -84,7 +93,8 @@ class modalChart extends React.Component{
         xAxis: {
           type: 'datetime',
           labels: {
-            format: '{value:%Y-%m-%e %H:%M:%S}',
+            //format: '{value:%Y-%m-%e %H:%M:%S}',
+            format: '{value:%Y-%m-%e}',
             rotation: -90
           }
         },
@@ -95,7 +105,7 @@ class modalChart extends React.Component{
         },
         plotOptions: chartSettings.plotOptions,
         series: [{
-          name: '['+this.props.data.unit_code+']'+' '+this.props.data.title,
+          name: '['+this.state.data.unit_code+']'+' '+this.state.data.title,
           data: chartSettings.data,
         }],
         time:{
@@ -104,7 +114,6 @@ class modalChart extends React.Component{
         }
       });
     }
-    
 
 
     return <div className="modal fade" id={ this.props.id } tabIndex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
@@ -118,11 +127,10 @@ class modalChart extends React.Component{
           </div>
           <div className="modal-body">
             {this.props.children}
-            { data.length === 0 &&
-            <span>Нет данных для отображения</span>
+            { data.length == 0 &&
+              <span>Нет данных для отображения</span>
             }
-            <div id={ this.props.id + "__chart" } style={ this.state.chart_style } ref={this.chartBox}>
-            </div>
+            <div id={ this.props.id + "__chart" } style={ this.state.chart_style } ref={this.chartBox}></div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" data-dismiss="modal">Закрыть</button>
@@ -134,12 +142,10 @@ class modalChart extends React.Component{
   }
 }
 
-Number.defaultProps = {
-  className: "form-control",
-  id: "modal_1",
+modalChart.defaultProps = {
   title: "",
-  data: []
-  //onChange: (value)=>{""}
+  data: {date: null},
+  id: null
 };
 
 export default modalChart;

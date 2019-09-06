@@ -1,4 +1,5 @@
 import axios from 'axios';
+import store from 'store.jsx';
 
 const _baseUrl = location.protocol + "//" + location.host;
 
@@ -13,24 +14,53 @@ const MyFunc = {
 
   _axios: function (method, params) {
     //console.log(method + ':' +  _baseUrl + params.url, params);
+    store.dispatch({
+      type: 'data.update',
+      state: true
+    });
     axios({
       method:   method,
       baseURL:  _baseUrl,
       url:      params.url,
       params:   (method === 'GET') ? params.data || {} : null,
-      data:     (method === 'POST') ? params.data || {} : null
+      data:     (method === 'POST') ? params.data || {} : null,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRFToken': this.get_csrf(),
+        'X-Requested-With': 'XMLHttpRequest'
+      }
     })
     .then(response => {
       //console.log('MyFunc::get::success - ' + response.status);
+      store.dispatch({
+        type: 'data.update',
+        state: false
+      });
+      
+      if (response.data.title) {
+        store.dispatch({
+          type: 'page.title.set',
+          data: response.data.title
+        });
+      }
+      
       if (typeof params.success === 'function') {
         return params.success(response);
       }
     })
     .catch(function (error) {
-      //console.log(error);
+      store.dispatch({
+        type: 'data.update',
+        state: false
+      });
+      
+      let msg = error.response.data || error.response.statusText;
       if (typeof params.error === 'function') {
-        return params.error(error);
+        return params.error(msg);
       }
+      alert( msg.message || 'error, see console' );
+      console.log(error.response)
     });
   },
 
@@ -54,6 +84,17 @@ const MyFunc = {
     if (data == null) return defaultValue;
     data = JSON.parse(window.localStorage.getItem(key));
     return data;
+  },
+
+  get_csrf: function () {
+    var name = 'csrftoken';
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      var value = "; " + document.cookie;
+      var parts = value.split("; " + name + "=");
+      if (parts.length == 2) return parts.pop().split(";").shift();
+    }
+    return cookieValue;
   },
 
   //functions
@@ -92,7 +133,23 @@ const MyFunc = {
     }
     return s.join(dec);
   },
-  
-}
+
+  //рандом
+  random: function(min, max)
+  {
+    return parseInt(Math.random() * (max - min) + min);
+  },
+
+  is_array(value){
+    return Object.prototype.toString.call(value) === '[object Array]';
+  },
+  is_object(value){
+    return Object.prototype.toString.call(value) === '[object Object]';
+  },
+  gettype(value){
+    return Object.prototype.toString.call(value).replace(']','').split(' ')[1];
+  }
+
+};
 
 export {MyFunc};

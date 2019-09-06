@@ -11,7 +11,7 @@ class SNMP:
         self.community = kwargs.get('community', 'public')
         self.version = kwargs.get('version', '2c')
         self.host = kwargs.get('host', '127.0.0.1:161')
-        self.flags = kwargs.get('flags', ['Oe','On'])
+        self.flags = kwargs.get('flags', ['Oe', 'On'])
 
     def __getdata(self, method, OID, file=None):
         cmd = "{method} -c {c} -v {v} {host} {flags} {oid}".format(
@@ -66,12 +66,13 @@ class SNMP:
 
         return result
 
-    def bulkget(self, OIDS):
-        result = []
-        for oid in OIDS:
-            result.append(self.get(oid))
+    def bulkget(self, OIDS, file):
+        with open(file, 'w') as f:
+            for oid in OIDS:
+                r = self.get(oid)
+                f.write(r + "\n")
 
-        return result
+        return 1
 
     def getImage(self, OIDs, file):
         for oid in OIDs:

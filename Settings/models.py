@@ -1,6 +1,6 @@
 from django.db import models
-from Clients.models import Clients
-import re
+from django.db import connection
+import Django.util as util
 
 
 class Groups(models.Model):
@@ -49,7 +49,7 @@ class Settings(models.Model):
         blank=False,
         null=False
     )
-    type = models.ForeignKey(
+    datatype = models.ForeignKey(
         Types,
         on_delete=models.CASCADE,
         default=None
@@ -65,38 +65,94 @@ class Settings(models.Model):
         default=None
     )
 
+    class Meta:
+        db_table = 'config'
 
     def __str__(self):
-        return "{} ({}=({}){})".format(self.name, self.code, self.type_id, self.value if len(self.value)<20 else self.value[:20]+"...")
+        return "{} ({}=({}){})".format(self.name, self.code, self.type_id, self.value if len(self.value) < 20 else self.value[:20] + "...")
 
     @staticmethod
     def get(code=()):
-        list = {}
+        config = {}
         if len(code)>0:
-            items = Settings.objects.filter(code__in=code).values('code','value','type_id')
+            items = Settings.objects.filter(code__in=code).values('code','value','datatype_id')
             for item in items:
-                list[item['code']] = item['value']
+                config[item['code']] = item['value']
 
-        return list
+        return config
 
     @staticmethod
-    def all(request, group_id=0):
-        list = {
-            'app': {
-                'name': Settings.objects.filter(code='app_name')[0].value
-            },
-            'clients': Clients.get_clients_list(request),
-            'group': {}
-        }
-        if group_id > 0:
-            group_set = Settings.objects.filter(group_id=group_id).values('code','value','type_id')
-            group_dict = {}
-            if group_set is not None:
-                regex = re.compile('(\n|$\s+)')
-                for r in group_set:
-                    r['value'] = re.sub(regex,'',r['value'])
-                    group_dict[r['code']] = r
-            del group_set
-            list['group'] = group_dict
+    def all(request):
+        cursor = connection.cursor()
+        query = """
+            select
+            *
+            from config
+        """
+        cursor.execute(query, {})
+        rows = util.dictfetchall(cursor)
 
-        return list
+        config_db = {}
+        for row in rows:
+            config_db[row['code']] = {
+                'code': row['code'],
+                'value': row['value'],
+                'datatype_id': row['datatype_id']
+            }
+        app_name = config_db.pop('app_name', dict())
+
+        query = """
+            select
+                 am.id
+                ,am.parent
+                ,am.title
+                ,am.icon
+                ,am.href
+            from app_menu as am
+            where 
+                am.is_active = 1
+                and 
+                (
+                    EXISTS (
+                        select au.id
+                        FROM auth_user as au
+                            inner join auth_user_user_permissions as up
+                                on up.user_id = au.id
+                            inner join auth_permission as ap
+                                on ap.id = up.permission_id
+                        where au.id=%(user_id)s and ap.codename = am.perm
+                    )
+                    OR
+                    am.perm is NULL
+                )
+        """
+        cursor.execute(query, {
+            'user_id': request.user.id
+        })
+        app_menu = util.dictfetchall(cursor)
+
+        config = {
+            'app': {
+                'name': app_name.get('value', '')
+            },
+            'clients': [],
+            'group': config_db,
+            'menu': app_menu
+        }
+
+        if request.user.role_code == 'management':
+            query = """
+                select
+                     c.id
+                    ,c.name
+                from clients as c
+                order by c.name
+            """
+            cursor.execute(query, {})
+            rows = cursor.fetchall()
+            for row in rows:
+                config['clients'].append({'id': row[0], 'name': row[1]})
+
+        cursor.close()
+
+        return config

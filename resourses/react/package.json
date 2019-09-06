@@ -1,5 +1,5 @@
 {
-  "name": "app-rect",
+  "name": "focus",
   "version": "1.0.0",
   "description": "",
   "scripts": {
@@ -40,6 +40,13 @@
   },
   "dependencies": {
     "axios": "^0.18.0",
-    "react-redux-events": "^1.0.7"
+    "globalize": "^1.4.2",
+    "moment": "^2.24.0",
+    "react-bootstrap": "^1.0.0-beta.11",
+    "react-bootstrap-datetimepicker": "0.0.22",
+    "react-bootstrap-dialog": "^0.13.0",
+    "react-datepicker": "^2.8.0",
+    "react-redux-events": "^1.0.7",
+    "react-widgets-globalize": "^5.0.20"
   }
 }

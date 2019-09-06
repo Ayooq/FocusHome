@@ -2,11 +2,6 @@ import { createStore, combineReducers } from 'redux';
 import { connect } from 'react-redux'
 
 
-const mapProps =  state => ({});
-const mapDispatch = dispatch => ({
-  dispatchEvent: (event) => dispatch(dispatchEvent(event))
-});
-
 const appSettings = function(state = {}, action) {
   //console.log(action);
   switch (action.type) {
@@ -38,29 +33,46 @@ const appSettings = function(state = {}, action) {
   }
 }
 
-// The User Reducer
-// const profileReducer = function(state = {}, action) {
-//   switch (action.type) {
-//     case 'RPOFILE_UPLOADED':
-//       return {
-//         name:       action.data.name_i + ' ' + action.data.name_f,
-//         position:   action.data.position,
-//         role:       action.data.role,
-//         office_id:  action.data.office_id,
-//         image:      ('small' in action.data.image)?action.data.image.small:null,
-//         accessList: action.data.accessList
-//       }
-//
-//     default:
-//       return state;
-//   }
-// }
+
+const pageInfo = function(state = {'request_send': false}, action) {
+  switch (action.type) {
+    case 'page.title.set':
+      return {
+        ...state,
+        "title": action.data
+      };
+    case 'data.update':
+      return {
+        ...state,
+        "request_send": action.state
+      };
+
+    default:
+      return state;
+  }
+};
+
+
+const template = function(state = {'sidebar_is_collapsed': false}, action) {
+  switch (action.type) {
+    case 'sidebar.toogle':
+      return {
+        ...state,
+        "sidebar_is_collapsed": ! state.sidebar_is_collapsed
+      };
+
+    default:
+      return state;
+  }
+};
+
 
 
 // Combine Reducers
 const reducers = combineReducers({
   appSettings:  appSettings,
-  //clients:      clientsReducer
+  pageInfo:     pageInfo,
+  template:     template
 });
 
 const store = createStore(reducers);

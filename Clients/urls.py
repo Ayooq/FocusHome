@@ -1,12 +1,10 @@
 from django.contrib import admin
 from django.urls import path, re_path
-from . import views
-
+from Clients import views as client_view
 
 urlpatterns = [
-    path('/', views.index),
-    path('/add', views.add),
-    path('/edit/<int:id>', views.edit),
-
-    re_path('^/api?', views.api),
+    re_path(r'^/$', client_view.index),
+    re_path(r'^/edit/$', client_view.edit),
+    re_path(r'^/update/$', client_view.update),
+    re_path(r'^/create/$', client_view.create),
 ]

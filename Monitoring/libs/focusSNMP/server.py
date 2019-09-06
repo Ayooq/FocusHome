@@ -2,6 +2,25 @@ import subprocess
 import os
 import json
 from multiprocessing import Pool, Process
+import re
+
+
+def is_float(s):
+    if s is None or s == '' or s == 'None':
+        return True
+
+    return True if re.match(r"^[\d\.]*$", s) else False
+
+
+def toFloat(s):
+    if s is None or s == '' or s == 'None':
+        return 0.0
+
+    s = str(s)
+    s = s.replace(',', '.')
+    s = re.sub(r"[^\d\.\-e]", "", s)
+
+    return float(s)
 
 
 class SNMP:
@@ -101,6 +120,8 @@ class SNMP:
 
             if node["value_type"] == "STRING":
                 node["value"] = node["value"].strip('"')
+            # if node["value_type"] == "Hex-STRING":
+            #     node["value"] = bytearray.fromhex(node["value"].replace(' ', '')).decode().replace('\x00', ' ')
 
             info = SNMP.translate(node["addr"])
             if 'SYNTAX_2' in info:
@@ -115,34 +136,62 @@ class SNMP:
         return node
 
     def insert_history(self, file, device_id):
-        row_index = 0
-        self.cursor.execute("select now() into @date")
+
+        conn = self.connector()
+        cursor = conn.cursor()
+
+        result = []
 
         with open(file) as f:
             for row in f:
                 node = self.get_node(row)
-                if node is not None:
-                    self.cursor.execute("""
-                        INSERT INTO snmp_history
-                            (
-                                updated,
-                                device_id,addr,value,
-                                mib_value
-                            )
-                        VALUES
-                            (
-                                @date,
-                                %s,%s,%s,
-                                %s
-                            )
-                    """, (
-                        device_id, node["addr"], node["value"],
-                        node["mib_value"]
-                    ))
 
-                    row_index += 1
+                cursor.callproc('snmp_value_add', (
+                    device_id,
+                    node["addr"],
+                    node["value_type"],
+                    node["value"],
+                    node["mib_name"],
+                    node["mib_syntax"],
+                    node["mib_value"],
+                    node["mib_node_name"],
+                    node["mib_node_desc"],
+                    1
+                ))
 
-        return row_index
+                for rows in cursor.stored_results():
+                    for row in rows.fetchall():
+                        result.append(row)
+
+        conn.close()
+
+        return result
+
+
+    def insert_value(self, file, device_id):
+        conn = self.connector()
+        cursor = conn.cursor()
+
+        with open(file) as f:
+            for row in f:
+                node = self.get_node(row)
+
+                cursor.callproc('snmp_value_add', (
+                    device_id,
+                    node["addr"],
+                    node["value_type"],
+                    node["value"],
+                    node["mib_name"],
+                    node["mib_syntax"],
+                    node["mib_value"],
+                    node["mib_node_name"],
+                    node["mib_node_desc"],
+                    0
+                ))
+
+        conn.close()
+
+        return []
 
     @staticmethod
     def insert_snmp_data(connector, device_id, rows, index=0):
@@ -192,8 +241,7 @@ class SNMP:
             for row in f:
                 if row and row.find("Error in packet.") == -1:
                     rows.append(row)
-                    if len(rows)%100 == 0:
-
+                    if len(rows) % 100 == 0:
                         proc = Process(target=SNMP.insert_snmp_data, args=(self.connector, device_id, rows, len(procs)))
                         procs.append(proc)
                         proc.start()
@@ -241,8 +289,6 @@ class SNMP:
                     , row[0], row[1]
                 ))
 
-                # print(row[1])
-
         print('mib_reparse')
         conn.close()
 
@@ -254,10 +300,10 @@ class SNMP:
         cursor.execute("select device_id, addr, mib_node_name, value from snmp_device where device_id=%s", (device_id,))
         rows = cursor.fetchall()
 
-        tree = {'mib':'', 'sensors': 0}
+        tree = {'mib': '', 'sensors': 0}
         for row in rows:
-            addr        = row[1][1:].split('.')[:-1]
-            mib_addr    = row[2][1:].split('.')[:-1]
+            addr = row[1][1:].split('.')[:-1]
+            mib_addr = row[2][1:].split('.')[:-1]
 
             s = tree
             _addr = ['']
@@ -269,13 +315,14 @@ class SNMP:
                 else:
                     _mib_addr = mib_addr[-1]
                 address = '.'.join(_addr)
-                mib_address = _mib_addr
+                mib_address = _mib_addr + (' ('+a+')' if _mib_addr != a else '')
                 if mib_address not in s:
-                    s[mib_address] = {'mib':address, 'sensors':0}
+                    s[mib_address] = {'mib': address, 'sensors': 0}
                 s = s[mib_address]
             s['sensors'] += 1
 
-        tree = SNMP.dict_recursive(tree)
+        # print(json.dumps(tree, indent=4))
+        # tree = SNMP.dict_recursive(tree)
 
         # print(json.dumps(tree, indent=4))
         # f = open('log.json', 'w')
@@ -310,27 +357,27 @@ class SNMP:
             , COALESCE(mib_value, value) as value
             , mib_node_name
             , mib_node_desc
-        from snmp_device where device_id=%s and addr like %s""", (device_id, addr+'%'))
+        from snmp_device where device_id=%s and addr like %s""", (device_id, addr + '%'))
         rows = cursor.fetchall()
 
         tbl_data = {}
         for row in rows:
             tblCR = row[3].split('.')
-            if len(tblCR)>1:
+            if len(tblCR) > 1:
                 colName = tblCR[-2]
                 rowName = tblCR[-1]
 
                 if rowName not in tbl_data:
                     tbl_data[rowName] = {}
                 if colName not in tbl_data[rowName]:
-                    tbl_data[rowName][colName] = None
+                    tbl_data[rowName][colName] = [row[0], None]
 
-                tbl_data[rowName][colName] = row[2]
+                tbl_data[rowName][colName][1] = row[2]
 
         data = []
         columns = []
         keys = list(tbl_data.keys())
-        if len(keys)>0:
+        if len(keys) > 0:
             columns = list(tbl_data[keys[0]].keys())
 
             for k in keys:

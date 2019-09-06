@@ -1,249 +1,359 @@
-from django.core.paginator import Paginator
-from django.views.decorators.http import require_http_methods
-from django.shortcuts import redirect, render
-from django.http import HttpResponseForbidden
+from django.http import JsonResponse
 import Django.util as util
-from Profiles.models import Profiles
-from Devices.models import Devices
-from Clients.models import Clients
-from DeviceUnits.models import Units, Family, GPIOConfig, getPins as devicePins
-from django.db import connection
-import json
-from django import forms
-
-# Create your views here.
+from Devices.models import Device
+from django.db import connection, transaction
+from Monitoring.dispatcher import dispatcher
 
 
 def index(request):
-    if not request.user.has_perm('Devices.devices_list'):
-        return HttpResponseForbidden()
+    if not request.profile.has_perm('app.devices.index'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
 
-    devices_list = Devices.objects.filter(id__gte=1)
-    paginator = Paginator(devices_list, util.ITEM_PER_PAGE)
-    page = request.GET.get('page')
-    devices = paginator.get_page(page)
-
-    return render(
-        request, 'devices/index.html',
-        {
-            'page': {
-                'title': util.get_app_name('Оборудование')
-            },
-            'devices': devices
-        }
-    )
-
-def add(request):
-    if not request.user.has_perm('Devices.devices_add'):
-        return HttpResponseForbidden()
-
-    if request.method == 'GET':
-        device = Devices()
-
-        cursor = connection.cursor()
-        cursor.execute("""
-            select
-                duf.name as family__name,
-                duf.title as family__title,
-                duu.id as units__id,
-                duu.name as units__name,
-                duu.title as units__title,
-                duu.is_pin,
-                "" as gpio__format
-            from {du_units_table} as duu
-                inner join {du_family_table} as duf
-                    on duf.id = duu.family_id
-            where duu.is_custom=1
-            order by duf.name, duu.name
-            """.format(
-                du_units_table=Units._meta.db_table,
-                du_family_table=Family._meta.db_table,
-            )
-        )
-        units = util.dictfetchall(cursor)
-        cursor.close()
-
-        return render(
-            request, 'devices/edit.html',
-            {
-                'page': {
-                    'title': util.get_app_name('Оборудование. Добавить')
-                },
-                'device': device,
-                'clients': Clients.objects.all(),
-                'units': units if units is not None else [],
-                'pins': devicePins(),
-                'errors': {}
-            }
-        )
-
-    if request.method == 'POST':
-        device = Devices()
-
-        device.name = request.POST.get('name', "")
-        device.address = request.POST.get('address', "")
-        device.comment = request.POST.get('comment', "")
-        device.uid = 0
-
-        if request.user.is_superuser == 1:
-            device.client_id = int(request.POST.get('client_id', 0))
-        else:
-            req_user = Profiles.objects.get(auth_id=request.user.id)
-            device.client_id = req_user.client_id
-
-        device.save()
-        device.uid = "FP-{}".format(device.id)
-        device.save()
-
-        for unit in Units.objects.all():
-            gpioDevice = GPIOConfig.objects.filter(
-                 device_id=device.id,
-                 unit_id=unit.id
-            )
-
-            if len(gpioDevice) == 0:
-                gpioDevice = GPIOConfig()
-            else:
-                gpioDevice = gpioDevice[0]
-
-            pinNumber = util.toInt(request.POST.get("client_pin_" + str(unit.id), -1))
-            pinNumber = pinNumber if pinNumber in devicePins() else -1
-
-            unitFormat = request.POST.get("client_unit_" + str(unit.id), "")
-            if unitFormat != "":
-                err = Devices.unitValidate(unitFormat)
-                if err != 1:
-                    # if not unitFormat in errors:
-                    #     errors[unitFormat] = []
-                    # errors[unitFormat].append(err)
-                    unitFormat = ""
-
-            gpioDevice.device_id=device.id
-            gpioDevice.unit_id=unit.id
-            gpioDevice.pin=pinNumber
-            gpioDevice.format=unitFormat if unitFormat else None
-
-            gpioDevice.save()
-
-        # сформировать yaml и отправить
-        GPIOConfig.create_yaml()
-
-        return redirect('/devices/edit/'+str(device.id))
-
-
-def edit(request, id):
-    if not request.user.has_perm('Devices.devices_show'):
-        return HttpResponseForbidden()
-
-    errors = {}
-    device = Devices.objects.get(id=id)
-
-    if request.method == 'POST':
-        if not request.user.has_perm('Devices.devices_edit'):
-            return HttpResponseForbidden()
-
-        device.name = request.POST.get('name', "")
-        device.address = request.POST.get('address', "")
-        device.comment = request.POST.get('comment', "")
-
-        if request.user.is_superuser == 1:
-            device.client_id = int(request.POST.get('client_id', 0))
-        else:
-            req_user = Profiles.objects.get(auth_id=request.user.id)
-            device.client_id = req_user.client_id
-
-        device.save()
-
-        for unit in Units.objects.all():
-            gpioDevice = GPIOConfig.objects.filter(
-                 device_id=device.id,
-                 unit_id=unit.id
-            )
-
-            if len(gpioDevice) == 0:
-                gpioDevice = GPIOConfig()
-            else:
-                gpioDevice = gpioDevice[0]
-
-            pinNumber = util.toInt(request.POST.get("client_pin_" + str(unit.id), -1))
-            pinNumber = pinNumber if pinNumber in devicePins() else -1
-
-            unitFormat = request.POST.get("client_unit_" + str(unit.id), "")
-            if unitFormat != "":
-                err = Devices.unitValidate(unitFormat)
-                if err != 1:
-                    if not unitFormat in errors:
-                        errors[unitFormat] = []
-                    errors[unitFormat].append(err)
-                    unitFormat = ""
-
-
-            gpioDevice.device_id=device.id
-            gpioDevice.unit_id=unit.id
-            gpioDevice.pin=pinNumber
-            gpioDevice.format=unitFormat if unitFormat else None
-
-            gpioDevice.save()
-
-        # сформировать yaml и отправить
-        GPIOConfig.create_yaml()
-
+    device_client = request.GET.get('client', None)
+    device_name = request.GET.get('name', None)
+    device_address = request.GET.get('address', None)
 
     cursor = connection.cursor()
-    cursor.execute("""
-        select
-            dt.id as id,
-            dt.name as name,
-            dt.address as address,
-            dt.uid as uid,
-            ct.id as client__id,
-            ct.name as client__name,
-            duf.name as family__name,
-            duf.title as family__title,
-            duu.id as units__id,
-            duu.name as units__name,
-            duu.title as units__title,
-            duu.is_pin,
-            dug.id as gpio__id,
-            dug.pin as gpio__pin,
-            ifnull(dug.format, "") as gpio__format
-            #COALESCE(dug.format, duu.format, "") as gpio__format
-        from {devices_table} as dt
-            inner join {clients_table} as ct
-                on ct.id = dt.client_id
-            inner join {du_units_table} as duu
-                on duu.is_custom=1
-            inner join {du_family_table} as duf
-                on duf.id = duu.family_id
-            left join {du_gpio_units_table} as dug
-                on dug.device_id = dt.id
-                and dug.unit_id = duu.id
-        where dt.id={device_id} and ct.id={client_id}
-        order by dt.id, duf.name, duu.name
-    """.format(
-            client_id=device.client_id,
-            device_id=device.id,
-            devices_table=Devices._meta.db_table,
-            clients_table=Clients._meta.db_table,
-            du_units_table=Units._meta.db_table,
-            du_family_table=Family._meta.db_table,
-            du_gpio_units_table=GPIOConfig._meta.db_table,
-        )
-    )
-    units = util.dictfetchall(cursor)
+    query = """
+        SELECT
+              d.id as device_id
+            , d.name as device_name
+            , d.address as device_address
+            , d.comment as device_comment
+            , c.id as client_id
+            , c.name as client_name
+        FROM devices as d
+            inner join clients as c
+                on c.id = d.client_id
+        where d.id > 0
+            """ + (" and c.name like %(device_client)s" if device_client else '') + """
+            """ + (" and d.name like %(device_name)s" if device_name else '') + """
+            """ + (" and d.address like %(device_address)s" if device_address else '') + """
+            """ + (" and d.client_id = %(client_id)s" if request.user.role_code == 'clients' else '') + """
+    """
+    cursor.execute(query, {
+        "device_client": '%' + device_client + '%',
+        "device_name": '%' + device_name + '%',
+        "device_address": '%' + device_address + '%',
+        "client_id": request.user.client_id
+    })
+
+    devices = util.dictfetchall(cursor)
+
+    return JsonResponse({
+        "title": 'Оборудование',
+        "data": devices,
+    }, status=200)
+
+
+def edit(request):
+    if not request.profile.has_perm('app.devices.show'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
+
+    device_id = request.GET.get('device_id', 0)
+
+    device = Device(device_id)
+
+    return JsonResponse({
+        "title": 'Оборудование. ' + device.device_name,
+        "device": device.to_dict(),
+        'units': device.get_units(gpio_format='json'),
+        'pins': device.get_pins(),
+        'gpio_types': device.get_monitoring_gpio_types(),
+        'chart_types': device.get_monitoring_chart_types(),
+        'gpio_controls': device.get_monitoring_controls(),
+        'gpio_widget_formats': device.get_monitoring_widget_formats(),
+        'is_client_change': request.profile.has_perm('app.devices.client.change'),
+        'is_snmp_change': request.profile.has_perm('app.devices.snmp'),
+    }, status=200)
+
+
+def update(request):
+    if not request.profile.has_perm('app.devices.update'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
+
+    if request.method == 'POST':
+        body = request.body
+        post = util.toJson(body)
+
+        device_id = post.get('device_id', 0)
+        units = post.get('units', None)
+
+        device = Device()
+
+        transaction.set_autocommit(False)
+        cursor = connection.cursor()
+
+        for item in units:
+            gpio__format = item.get('gpio__format')
+            validate = device.unitValidate(gpio__format, item.get('family__title','')+'/'+item.get('units__title',''))
+            if validate == 1:
+                query = """
+                    INSERT INTO devices_config (
+                        `pin`, `format`,
+                        `device_id`, `unit_id`
+                    ) VALUES (
+                        %(gpio_pin)s, %(gpio_format)s,
+                        %(device_id)s, %(unit_id)s
+                    )
+                    ON DUPLICATE KEY UPDATE
+                        `pin`    = VALUES (`pin`),
+                        `format` = VALUES (`format`)
+                """
+                cursor.execute(query, {
+                    'device_id': device_id,
+                    'unit_id': item.get('units__id', 0),
+                    'gpio_pin': item.get('gpio__pin', 0),
+                    'gpio_format': util.jsonToStr(gpio__format) if not bool(gpio__format.get('is_default',True)) else None
+                })
+            else:
+                transaction.rollback()
+                cursor.close()
+                return JsonResponse({
+                    'message': validate
+                }, status=400)
+
+        device_data = post.get('device', None)
+        if type(device_data) != dict:
+            transaction.rollback()
+            cursor.close()
+            return JsonResponse({
+                'message': 'неверный формат данных'
+            }, status=400)
+
+        device_address = str(device_data.get('device_address', '')).strip()
+        device_comment = str(device_data.get('device_comment', '')).strip()
+
+        query = """
+            UPDATE devices
+            SET address=%(device_address)s, comment=%(device_comment)s,
+            snmp_host=%(snmp_host)s, snmp_community=%(snmp_community)s, snmp_version=%(snmp_version)s,
+            snmp_user=%(snmp_user)s, snmp_password=%(snmp_password)s
+            WHERE id=%(device_id)s;
+        """
+        cursor.execute(query, {
+            'device_id': device_id,
+            'device_address': device_address,
+            'device_comment': device_comment,
+            'snmp_host': str(device_data.get('snmp_host', '')).strip(),
+            'snmp_community': str(device_data.get('snmp_community', '')).strip(),
+            'snmp_version': str(device_data.get('snmp_version', '')).strip(),
+            'snmp_user': str(device_data.get('snmp_user', '')).strip(),
+            'snmp_password': str(device_data.get('snmp_password', '')).strip(),
+        })
+
+        transaction.commit()
+        cursor.close()
+
+        return JsonResponse({
+            'message': 'update'
+        }, status=200)
+
+    return JsonResponse({
+        'message': 'метод не найден'
+    }, status=404)
+
+
+def create(request):
+    if not request.profile.has_perm('app.devices.create'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
+
+    if request.method == 'GET':
+        return __create_get(request)
+    if request.method == 'POST':
+        return __create_post(request)
+
+    return JsonResponse({
+        'message': 'метод не найден'
+    }, status=404)
+
+
+def __create_get(request):
+    device = Device()
+
+    return JsonResponse({
+        "title": 'Оборудование. Добавить новое',
+        "device": device.get(),
+        'units': device.get_units(gpio_format='json'),
+        'pins': device.get_pins(),
+        'gpio_types': device.get_monitoring_gpio_types(),
+        'chart_types': device.get_monitoring_chart_types(),
+        'gpio_controls': device.get_monitoring_controls(),
+        'gpio_widget_formats': device.get_monitoring_widget_formats(),
+        'is_client_change': False,
+        'is_snmp_change': False,
+    }, status=200)
+
+
+def __create_post(request):
+    body = request.body
+    post = util.toJson(body)
+
+    device_id = 0
+    units = post.get('units', None)
+    client_id = 0 #post.get('client_id', 0)
+
+    device = Device()
+
+    transaction.set_autocommit(False)
+    cursor = connection.cursor()
+
+    device_data = post.get('device', None)
+    if type(device_data) != dict:
+        transaction.rollback()
+        cursor.close()
+        return JsonResponse({
+            'message': 'неверный формат данных'
+        }, status=400)
+
+    device_address = str(device_data.get('device_address', '')).strip()
+    device_comment = str(device_data.get('device_comment', '')).strip()
+
+    if client_id == 0:
+        client_id = request.user.client_id
+
+    for item in units:
+        gpio__format = item.get('gpio__format')
+        validate = device.unitValidate(gpio__format, item.get('family__title', '') + '/' + item.get('units__title', ''))
+        if validate != 1:
+            transaction.rollback()
+            cursor.close()
+            return JsonResponse({
+                'message': validate
+            }, status=400)
+
+    query = """
+        INSERT INTO devices
+        (address, comment, client_id,
+        snmp_host,snmp_community,snmp_version,
+        snmp_user,snmp_password)
+        VALUES(%(device_address)s, %(device_comment)s, %(client_id)s, 
+        %(snmp_host)s, %(snmp_community)s, %(snmp_version)s,
+        %(snmp_user)s, %(snmp_password)s
+        );
+    """
+    cursor.execute(query, {
+        'device_address': device_address,
+        'device_comment': device_comment,
+        'client_id': client_id,
+        'snmp_host': str(device_data.get('snmp_host', '')).strip(),
+        'snmp_community': str(device_data.get('snmp_community', '')).strip(),
+        'snmp_version': str(device_data.get('snmp_version', '')).strip(),
+        'snmp_user': str(device_data.get('snmp_user', '')).strip(),
+        'snmp_password': str(device_data.get('snmp_password', '')).strip(),
+    })
+
+    query = """
+        SELECT last_insert_id()
+    """
+    cursor.execute(query)
+    row = cursor.fetchone()
+    device_id = row[0]
+
+    for item in units:
+        gpio__format = item.get('gpio__format')
+        query = """
+            INSERT INTO devices_config (
+                `pin`, `format`,
+                `device_id`, `unit_id`
+            ) VALUES (
+                %(gpio_pin)s, %(gpio_format)s,
+                %(device_id)s, %(unit_id)s
+            )
+            ON DUPLICATE KEY UPDATE
+                `pin`    = VALUES (`pin`),
+                `format` = VALUES (`format`)
+        """
+        cursor.execute(query, {
+            'device_id': device_id,
+            'unit_id': item.get('units__id', 0),
+            'gpio_pin': item.get('gpio__pin', 0),
+            'gpio_format': util.jsonToStr(gpio__format) if not bool(gpio__format.get('is_default', True)) else None
+        })
+
+    transaction.commit()
     cursor.close()
 
-    return render(
-        request, 'devices/edit.html',
-        {
-            'page': {
-                'title': util.get_app_name('Оборудование. Редактировать')
-            },
-            'device': device,
-            'clients': Clients.objects.all(),
-            'units': units if units is not None else [],
-            'pins': devicePins(),
-            'errors': errors
-        }
-    )
+    return JsonResponse({
+        'message': 'create',
+        'device_id': device_id
+    }, status=200)
 
+
+def reboot(request, *args):
+    if not request.profile.has_perm('app.devices.reboot'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
+
+    if request.method == 'POST':
+        body = request.body
+        post = util.toJson(body)
+        device_id = post.get('device_id', None)
+
+        dispatcher.device_reboot(
+            device_id=device_id,
+            user_id=request.user.id
+        )
+
+        return JsonResponse({
+            'message': 'Команда перезагрузки отправлена на удаленное устройство',
+            'device_id': device_id
+        }, status=200)
+
+    return JsonResponse({
+        'message': 'Метод не определен'
+    }, status=404)
+
+
+def client_change(request, *args):
+    if not request.profile.has_perm('app.devices.client.change'):
+        return JsonResponse({
+            'message': 'Доступ запрещен'
+        }, status=403)
+
+    body = request.body
+    post = util.toJson(body)
+
+    device_id = post.get('device_id', 0)
+    new_client_id = post.get('client_id', 0)
+
+    cursor = connection.cursor()
+
+    query = """
+        SELECT
+            c.id
+        FROM clients as c
+        where c.id =%(client_id)s
+    """
+    cursor.execute(query, {
+        "client_id": new_client_id
+    })
+    if cursor.rowcount == 0:
+        return JsonResponse({
+            'message': 'Указанный клиент не найден',
+            'client_id': new_client_id
+        }, status=400)
+
+    query = """
+        UPDATE devices
+        SET client_id=%(new_client_id)s
+        WHERE id=%(device_id)s
+    """
+    cursor.execute(query, {
+        'device_id': device_id,
+        'new_client_id': new_client_id
+    })
+
+    return JsonResponse({
+        'message': 'update',
+        'client_id': new_client_id
+    }, status=200)
