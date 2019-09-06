@@ -15,7 +15,7 @@ class Content(dict):
         for key in Content._mapping:
             self.setdefault(key)
 
-    def inscribe(self, values: tuple):
+    def inscribe(self, values: tuple) -> None:
         """Вписать содержимое в словарь отчёта.
 
         Параметры:

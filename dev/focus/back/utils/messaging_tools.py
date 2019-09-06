@@ -1,4 +1,9 @@
-def register(instance, subscriber: str, callback):
+from typing import Callable
+
+from ..feedback.Reporter import Reporter
+
+
+def register(instance: Reporter, subscriber: str, callback: Callable) -> None:
     """Прокси для метода регистрации подписчика у экземпляра репортёра.
 
     Параметры:
@@ -11,7 +16,7 @@ def register(instance, subscriber: str, callback):
     instance.reporter.register(subscriber, callback)
 
 
-def unregister(instance, subscriber: str):
+def unregister(instance: Reporter, subscriber: str) -> None:
     """Прокси для метода удаления подписчика у экземпляра репортёра.
 
     Параметры:
@@ -24,9 +29,14 @@ def unregister(instance, subscriber: str):
     instance.reporter.unregister(subscriber)
 
 
-def log_and_report(
-    instance, msg, swap=False, type_='event', qos=1, retain=False
-):
+def notify(
+    instance: Reporter,
+    msg: str,
+    swap=False,
+    type_='event',
+    qos=1,
+    retain=False
+) -> None:
     """Записать сообщение в журнал событий и отправить отчёт посреднику.
 
     Параметры:
@@ -46,14 +56,20 @@ def log_and_report(
     _report(*common_args, *report_args)
 
 
-def _log(instance, msg: str, swap: bool):
+def _log(instance: Reporter, msg: str, swap: bool) -> None:
     origin = instance.id if swap else instance.description
     debug_msg = '{}: {} | [{}]'.format(origin, msg, repr(instance))
     instance.logger.debug(debug_msg)
     instance.logger.info(': '.join([origin, msg]))
 
 
-def _report(instance, msg: str, type_: str, qos: int, retain: bool):
+def _report(
+        instance: Reporter,
+        msg: str,
+        type_: str,
+        qos: int,
+        retain: bool
+) -> None:
     content = instance.id, type_, msg, qos, retain
 
     instance.reporter._formalize(content)

@@ -1,18 +1,21 @@
 import json
+import shelve
 import subprocess
 from datetime import datetime
 from time import sleep
+from typing import Any
 
 import paho.mqtt.client as mqtt
 import yaml
 
 from .feedback.Reporter import Reporter
 from .hardware import Hardware
-from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, BROKER
-from .utils.concurrency.Worker import Worker
-from .utils.db_handlers import fill_table, init_db
-from .utils.messaging_tools import log_and_report, register
+from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE
+from .utils.concurrency import run_async
+from .utils.db_handlers import fill_table, get_db, init_db
+from .utils.messaging_tools import notify, register
 from .utils.routines.Handler import Handler
+# from .utils.routines.Parser import Parser
 
 
 class FocusPro(Hardware):
@@ -21,51 +24,70 @@ class FocusPro(Hardware):
     def __init__(self, **kwargs):
         super().__init__()
 
+        msg_body = f'Настройка внешних зависимостей...'
+        self.logger.info(msg_body)
+
+        # Идентификация:
         self.id = self.config['device']['id']
         self.description = self.config['device']['location']
 
-        print('Инициализация', self.id)
-
+        # Регистрация обработчиков событий:
         self.reporter = Reporter(self.id)
-        self.make_subscriptions(self.blink, self.publish)
+        self.set_subscriptions(self.blink, self.publish)
 
-#        services = {
-#            self.temperature['cpu'].state_monitor,
-#            self.temperature['ext'].state_monitor,
-#        }
-#        self.apply_workers(services)
+        # Установка обработчиков поступающих команд:
+        self.handler = Handler()
 
-        msg_body = f'Запуск {self.id}'
-        self.logger.info(msg_body)
+        try:
+            # Подключение к локальной базе данных:
+            with open(DB_FILE):
+                msg = 'Локальная БД уже существует. Инициализация не требуется.'
+                print(msg)
 
-        self.db = init_db(DB_FILE, self.config, self.units)
-        self.handler = Handler(self.reporter)
+            self.db = get_db(DB_FILE)
+        except IOError:
+            # Инициализация новой БД:
+            self.db = init_db(DB_FILE, self.complects, self.units)
+        finally:
+            # Настройка клиента MQTT:
+            self.client = mqtt.Client(self.id, False)
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
 
-        self.client = mqtt.Client(self.id, False)
-        self.client.on_connect = self.on_connect
-        self.client.on_disconnect = self.on_disconnect
-        self.client.on_message = self.on_message
+            # Определение последнего завещания:
+            LWT = self.define_lwt()
+            self.client.will_set(**LWT)
 
-        LWT = self.define_lwt()
-        self.client.will_set(**LWT)
+            # Включение внутреннего логирования клиента:
+            self.client.enable_logger(self.logger)
 
+        # Установка значений по умолчанию:
         self.is_connected = False
         self.recent_messages = set()
 
-    def connect(self, timeout=0):
+    def connect(self, timeout=0) -> None:
+        """Подключиться к посреднику асинхронно."""
+
         sleep(timeout)
         device = self.config.get('device')
         broker = self._define_broker(device['broker'])
-        self.client.connect(*broker)
+        self.client.connect_async(*broker)
         self.client.loop_start()
 
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(
+        self,
+        client: mqtt.Client,
+        userdata: Any,
+        flags: dict,
+        rc: int
+    ) -> None:
         if rc:
-            log_and_report(self, rc, type_='error', swap=True)
+            notify(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
 
-            log_and_report(
+            notify(
                 self, 'online', swap=True, type_='status', retain=True
             )
 
@@ -77,84 +99,25 @@ class FocusPro(Hardware):
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
-        log_and_report(self, 'offline', swap=True, type_='status', retain=True)
+        notify(self, 'offline', swap=True, type_='status', retain=True)
 
         if rc:
-            log_and_report(self, rc, type_='error', swap=True)
+            notify(self, rc, type_='error', swap=True)
 
     def on_message(self, client, userdata, message):
-        print('Received msg topic:', message.topic)
+        print('Принято сообщение по теме:', message.topic)
 
         _, topic, *routine = message.topic.split('/')
         payload = json.loads(message.payload.decode())
 
-        print('Payload:', payload)
+        print('Полезная нагрузка сообщения:', payload)
 
         if topic == 'cnf':
-            family, unit, pin, params = 0, 1, 2, 3
-            id_, location = payload.pop(-1)
-            new_config = {
-                'device': {
-                    'id': id_,
-                    'location': location,
-                    'broker': BROKER,
-                },
-                'units': {},
-            }
-
-            for i in payload:
-                print('Item:', i)
-
-                if i[family] not in new_config['units']:
-                    new_config['units'].update({i[family]: {}})
-
-                if i[pin] > 0:
-                    new_config['units'][i[family]][i[unit]] = {
-                        'pin': i[pin],
-                    }
-                elif i[params]:
-                    new_config['units'][i[family]][i[unit]] = i[params]
-                else:
-                    new_config['units'][i[family]][i[unit]] = {}
-
-            new_config.update({'complects': {'couts': {}}})
-
-            couts = new_config['units'].pop('couts')
-            new_config['complects']['couts'].update(
-                {
-                    'cmp1': {
-                        'out': couts.get('out1'),
-                        'cnt': couts.get('cnt1'),
-                    },
-                    'cmp2': {
-                        'out': couts.get('out2'),
-                        'cnt': couts.get('cnt2'),
-                    },
-                    'cmp3': {
-                        'out': couts.get('out3'),
-                        'cnt': couts.get('cnt3'),
-                    },
-                    'cmp4': {
-                        'out': couts.get('out4'),
-                        'cnt': couts.get('cnt4'),
-                    },
-                }
-            )
-
-            cf = open(CONFIG_FILE)
-
-            with open(BACKUP_FILE, 'w') as bf:
-                bf.writelines(cf.readlines())
-
-            cf.close()
-
-            with open(CONFIG_FILE, 'w') as cf:
-                yaml.dump(new_config, cf, default_flow_style=False)
-
-            # subprocess.run('/usr/bin/sudo reboot', shell=True)
+            self.apply_config(payload)
 
         elif topic == 'cmd':
-            dispatch_command(tail)
+            # Parser.parse_instructions(self.conn, payload)
+            pass
 
 
 #        print(message.topic, str(message.payload), sep='\n')
@@ -167,7 +130,7 @@ class FocusPro(Hardware):
 
        # on_event(command, changed_unit, target_unit, time_limit=time_limit)
 
-    def make_subscriptions(self, *callbacks):
+    def set_subscriptions(self, *callbacks):
         """Зарегистрировать устройство и его компоненты для рапортирования.
 
         События обрабатываются следующим образом:
@@ -193,11 +156,11 @@ class FocusPro(Hardware):
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
 
-    def apply_workers(self, services):
-        self.workers = set()
+    # def apply_workers(self, services):
+    #     self.workers = set()
 
-        for service in services:
-            self.workers.add(Worker(service))
+    #     for service in services:
+    #         self.workers.add(Async(service))
 
     def blink(self, sender: dict):
         """Моргать при регистрации событий.
@@ -318,7 +281,7 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def define_lwt(self, qos=1, retain=True):
+    def define_lwt(self, qos=2, retain=True):
         """Определить завещание для отправки посреднику
         в случае непредвиденного разрыва связи.
         """
@@ -358,7 +321,80 @@ class FocusPro(Hardware):
         :param data: — список из элементов, формирующих структуру сообщения.
         """
 
-        if data in self.recent_messages:
-            return True
+        return data in self.recent_messages
 
-        return False
+    def apply_config(self, config_data):
+        """Применить новые настройки конфигурации, заданные пользователем.
+
+        Для вступления изменений в силу, устройство перезагружается сразу после
+        записи новых настроек в файл БД.
+
+        Параметры:
+          :param config_data: — объект словаря с новой конфигурацией.
+        """
+
+        family, unit, pin, params = 0, 1, 2, 3
+        id_, location = config_data.pop(-1)
+        new_config = {
+            'device': {
+                'id': id_,
+                'location': location,
+                'broker': self.config['device']['broker'],
+            },
+            'units': {},
+        }
+
+        for i in config_data:
+            print('Item:', i)
+
+            if i[family] not in new_config['units']:
+                new_config['units'].update({i[family]: {}})
+
+            if i[pin] > 0:
+                new_config['units'][i[family]][i[unit]] = {
+                    'pin': i[pin],
+                }
+            elif i[params]:
+                new_config['units'][i[family]][i[unit]] = i[params]
+            else:
+                new_config['units'][i[family]][i[unit]] = {}
+
+        new_config.update({'complects': {'couts': {}}})
+
+        couts = new_config['units'].pop('couts')
+        new_config['complects']['couts'].update(
+            {
+                'cmp1': {
+                    'out': couts.get('out1'),
+                    'cnt': couts.get('cnt1'),
+                },
+                'cmp2': {
+                    'out': couts.get('out2'),
+                    'cnt': couts.get('cnt2'),
+                },
+                'cmp3': {
+                    'out': couts.get('out3'),
+                    'cnt': couts.get('cnt3'),
+                },
+                'cmp4': {
+                    'out': couts.get('out4'),
+                    'cnt': couts.get('cnt4'),
+                },
+            }
+        )
+
+        # cf = open(CF)
+
+        # with open(BACKUP_FILE, 'w') as bf:
+        #     bf.writelines(cf.readlines())
+
+        # cf.close()
+
+        with shelve.open(CONFIG_FILE) as db:
+            for category, contents in new_config.items():
+                db[category] = contents
+            # yaml.dump(new_config, cf, default_flow_style=False)
+
+        # self.client.loop_stop()
+        # self.client.disconnect()
+        # subprocess.run('/usr/bin/sudo reboot', shell=True)

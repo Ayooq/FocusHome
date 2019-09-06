@@ -1,11 +1,12 @@
 import logging
 from time import sleep
+from typing import NoReturn
 
 from gpiozero import CPUTemperature
 
 from ..feedback.Reporter import Reporter
-from ..utils.concurrency.Worker import Worker
-from ..utils.messaging_tools import log_and_report
+from ..utils.concurrency import sleep_for
+from ..utils.messaging_tools import notify
 from ..utils.one_wire import get_sensor_file
 
 
@@ -34,47 +35,47 @@ class FocusTemperature(CPUTemperature):
 
         self.reporter = Reporter(self.id)
 
-        self.service = Worker(self.state_monitor)
+        self.exceeded = False
 
     def __repr__(self):
         return f'<id: {self.id}, descr: {self.description}>'
 
-    def state_monitor(self):
-        """Отслеживание изменений показателей температурных датчиков.
+    async def report_at_intervals(self, sec: int) -> NoReturn:
+        """Отслеживать изменения показателей температурных датчиков c заданной
+        периодичностью.
 
-        Каждые :int self.timedelta: секунд сообщать информацию
-        :attr type_="info": о текущем состоянии температуры внутри
-        банкомата, а также ЦПУ самого устройства. При превышении порогового
-        значения :float self.threshold:, с учётом показателя
-        :float self.hysteresis:, предупреждать о перегреве
-        :attr type_="warning": оборудования. В случае возвращения
-        показателей в норму, отправлять соответствующее сообщение типа "event".
+        Логировать и отсылать посреднику информацию о текущей температуре
+        датчиков каждые :attr sec: секунд.
+
+        Параметры:
+          :param sec: — интервал в секундах, устанавливающий периодичность
+        оповещений, формируемых компонентом.
         """
 
-        self._tick = self.timedelta
-        self._exceeded = False
+        await sleep_for(sec)
+        notify(self, self.state, type_='info')
 
-        while True:
-            sleep(1)
-            self._tick -= 1
+    async def watch_state(self) -> NoReturn:
+        """Наблюдать за состоянием датчиков температуры.
 
-            if not self._tick:
-                log_and_report(self, self.state, type_='info')
-                self._tick += self.timedelta
+        Информировать посредника о превышении установленного порога температуры
+        (с учётом гистерезиса), а также оповещать посредника при возвращении
+        показателей в норму.
+        """
 
-            if self.is_active and not self._exceeded:
-                log_and_report(self, self.state, type_='warning')
-                self._exceeded = True
-            elif self._exceeded and not self.is_active:
-                log_and_report(self, self.state)
-                self._exceeded = False
+        if self.is_active and not self.exceeded:
+            notify(self, self.state, type_='warning')
+            self.exceeded = True
+        elif self.exceeded and not self.is_active:
+            notify(self, self.state)
+            self.exceeded = False
 
     @property
-    def state(self):
+    def state(self) -> float:
         return self.temperature
 
     @property
-    def is_active(self):
+    def is_active(self) -> bool:
         if super().is_active:
             self.hysteresis = -self.hysteresis
 

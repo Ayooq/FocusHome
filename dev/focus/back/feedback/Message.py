@@ -10,7 +10,7 @@ class Message(dict):
         self.topic = topic
         self.setdefault(self.topic, Content())
 
-    def _formalize(self, content: tuple):
+    def _formalize(self, content: tuple) -> None:
         """Оформить содержимое в соответствии с указанным типом сообщения.
 
         Параметры:

@@ -1,9 +1,9 @@
 import logging
 
 from ..feedback.Reporter import Reporter
-from ..utils.messaging_tools import log_and_report
+from ..utils.messaging_tools import notify
+from .FocusLED import FocusLED
 from .FocusReceptor import FocusReceptor
-from .FocusSocket import FocusSocket
 
 
 class FocusSocketControl:
@@ -22,10 +22,10 @@ class FocusSocketControl:
         cnt = min(complect)
         cnt_id = cnt[0] + postfix
 
-        self.socket = FocusSocket(id=out_id, postfix=postfix, **out[1])
+        self.socket = FocusLED(
+            id=out_id, postfix=postfix, initial_value=None, **out[1])
         self.control = FocusReceptor(
-            id=cnt_id, descr='Контроль ', postfix=postfix, **cnt[1]
-        )
+            id=cnt_id, descr='Контроль ', postfix=postfix, **cnt[1])
 
         self.logger = logging.getLogger(__name__)
         msg_body = f'Подготовка {self.id}, {repr(self)}'
@@ -34,23 +34,23 @@ class FocusSocketControl:
         self.reporter = Reporter(self.id)
         self.control.reporter = Reporter(self.control.id)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'<id: {self.id}, descr: {self.description}>'
 
-    def on(self):
+    def on(self) -> None:
         self.control.on()
         self.socket.on()
 
-        log_and_report(self.control, int(self.socket.state))
+        notify(self.control, int(self.socket.state))
 
-    def off(self):
+    def off(self) -> None:
         self.control.off()
         self.socket.off()
 
-        log_and_report(self.control, int(self.socket.state))
+        notify(self.control, int(self.socket.state))
 
-    def toggle(self):
+    def toggle(self) -> None:
         self.control.lock = False if self.control.lock else True
         self.socket.toggle()
 
-        log_and_report(self.control, int(self.socket.state))
+        notify(self.control, int(self.socket.state))

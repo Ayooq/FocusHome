@@ -1,7 +1,7 @@
 import glob
 
 
-def get_sensor_file():
+def get_sensor_file() -> str:
     """Вернуть абсолютный путь к файлу текущего показателя температуры."""
 
     try:

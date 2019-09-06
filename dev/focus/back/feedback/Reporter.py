@@ -1,4 +1,5 @@
 import json
+from typing import Callable
 
 from .Message import Message
 
@@ -12,8 +13,9 @@ class Reporter(Message):
 
         super().__init__(topic)
 
-    def register(self, subscriber: str, callback):
-        """Зарегистрировать подписчика с указанной функцией оповещения в словаре рассылки.
+    def register(self, subscriber: str, callback: Callable) -> None:
+        """Зарегистрировать подписчика с указанной функцией оповещения
+        в словаре рассылки.
 
         Параметры:
           :param subscriber: — уникальное имя подписчика;
@@ -22,7 +24,7 @@ class Reporter(Message):
 
         self._callbacks[subscriber] = callback
 
-    def unregister(self, subscriber: str):
+    def unregister(self, subscriber: str) -> None:
         """Удалить подписчика из словаря рассылки.
 
         Параметры:
@@ -31,13 +33,13 @@ class Reporter(Message):
 
         del self._callbacks[subscriber]
 
-    def report(self):
+    def report(self) -> None:
         """Разослать отчёт всем подписчикам."""
 
         for subscriber in self._callbacks:
             self._send(self, subscriber)
 
-    def _send(self, report: dict, subscriber: str):
+    def _send(self, report: dict, subscriber: str) -> Callable:
         """Отправить отчёт подписчику.
 
         Параметры:
@@ -49,13 +51,13 @@ class Reporter(Message):
         """
 
         try:
-            func = self._callbacks[subscriber]
-            return func(report)
-        except Exception:
+            callback = self._callbacks[subscriber]
+            return callback(report)
+        except:
             self._dump(report)
             raise
 
-    def _dump(self, report: dict):
+    def _dump(self, report: dict) -> None:
         """Тестовый вывод.
 
         Параметры:

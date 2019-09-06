@@ -14,7 +14,7 @@ class Logger:
         :param level: уровень логирования.
     """
 
-    def __init__(self, filename, level=logging.INFO):
+    def __init__(self, filename: str, level=logging.INFO):
         self.dest = filename
         self.level = level
 
@@ -27,14 +27,23 @@ class Logger:
         for handler in self.handlers.values():
             self.instance.addHandler(handler)
 
-    def _set_file_handler(self, filename, level, formatter):
+    def _set_file_handler(
+        self,
+        filename: str,
+        level: int,
+        formatter: logging.Formatter
+    ) -> logging.FileHandler:
         fh = logging.FileHandler(filename)
         fh.setLevel(level)
         fh.setFormatter(formatter)
 
         return fh
 
-    def _set_stream_handler(self, level, formatter):
+    def _set_stream_handler(
+        self,
+        level: int,
+        formatter: logging.Formatter
+    ) -> logging.StreamHandler:
         sh = logging.StreamHandler()
         sh.setLevel(level)
         sh.setFormatter(formatter)
@@ -42,7 +51,7 @@ class Logger:
         return sh
 
     @property
-    def handlers(self):
+    def handlers(self) -> dict:
         return {
             'file_handler': self._set_file_handler(
                 self.dest,

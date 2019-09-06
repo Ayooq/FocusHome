@@ -1,0 +1,32 @@
+{
+  "units": [
+    ["couts", "cnt1", 6],
+    ["couts", "cnt2", 19],
+    ["couts", "cnt3", 12],
+    ["couts", "cnt4", 20],
+    ["couts", "out1", 5],
+    ["couts", "out2", 13],
+    ["couts", "out3", 26],
+    ["couts", "out4", 16],
+    ["ins", "in1", 21],
+    ["ins", "in2", 18],
+    ["ins", "in3", 23],
+    ["ins", "in4", 24],
+    ["ins", "in5", 25],
+    ["leds", "led1", 17],
+    ["leds", "led2", 27],
+    ["misc", "block", 11],
+    ["misc", "volt", 9]
+  ],
+  "snmp": {
+    "host": "192.168.3.199:161",
+    "community": "public",
+    "version": "2c",
+    "user": "user",
+    "password": "password"
+  },
+  "device": {
+    "name": "FP-1",
+    "address": "город Омск улица Мира 33А кабинет 503"
+  }
+}

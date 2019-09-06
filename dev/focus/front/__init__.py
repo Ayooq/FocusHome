@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask
+
 from focus.back import FocusPro
 
 app = Flask(__name__)
@@ -12,6 +13,6 @@ if os.getenv('FLASK_ENV') == 'development':
     Device.pin_factory = MockFactory()
 
 focus_pro = FocusPro()
-focus_pro.connect(timeout=3)
+focus_pro.connect(timeout=0)
 
 from . import models, views

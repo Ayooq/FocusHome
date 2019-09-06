@@ -23,5 +23,5 @@ class FocusGPIO:
 
         self.reporter = Reporter(self.id)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f'<id: {self.id}, pin: {self.pin}, descr: {self.description}>'
