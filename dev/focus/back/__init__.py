@@ -71,6 +71,11 @@ class FocusPro(Hardware):
                     (self.id + '/#', 2),
                 ]
             )
+            client.unsubscribe(
+                [
+                    (self.id + '/report/#')
+                ]
+            )
 
     def on_disconnect(self, client, userdata, rc):
         self.is_connected = False
@@ -82,10 +87,11 @@ class FocusPro(Hardware):
     def on_message(self, client, userdata, message):
         print('Received msg topic:', message.topic)
         _, topic, unit = message.topic.split('/')
+        payload = json.loads(message.payload.decode())
+        print('Payload:', payload)
 
         if topic == 'cnf':
-            payload = json.loads(message.payload.decode())
-            print('Payload:', payload)
+            
             family, unit, pin, params = 0, 1, 2, 3
             id_, location = payload.pop(-1)
             new_config = {
@@ -145,14 +151,11 @@ class FocusPro(Hardware):
             with open(CONFIG_FILE, 'w') as cf:
                 yaml.dump(new_config, cf, default_flow_style=False)
 
-            # os.system('sudo shutdown -r now')
-            # self.client.disconnect()
-            # f1 = open('f1.log', 'w')
-            # f2 = open('err.log', 'w')
-            subprocess.run('/usr/bin/sudo reboot', shell=True)
-            # f1.close()
-            # f2.close()
-            
+            # subprocess.run('/usr/bin/sudo reboot', shell=True)
+
+        if topic == 'report':
+            '@TODO'
+
 #        print(message.topic, str(message.payload), sep='\n')
 
   #      command = message.topic.split('/')[-1]
