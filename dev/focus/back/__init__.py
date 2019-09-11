@@ -8,14 +8,13 @@ from typing import Any
 import paho.mqtt.client as mqtt
 import yaml
 
-from .feedback.Reporter import Reporter
+from .feedback import Reporter
 from .hardware import Hardware
+from .routines import Aggregator as aggr
+from .routines import Dispatcher, Handler, Parser
 from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE
-from .utils.concurrency import run_async
 from .utils.db_handlers import fill_table, get_db, init_db
 from .utils.messaging_tools import notify, register
-from .utils.routines.Handler import Handler
-# from .utils.routines.Parser import Parser
 
 
 class FocusPro(Hardware):
@@ -35,7 +34,9 @@ class FocusPro(Hardware):
         self.reporter = Reporter(self.id)
         self.set_subscriptions(self.blink, self.publish)
 
-        # Установка обработчиков поступающих команд:
+        # Установка парсера, распределителя и асинхронного обработчика команд:
+        self.parser = Parser()
+        self.dispatcher = Dispatcher()
         self.handler = Handler()
 
         try:
@@ -65,6 +66,12 @@ class FocusPro(Hardware):
         # Установка значений по умолчанию:
         self.is_connected = False
         self.recent_messages = set()
+
+        # Запуск функций мониторинга температурных датчиков:
+        for t in self.temperature.values():
+            coro1 = 0, True, t.report_at_intervals, t.timedelta
+            coro2 = 0, True, t.watch_state
+            self.handler.handle(coro1, coro2)
 
     def connect(self, timeout=0) -> None:
         """Подключиться к посреднику асинхронно."""
@@ -107,17 +114,21 @@ class FocusPro(Hardware):
     def on_message(self, client, userdata, message):
         print('Принято сообщение по теме:', message.topic)
 
-        _, topic, *routine = message.topic.split('/')
+        _, topic, *args = message.topic.split('/')
         payload = json.loads(message.payload.decode())
 
         print('Полезная нагрузка сообщения:', payload)
 
         if topic == 'cnf':
-            self.apply_config(payload)
+            self.handler.apply_config(self.config, payload)
+            aggr.reboot(self.db)
+
+            # if allow_reboot:
+            #     reboot
 
         elif topic == 'cmd':
-            # Parser.parse_instructions(self.conn, payload)
-            pass
+            coros = self.parser.parse_instructions(self.db, payload)
+            self.handler.dispatch_routines(coros)
 
 
 #        print(message.topic, str(message.payload), sep='\n')
@@ -322,79 +333,3 @@ class FocusPro(Hardware):
         """
 
         return data in self.recent_messages
-
-    def apply_config(self, config_data):
-        """Применить новые настройки конфигурации, заданные пользователем.
-
-        Для вступления изменений в силу, устройство перезагружается сразу после
-        записи новых настроек в файл БД.
-
-        Параметры:
-          :param config_data: — объект словаря с новой конфигурацией.
-        """
-
-        family, unit, pin, params = 0, 1, 2, 3
-        id_, location = config_data.pop(-1)
-        new_config = {
-            'device': {
-                'id': id_,
-                'location': location,
-                'broker': self.config['device']['broker'],
-            },
-            'units': {},
-        }
-
-        for i in config_data:
-            print('Item:', i)
-
-            if i[family] not in new_config['units']:
-                new_config['units'].update({i[family]: {}})
-
-            if i[pin] > 0:
-                new_config['units'][i[family]][i[unit]] = {
-                    'pin': i[pin],
-                }
-            elif i[params]:
-                new_config['units'][i[family]][i[unit]] = i[params]
-            else:
-                new_config['units'][i[family]][i[unit]] = {}
-
-        new_config.update({'complects': {'couts': {}}})
-
-        couts = new_config['units'].pop('couts')
-        new_config['complects']['couts'].update(
-            {
-                'cmp1': {
-                    'out': couts.get('out1'),
-                    'cnt': couts.get('cnt1'),
-                },
-                'cmp2': {
-                    'out': couts.get('out2'),
-                    'cnt': couts.get('cnt2'),
-                },
-                'cmp3': {
-                    'out': couts.get('out3'),
-                    'cnt': couts.get('cnt3'),
-                },
-                'cmp4': {
-                    'out': couts.get('out4'),
-                    'cnt': couts.get('cnt4'),
-                },
-            }
-        )
-
-        # cf = open(CF)
-
-        # with open(BACKUP_FILE, 'w') as bf:
-        #     bf.writelines(cf.readlines())
-
-        # cf.close()
-
-        with shelve.open(CONFIG_FILE) as db:
-            for category, contents in new_config.items():
-                db[category] = contents
-            # yaml.dump(new_config, cf, default_flow_style=False)
-
-        # self.client.loop_stop()
-        # self.client.disconnect()
-        # subprocess.run('/usr/bin/sudo reboot', shell=True)

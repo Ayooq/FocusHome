@@ -6,15 +6,11 @@ from typing import Any, Type
 
 import yaml
 
-from ..feedback.Logger import Logger
+from ..feedback import Logger
 from ..utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, LOG_FILE, MAPPING_FILE
-from ..utils.concurrency import run_async
-
-# from .FocusLED import FocusLED
-# from .FocusReceptor import FocusReceptor
-# from .FocusSocketControl import FocusSocketControl
-# from .FocusTemperature import FocusTemperature
-# from .FocusVoltage import FocusVoltage
+from .FocusGPIO import FocusGPIO
+from .FocusLED import FocusLED
+from .FocusReceptor import FocusReceptor
 
 
 class Hardware:
@@ -38,7 +34,8 @@ class Hardware:
             raise
 
         with shelve.open(MAPPING_FILE) as db:
-            db.update(self._make_units_dict(db), self._make_complects_dict(db))
+            self.units = self._make_units_dict(db)
+            self.complects = self._make_complects_dict(db)
 
     def get_config(self, config_file: str, backup_file: str) -> dict:
         """Загрузка описателя оборудования из файла конфигурации.
@@ -69,13 +66,13 @@ class Hardware:
         Вернуть словарь одиночных компонентов.
         """
 
-        self.units = {}
+        units = {}
 
         for family, children in self.config['units'].items():
             mapping = db_mapping_file[family]
-            self.units[family] = self._set_context(family, children, mapping)
+            units[family] = self._set_context(family, children, mapping)
 
-        return self.units
+        return units
 
     def _make_complects_dict(self, db_mapping_file: shelve.Shelf) -> dict:
         """Создать словарь составных компонентов на основе словаря
@@ -89,14 +86,14 @@ class Hardware:
         Вернуть словарь составных компонентов.
         """
 
-        self.complects = {}
+        complects = {}
 
         for family, children in self.config['complects'].items():
             mapping = db_mapping_file[family]
-            self.complects[family] = self._set_context(
+            complects[family] = self._set_context(
                 family, children, mapping)
 
-        return self.complects
+        return complects
 
     def _set_context(
             self, family: str, children: dict, mapping: Type[Any]) -> dict:

@@ -2,7 +2,7 @@ import logging
 
 from gpiozero import DigitalInputDevice
 
-from ..feedback.Reporter import Reporter
+from ..feedback import Reporter
 
 
 class FocusGPIO:

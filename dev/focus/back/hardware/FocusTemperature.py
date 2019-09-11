@@ -4,8 +4,8 @@ from typing import NoReturn
 
 from gpiozero import CPUTemperature
 
-from ..feedback.Reporter import Reporter
-from ..utils.concurrency import sleep_for
+from ..feedback import Reporter
+from ..routines import Handler
 from ..utils.messaging_tools import notify
 from ..utils.one_wire import get_sensor_file
 
@@ -18,8 +18,9 @@ class FocusTemperature(CPUTemperature):
         self.description = self.__doc__
         self.description += 'ЦПУ' if self.id == 'cpu' else 'среды'
 
+        sensor_file = get_sensor_file()
         self.__config = {
-            'sensor_file': get_sensor_file(),
+            'sensor_file': sensor_file,
             'min_temp': kwargs.get('min', 0.0),
             'max_temp': kwargs.get('max', 100.0),
             'threshold': kwargs.get('threshold', 80.0),
@@ -28,14 +29,13 @@ class FocusTemperature(CPUTemperature):
 
         self.hysteresis = kwargs.get('hysteresis', 1.0)
         self.timedelta = kwargs.get('timedelta', 60)
+        self.exceeded = False
 
         self.logger = logging.getLogger(__name__)
         msg_body = f'Подготовка {self.id}, {repr(self)}'
         self.logger.debug(msg_body)
 
         self.reporter = Reporter(self.id)
-
-        self.exceeded = False
 
     def __repr__(self):
         return f'<id: {self.id}, descr: {self.description}>'
@@ -52,7 +52,7 @@ class FocusTemperature(CPUTemperature):
         оповещений, формируемых компонентом.
         """
 
-        await sleep_for(sec)
+        await Handler.sleep_for(sec)
         notify(self, self.state, type_='info')
 
     async def watch_state(self) -> NoReturn:
@@ -63,16 +63,16 @@ class FocusTemperature(CPUTemperature):
         показателей в норму.
         """
 
-        if self.is_active and not self.exceeded:
+        if await self.is_exceeded():
             notify(self, self.state, type_='warning')
+        else:
+            notify(self, self.state)
+
+    async def is_exceeded(self) -> None:
+        if self.is_active and not self.exceeded:
             self.exceeded = True
         elif self.exceeded and not self.is_active:
-            notify(self, self.state)
             self.exceeded = False
-
-    @property
-    def state(self) -> float:
-        return self.temperature
 
     @property
     def is_active(self) -> bool:
@@ -80,3 +80,12 @@ class FocusTemperature(CPUTemperature):
             self.hysteresis = -self.hysteresis
 
         return self.temperature + self.hysteresis > self.threshold
+
+    @property
+    def state(self) -> float:
+        return self.temperature
+
+    @state.setter
+    def state(self, value) -> None:
+        with open(self.sensor_file, 'w') as f:
+            f.write(str(int(value * 1000)))

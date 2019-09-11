@@ -1,6 +1,6 @@
 from gpiozero import LED
 
-from .FocusGPIO import FocusGPIO
+from . import FocusGPIO
 
 
 class FocusLED(FocusGPIO):
@@ -9,13 +9,13 @@ class FocusLED(FocusGPIO):
     def __init__(self, **kwargs):
         super().__init__(unit=LED, **kwargs)
 
-    def on(self) -> None:
+    def on(self, **kwargs) -> None:
         self.unit.on()
 
-    def off(self) -> None:
+    def off(self, **kwargs) -> None:
         self.unit.off()
 
-    def toggle(self) -> None:
+    def toggle(self, **kwargs) -> None:
         self.unit.toggle()
 
     def blink(self, *args, **kwargs) -> None:

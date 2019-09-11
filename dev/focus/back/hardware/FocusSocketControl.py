@@ -1,9 +1,8 @@
 import logging
 
-from ..feedback.Reporter import Reporter
+from ..feedback import Reporter
 from ..utils.messaging_tools import notify
-from .FocusLED import FocusLED
-from .FocusReceptor import FocusReceptor
+from . import FocusLED, FocusReceptor
 
 
 class FocusSocketControl:
@@ -37,20 +36,20 @@ class FocusSocketControl:
     def __repr__(self) -> str:
         return f'<id: {self.id}, descr: {self.description}>'
 
-    def on(self) -> None:
+    def on(self, **kwargs) -> None:
         self.control.on()
-        self.socket.on()
+        self.socket.on(**kwargs)
 
         notify(self.control, int(self.socket.state))
 
-    def off(self) -> None:
+    def off(self, **kwargs) -> None:
         self.control.off()
-        self.socket.off()
+        self.socket.off(**kwargs)
 
         notify(self.control, int(self.socket.state))
 
-    def toggle(self) -> None:
+    def toggle(self, **kwargs) -> None:
         self.control.lock = False if self.control.lock else True
-        self.socket.toggle()
+        self.socket.toggle(**kwargs)
 
         notify(self.control, int(self.socket.state))
