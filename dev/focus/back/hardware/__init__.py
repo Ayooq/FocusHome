@@ -8,9 +8,6 @@ import yaml
 
 from ..feedback import Logger
 from ..utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, LOG_FILE, MAPPING_FILE
-from .FocusGPIO import FocusGPIO
-from .FocusLED import FocusLED
-from .FocusReceptor import FocusReceptor
 
 
 class Hardware:
@@ -22,92 +19,61 @@ class Hardware:
     def __init__(self, config_file=CONFIG_FILE, backup_file=BACKUP_FILE):
         self.logger = Logger(LOG_FILE).instance
 
-        msg_body = f'Подготовка оборудования...'
+        msg_body = 'Подготовка оборудования...'
         self.logger.info(msg_body)
 
         try:
-            self.config = self.get_config(config_file, backup_file)
-        except:
-            msg_body = 'Не удалось сконфигурировать оборудование!'
+            self.config = self._get_config(config_file, backup_file)
+        except IOError:
+            msg_body = 'Не удалось загрузить конфигурационные файлы!'
             self.logger.error(msg_body)
 
             raise
 
-        with shelve.open(MAPPING_FILE) as db:
-            self.units = self._make_units_dict(db)
-            self.complects = self._make_complects_dict(db)
+        with shelve.open(MAPPING_FILE, 'r') as db:
+            self.units = self._make_components_group_dict(
+                self.config['units'], db)
+            self.complects = self._make_components_group_dict(
+                self.config['complects'], db)
 
-    def get_config(self, config_file: str, backup_file: str) -> dict:
-        """Загрузка описателя оборудования из файла конфигурации.
-
-        Параметры:
-          :param config_file: — название основного конфигурационного файла;
-          :param backup_file: — название резервного конфигурационного файла,
-        который будет использован в случае возникновения проблем с чтением
-        данных из основного.
-
-        Вернуть словарь конфигурации.
-        """
-
-        with open(config_file) as f:
+    def _get_config(self, config_file: str, backup_file: str) -> dict:
+        try:
+            f = open(config_file)
+        except FileNotFoundError:
+            f = open(backup_file)
+        finally:
             config = yaml.safe_load(f)
+            f.close()
 
-        return config if config else yaml.safe_load(backup_file)
+        return config
 
-    def _make_units_dict(self, db_mapping_file: shelve.Shelf) -> dict:
-        """Создать словарь одиночных компонентов на основе словаря
-        конфигурации.
+    def _make_components_group_dict(
+            self, group: dict, db_mapping_file: shelve.Shelf) -> dict:
+        # Реструктурировать словарь для корректной привязки уникальным
+        # компонентам соответствующих им классов:
+        try:
+            misc = group.pop('misc')
+        except KeyError:
+            pass
+        else:
+            for k, v in misc.items():
+                group.update(
+                    {
+                        k: {
+                            k: v,
+                        },
+                    },
+                )
 
-        Параметры:
-          :param db_mapping_file: — файл БД, содержащий полный набор классов,
-        используемых для привязки конкретной модели к соответствующему семейству
-        по ключу словаря.
+        res = {}
 
-        Вернуть словарь одиночных компонентов.
-        """
-
-        units = {}
-
-        for family, children in self.config['units'].items():
+        for family, children in group.items():
             mapping = db_mapping_file[family]
-            units[family] = self._set_context(family, children, mapping)
+            res[family] = self._set_context(children, mapping)
 
-        return units
+        return res
 
-    def _make_complects_dict(self, db_mapping_file: shelve.Shelf) -> dict:
-        """Создать словарь составных компонентов на основе словаря
-        конфигурации.
-
-        Параметры:
-          :param db_mapping_file: — файл БД, содержащий полный набор классов,
-        используемых для привязки конкретной модели к соответствующему семейству
-        по ключу словаря.
-
-        Вернуть словарь составных компонентов.
-        """
-
-        complects = {}
-
-        for family, children in self.config['complects'].items():
-            mapping = db_mapping_file[family]
-            complects[family] = self._set_context(
-                family, children, mapping)
-
-        return complects
-
-    def _set_context(
-            self, family: str, children: dict, mapping: Type[Any]) -> dict:
-        """Установить контекст для компонентов единого семейства.
-
-        Параметры:
-          :param family: — семейство компонентов устройства;
-          :param children: — компоненты для установки контекста;
-          :param mapping: — класс, к которому привязываются компоненты,
-        реализуя единую объектную модель.
-
-        Вернуть объект контекста в виде словаря.
-        """
-
+    def _set_context(self, children: dict, mapping: Type[Any]) -> dict:
         ctx = {
             sibling: mapping(
                 id=sibling, postfix=sibling[-1], **children[sibling]
@@ -116,32 +82,44 @@ class Hardware:
 
         return ctx
 
+    @classmethod
+    def __register_hardware(cls) -> None:
+        from ..utils import MAPPING_FILE
+        from .led import FocusLED as Led
+        from .locking import FocusLocking as Lock
+        from .receptor import FocusReceptor as In
+        from .socketcontrol import FocusSocketControl as Cout
+        from .temperature import FocusTemperature as Temp
+        from .voltage import FocusVoltage as Volt
+
+        with shelve.open(MAPPING_FILE, 'n', protocol=4) as db:
+            db['leds'] = Led
+            db['lock'] = Lock
+            db['ins'] = In
+            db['couts'] = Cout
+            db['temp'] = Temp
+            db['volt'] = Volt
+
     @property
     def couts(self) -> dict:
-        """Комплекты [Выход — Контроль]."""
-
         return self.complects['couts']
 
     @property
     def indicators(self) -> dict:
-        """Индикаторы."""
-
         return self.units['leds']
 
     @property
     def inputs(self) -> dict:
-        """Входы."""
-
         return self.units['ins']
 
     @property
     def temperature(self) -> dict:
-        """Температура."""
-
         return self.units['temp']
 
     @property
-    def misc(self) -> dict:
-        """Уникальные компоненты."""
+    def voltage(self) -> dict:
+        return self.units['volt']['volt']
 
-        return self.units['misc']
+    @property
+    def locking(self) -> dict:
+        return self.units['lock']['lock']

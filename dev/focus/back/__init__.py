@@ -3,24 +3,55 @@ import shelve
 import subprocess
 from datetime import datetime
 from time import sleep
-from typing import Any
+from typing import Any, Callable, Dict, Tuple, Union
 
 import paho.mqtt.client as mqtt
 import yaml
 
+from .commands import Handler, Parser
 from .feedback import Reporter
 from .hardware import Hardware
-from .routines import Aggregator as aggr
-from .routines import Dispatcher, Handler, Parser
-from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE
+from .utils import DB_FILE, ROUTINES_FILE
 from .utils.db_handlers import fill_table, get_db, init_db
 from .utils.messaging_tools import notify, register
 
+client = mqtt.Client
+reporter = Reporter
+
 
 class FocusPro(Hardware):
-    """Обвязка функционала MQTT вокруг :class Hardware: без учета авторизации."""
+    """Класс устройства мониторинга банкоматов, реализующий взаимодействие
+    с удалённым сервером по протоколам MQTT v3.1 и SMNP.
 
-    def __init__(self, **kwargs):
+    Методы:
+        :meth __init__(self, loop, **kwargs): — инициализировать экземпляр
+    класса;
+        :meth connect_async(self, timeout=0): — подключиться к посреднику
+    асинхронно;
+        :meth on_connect(self, client, userdata, flags, rc): — обработать
+    результат подключения к посреднику;
+        :meth on_disconnect(self, client, userdata, rc): — обработать результат
+    разъединения с посредником;
+        :meth on_message(self, client, userdata, message): — обработать принятое
+    сообщение;
+        :meth set_subscriptions(self, *callbacks): — установить внутренних
+    подписчиков для регистируемых на устройстве событий.
+        :meth blink(self, sender): — осуществлять световую индикацию при
+    регистрации событий;
+        :meth publish(self, sender) — отправить отчёт посреднику на указанную
+    тему;
+        :meth _form_payload(self, reporter) — сформировать полезную нагрузку
+    для отправки посреднику;
+        :meth _form_pub_data(self, topic, reporter, payload) — вернуть словарь
+    с данными для публикации отчёта;
+        :meth _define_lwt(self, qos, retain): — определить завещание для
+    отправки посреднику в случае непредвиденного разрыва связи;
+        :meth _define_broker(self, broker) — определить адрес хоста и порт,
+    через которые будет производиться обмен данными с посредником, а также
+    допустимое время простоя между отправкой сообщений в секундах.
+    """
+
+    def __init__(self) -> None:
         super().__init__()
 
         msg_body = f'Настройка внешних зависимостей...'
@@ -31,13 +62,21 @@ class FocusPro(Hardware):
         self.description = self.config['device']['location']
 
         # Регистрация обработчиков событий:
-        self.reporter = Reporter(self.id)
+        self.reporter = reporter(self.id)
         self.set_subscriptions(self.blink, self.publish)
 
-        # Установка парсера, распределителя и асинхронного обработчика команд:
+        try:
+            # Подключение к хранилищу доступных рутин:
+            with shelve.open(ROUTINES_FILE) as db:
+                routines = db.items()
+        except IOError:
+            print('Файл с рутинами отсутствует!')
+
+            raise
+
+        # Установка парсера и обработчика команд:
         self.parser = Parser()
-        self.dispatcher = Dispatcher()
-        self.handler = Handler()
+        self.handler = Handler(routines)
 
         try:
             # Подключение к локальной базе данных:
@@ -51,44 +90,48 @@ class FocusPro(Hardware):
             self.db = init_db(DB_FILE, self.complects, self.units)
         finally:
             # Настройка клиента MQTT:
-            self.client = mqtt.Client(self.id, False)
+            self.client = client(self.id, False)
+            self.client.is_connected = False
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
             self.client.on_message = self.on_message
 
             # Определение последнего завещания:
-            LWT = self.define_lwt()
+            LWT = self._define_lwt()
             self.client.will_set(**LWT)
 
             # Включение внутреннего логирования клиента:
             self.client.enable_logger(self.logger)
 
-        # Установка значений по умолчанию:
-        self.is_connected = False
-        self.recent_messages = set()
+    def connect_async(self, timeout: int = 0) -> None:
+        """Подключиться к посреднику асинхронно.
 
-        # Запуск функций мониторинга температурных датчиков:
-        for t in self.temperature.values():
-            coro1 = 0, True, t.report_at_intervals, t.timedelta
-            coro2 = 0, True, t.watch_state
-            self.handler.handle(coro1, coro2)
-
-    def connect(self, timeout=0) -> None:
-        """Подключиться к посреднику асинхронно."""
+        Параметры:
+            :param timeout: — время простоя перед подключением (увеличить, если
+        процесс стартует с ошибками связи).
+        """
 
         sleep(timeout)
-        device = self.config.get('device')
-        broker = self._define_broker(device['broker'])
-        self.client.connect_async(*broker)
+        broker = self.config['mqtt']['broker']
+        self.client.connect_async(**broker)
         self.client.loop_start()
 
     def on_connect(
         self,
-        client: mqtt.Client,
+        client: client,
         userdata: Any,
         flags: dict,
         rc: int
     ) -> None:
+        """Обработать результат подключения к посреднику.
+
+        Параметры:
+            :param client: — экземпляр клиента MQTT;
+            :param userdata: — пользовательские данные, передаваемые
+        обработчику;
+            :param flags: — словарь флагов ответа от посредника;
+            :param rc: — код результата подключения.
+        """
         if rc:
             notify(self, rc, type_='error', swap=True)
         else:
@@ -98,20 +141,49 @@ class FocusPro(Hardware):
                 self, 'online', swap=True, type_='status', retain=True
             )
 
+            client.unsubscribe(self.id + '/#')
             client.subscribe(
                 [
-                    (self.id + '/#', 2),
+                    (self.id + '/cnf', 2),
+                    (self.id + '/cmd', 2),
                 ]
             )
 
-    def on_disconnect(self, client, userdata, rc):
+    def on_disconnect(
+        self,
+        client: client,
+        userdata: Any,
+        rc: int
+    ) -> None:
+        """Обработать результат разъединения с посредником.
+
+        Параметры:
+            :param client: — экземпляр клиента MQTT;
+            :paramn userdata: — пользовательские данные, передаваемые
+        обработчику;
+            :param rc: — код результата подключения.
+        """
         self.is_connected = False
         notify(self, 'offline', swap=True, type_='status', retain=True)
 
         if rc:
             notify(self, rc, type_='error', swap=True)
 
-    def on_message(self, client, userdata, message):
+    def on_message(
+        self,
+        client: client,
+        userdata: Any,
+        message: mqtt.MQTTMessage
+    ) -> None:
+        """Обработать принятое сообщение.
+
+        Параметры:
+            :param client: — экземпляр клиента MQTT;
+            :paramn userdata: — пользовательские данные, передаваемые
+        обработчику;
+            :param message: — экземпляр MQTTMessage с атрибутами topic, payload,
+        qos, retain;
+        """
         print('Принято сообщение по теме:', message.topic)
 
         _, topic, *args = message.topic.split('/')
@@ -121,33 +193,23 @@ class FocusPro(Hardware):
 
         if topic == 'cnf':
             self.handler.apply_config(self.config, payload)
-            aggr.reboot(self.db)
-
-            # if allow_reboot:
-            #     reboot
+            self.handler.run(self, 'reboot')
 
         elif topic == 'cmd':
-            coros = self.parser.parse_instructions(self.db, payload)
+            coros = self.parser.parse_instructions(payload)
             self.handler.dispatch_routines(coros)
 
-
-#        print(message.topic, str(message.payload), sep='\n')
-
-  #      command = message.topic.split('/')[-1]
-   #     payload = json.loads(message.payload)
-    #    changed_unit = payload[0]
-     #   target_unit = payload[1]
-      #  time_limit = payload[2]
-
-       # on_event(command, changed_unit, target_unit, time_limit=time_limit)
-
-    def set_subscriptions(self, *callbacks):
-        """Зарегистрировать устройство и его компоненты для рапортирования.
+    def set_subscriptions(self, *callbacks: Callable[[dict], None]) -> None:
+        """Установить внутренних подписчиков для регистрируемых на устройстве
+        событий.
 
         События обрабатываются следующим образом:
-        1) подсписчик "blink" осуществляет световую индикацию, основанную на
+        1) подписчик "blink" осуществляет световую индикацию, основанную на
         типе события;
         2) подписчик "pub" отвечает за отправку отчётов посреднику.
+
+        Параметры:
+            :param callbacks: — произвольное количество обработчиков событий.
         """
 
         for family in self.units.values():
@@ -167,14 +229,8 @@ class FocusPro(Hardware):
         register(self, 'blink', callbacks[0])
         register(self, 'pub', callbacks[1])
 
-    # def apply_workers(self, services):
-    #     self.workers = set()
-
-    #     for service in services:
-    #         self.workers.add(Async(service))
-
-    def blink(self, sender: dict):
-        """Моргать при регистрации событий.
+    def blink(self, reporter: reporter) -> None:
+        """Осуществлять световую индикацию при регистрации событий.
 
         Индикация производится следующим образом:
         1) event — светодиод включается на секунду, затем выключается,
@@ -187,11 +243,11 @@ class FocusPro(Hardware):
         трижды.
 
         Параметры:
-          :param sender: — объект компонента, осуществляющего отправку отчётов
-        от своего имени через реализацию словаря с данными.
+            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+        словаря.
         """
 
-        msg_type = sender[sender.topic]['type']
+        msg_type = reporter[reporter.topic]['type']
 
         if msg_type == 'event':
             self.indicators['led2'].blink(1, 1, 1)
@@ -202,17 +258,17 @@ class FocusPro(Hardware):
         elif msg_type == 'error':
             self.indicators['led2'].blink(3, 1, 3)
 
-    def publish(self, sender: dict):
-        """Отправка отчёта посреднику по указанной теме.
+    def publish(self, reporter: reporter) -> None:
+        """Отправить отчёт посреднику на указанную тему.
 
         Рапортирование сопровождается световой индикацией.
 
         Параметры:
-          :param sender: — объект отчёта, содержащий необходимые данные
-        для формирования структуры результирующего сообщения.
+            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+        словаря.
         """
 
-        report = sender[sender.topic]
+        report = reporter[reporter.topic]
         payload = self._form_payload(report)
 
         if isinstance(payload, ()):
@@ -221,36 +277,37 @@ class FocusPro(Hardware):
 
             return
 
-        pub_data = self._form_pub_data(sender.topic, report, payload)
+        pub_data = self._form_pub_data(reporter.topic, report, payload)
 
         self.indicators['led1'].on()
         self.client.publish(**pub_data)
         self.indicators['led1'].off()
 
-    def _form_payload(self, report: dict):
-        """Сформировать JSON-строку с данными для отправки посреднику.
+    def _form_payload(self, reporter: reporter) -> Union[str, Tuple[str, str]]:
+        """Сформировать полезную нагрузку для отправки посреднику.
 
-        Записать данные в локальную БД, а затем вернуть строку JSON,
-        преобразованную из кортежа со значениями, необходимыми для операций с
-        БД на хосте посредника.
+        Записать данные в локальную БД и оформить в JSON-строку результирующий
+        кортеж с полезной нагрузкой, если сообщение не было продублировано,
+        иначе вернуть кортеж с наименованием репортёра и телом отчёта.
 
         Параметры:
-          :param report: — словарь содержимого для отчёта.
+            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+        словаря.
         """
 
-        msg_body = report['message']
+        msg_body = reporter['message']
 
-        if report['from'] == self.id:
+        if reporter['from'] == self.id:
             report['from'] = 'self'
 
-        payload = report['from'], msg_body
+        payload = reporter['from'], msg_body
         print('Полезная нагрузка до проверки:', payload)
 
         if self.is_duplicate(payload):
             return payload
 
         timestamp = datetime.now().isoformat(sep=' ')
-        msg_type = report['type']
+        msg_type = reporter['type']
         tabledata = [timestamp, msg_type, *payload]
 
         cursor = self.db.cursor()
@@ -269,21 +326,24 @@ class FocusPro(Hardware):
 
         return json.dumps(payload)
 
-    def _form_pub_data(self, topic: str, report: dict, payload: str):
-        """Сформировать объект с данными для публикации отчёта.
+    def _form_pub_data(
+        self,
+        topic: str,
+        reporter: reporter,
+        payload: str
+    ) -> Dict[str, str, int, bool]:
+        """Вернуть словарь с данными для публикации отчёта.
 
         Параметры:
-          :param topic: — тема сообщения;
-          :param report: — словарь отчёта, содержащий необходимые данные
-        для подготовки сообщения к отправке;
-          :param payload: — строка с отправляемыми данными в формате JSON.
-
-        Вернуть объект словаря для связывания с методом publish() клиента MQTT.
+            :param topic: — тема сообщения;
+            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+        словаря;
+            :param payload: — строка с отправляемыми данными в формате JSON.
         """
 
-        topic = '/'.join([self.id, topic, report['from']])
-        qos = report['qos']
-        retain = report['retain']
+        topic = '/'.join([self.id, topic, reporter['from']])
+        qos = reporter['qos']
+        retain = reporter['retain']
 
         return {
             'topic': topic,
@@ -292,9 +352,17 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def define_lwt(self, qos=2, retain=True):
-        """Определить завещание для отправки посреднику
-        в случае непредвиденного разрыва связи.
+    def _define_lwt(self, qos: int = 2, retain: bool = True):
+        """Определить завещание для отправки посреднику в случае
+        непредвиденного разрыва связи.
+
+        Параметры:
+            :param qos: — качество доставки сообщения от 0 до 2;
+            :param retain: — флаг сохранения сообщения как последнего успешно
+        доставленного (будет отправлено подписчикам независимо от наличия 
+        действующего соединения).
+
+        Вернуть словарь с данными для отправки завещания. 
         """
 
         timestamp = datetime.now().isoformat(sep=' ')
@@ -311,25 +379,19 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def _define_broker(self, broker: dict):
-        """Определить адрес хоста и порт, через который будет осуществляться
+    def _define_broker(self, broker: dict) -> Tuple[str, int, int]:
+        """Определить адрес хоста и порт, через которые будет производиться
         обмен данными с посредником, а также допустимое время простоя между
         отправкой сообщений в секундах.
 
         Параметры:
-        :param broker: — словарь с данными о посреднике.
+            :param broker: — словарь с данными о посреднике.
 
         Вернуть кортеж вида: (адрес, порт, время простоя).
         """
 
         return broker['host'], broker['port'], broker['keepalive']
 
-    def is_duplicate(self, data: list):
-        """Определить, является ли подготовленное сообщение дубликатом
-        предыдущего по данной теме.
-
-        Параметры:
-        :param data: — список из элементов, формирующих структуру сообщения.
-        """
-
-        return data in self.recent_messages
+    def is_duplicate(self, payload: Union[str, Tuple[str, str]]) -> None:
+        """@TODO"""
+        return

@@ -1,2 +1,2 @@
-from .Logger import Logger
-from .Reporter import Reporter
+from .logger import Logger
+from .reporter import Reporter

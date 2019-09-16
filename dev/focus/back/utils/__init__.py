@@ -2,7 +2,7 @@ import os
 
 ROOT_DIR = os.path.abspath(os.path.curdir)
 MAPPING_DIR = f'{ROOT_DIR}/back/hardware'
-ROUTINES_DIR = f'{ROOT_DIR}/back/utils/routines'
+ROUTINES_DIR = f'{ROOT_DIR}/back/commands'
 
 FILENAMES = 'config', 'focus'
 

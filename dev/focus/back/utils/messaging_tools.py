@@ -1,6 +1,6 @@
 from typing import Callable
 
-from ..feedback.Reporter import Reporter
+from ..feedback import Reporter
 
 
 def register(instance: Reporter, subscriber: str, callback: Callable) -> None:
