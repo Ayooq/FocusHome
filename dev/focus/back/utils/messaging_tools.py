@@ -72,5 +72,5 @@ def _report(
 ) -> None:
     content = instance.id, type_, msg, qos, retain
 
-    instance.reporter._formalize(content)
+    instance.reporter.formalize(content)
     instance.reporter.report()

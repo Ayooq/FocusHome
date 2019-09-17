@@ -331,7 +331,7 @@ class FocusPro(Hardware):
         topic: str,
         reporter: reporter,
         payload: str
-    ) -> Dict[str, str, int, bool]:
+    ) -> Dict[str, Union[str, int, bool]]:
         """Вернуть словарь с данными для публикации отчёта.
 
         Параметры:

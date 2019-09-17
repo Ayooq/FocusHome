@@ -1,4 +1,16 @@
 import os
+# import socket as s
+
+REDIS_HOST = 'localhost'
+REDIS_PORT = '6379'
+REDIS_DB = '0'
+# REDIS_SOCK = '/tmp/redis.sock'
+
+# sock = s.socket(s.AF_UNIX)
+# sock.bind(REDIS_SOCK)
+
+CELERY_BROKER_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
+CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 
 ROOT_DIR = os.path.abspath(os.path.curdir)
 MAPPING_DIR = f'{ROOT_DIR}/back/hardware'

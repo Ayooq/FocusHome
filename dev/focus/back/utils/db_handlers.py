@@ -1,23 +1,36 @@
+"""Модуль взаимодействия с локальной базой данных.
+
+Функции:
+    :func get_db(filename): — вернуть объект соединения с базой данных;
+    :func init_db(device, filename, *components): — инициализировать локальную
+базу данных;
+    :func fill_table(conn, cursor, tables_set, tabledata): — заполнить таблицы
+указанными значениями.
+"""
 import sqlite3
 import uuid
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Type
+
+from .messaging_tools import notify
+
+Conn = sqlite3.Connection
+Cursor = sqlite3.Cursor
 
 
-def get_db(filename: str) -> sqlite3.Connection:
-    """Возвратить объект соединения с базой данных.
+def get_db(filename: str) -> Conn:
+    """Вернуть объект соединения с базой данных.
 
     Параметры:
-      :param filename: — наименование файла, в котором хранится БД.
+        :param filename: — наименование файла, в котором хранится БД.
     """
-
     conn = sqlite3.connect(filename, check_same_thread=False)
     conn.row_factory = sqlite3.Row
 
     return conn
 
 
-def init_db(filename: str, *components: dict) -> sqlite3.Connection:
+def init_db(device: Type[dict], filename: str, *components: Type[dict]) -> Conn:
     """Инициализировать локальную базу данных.
 
     Создать схему с таблицами:
@@ -29,37 +42,41 @@ def init_db(filename: str, *components: dict) -> sqlite3.Connection:
     предустановленными значениями.
 
     Параметры:
-      :param filename: — название файла, в котором будет инициализирована БД;
-      :param components: — кортеж из компонентов устройства, разбитых на группы.
+        :param device: — экземпляр объекта устройства;
+        :param filename: — название файла, в котором будет инициализирована БД;
+        :param components: — кортеж из компонентов устройства.
 
-    Возвратить объект соединения с БД.
+    Вернуть объект соединения с БД.
     """
-
     conn = get_db(filename)
     cursor = conn.cursor()
 
     try:
-        print('Инициализация базы данных...')
+        msg_body = 'Инициализация базы данных...'
+        notify(device, msg_body, swap=True, type_='info')
         _create_schema(cursor)
     except sqlite3.Error:
         conn.rollback()
         raise
     else:
-        print('Таблицы созданы.')
+        notify(device, 'Таблицы созданы.', swap=True, type_='info')
         conn.commit()
 
     try:
-        set_initial_status(conn, *components)
+        _set_initial_status(conn, *components)
     except:
-        print('Ошибка в заполнении таблиц данными по умолчанию!')
+        msg_body = 'Ошибка в заполнении таблиц данными по умолчанию!'
+        notify(device, msg_body, swap=True, type_='error')
+
         raise
     else:
-        print('Инициализация прошла успешно!')
+        msg_body = 'Инициализация прошла успешно!'
+        notify(device, msg_body, swap=True, type_='info')
 
     return conn
 
 
-def _create_schema(cursor: sqlite3.Cursor) -> None:
+def _create_schema(cursor: Cursor) -> None:
     mapping = {
         'events': (
             ', type TEXT,',
@@ -83,7 +100,7 @@ def _create_schema(cursor: sqlite3.Cursor) -> None:
 
 
 def _create_bootstrapped_table(
-        cursor: sqlite3.Cursor, tablename: str, columns: Tuple[str]) -> None:
+        cursor: Cursor, tablename: str, columns: Tuple[str]) -> None:
     sql_command = '''
         CREATE TABLE {}
             (id INTEGER PRIMARY KEY,
@@ -94,17 +111,7 @@ def _create_bootstrapped_table(
     cursor.execute(sql_command)
 
 
-def set_initial_status(
-        conn: sqlite3.Connection, *components: dict) -> sqlite3.Connection:
-    """Записать первоначальное состояние всех компонентов единого семейства.
-
-    Параметры:
-      :param conn: — объект соединения с БД;
-      :param components: — кортеж из компонентов устройства, разбитых на группы.
-
-    Вернуть объект соединения с БД.
-    """
-
+def _set_initial_status(conn: Conn, *components: dict) -> Conn:
     timestamp = datetime.now().isoformat(sep=' ')
     tables_set = {'status', 'status_archive'}
     cursor = conn.cursor()
@@ -132,15 +139,14 @@ def fill_table(
     """Заполнить таблицы указанными значениями.
 
     Параметры:
-      :param conn: — объект соединения с БД;
-      :param cursor: — объект указателя БД;
-      :param tables_set: — набор наименований целевых таблиц;
-      :param tabledata: — список данных для заполнения таблицы.
+        :param conn: — объект соединения с БД;
+        :param cursor: — объект указателя БД;
+        :param tables_set: — набор наименований целевых таблиц;
+        :param tabledata: — список данных для заполнения таблицы.
     """
-
     for tablename in tables_set:
         try:
-            cursor.execute(SQL[tablename], tabledata)
+            cursor.execute(_SQL[tablename], tabledata)
         except sqlite3.Error:
             print(f'Не удалось заполнить таблицу {tablename}!')
             conn.rollback()
@@ -149,12 +155,12 @@ def fill_table(
             conn.commit()
 
 
-STATUS_TABLES_STRUCTURE = {
+_STATUS_TABLES_STRUCTURE = {
     'columns': '(timestamp, unit, state)',
     'values': 'VALUES (?, ?, ?);',
 }
 
-SQL = {
+_SQL = {
     'events': '''
         INSERT INTO events
             (timestamp, type, unit, message)
@@ -164,14 +170,14 @@ SQL = {
     'status': '''
         REPLACE INTO status {} {}
         '''.format(
-        STATUS_TABLES_STRUCTURE['columns'],
-        STATUS_TABLES_STRUCTURE['values']
+        _STATUS_TABLES_STRUCTURE['columns'],
+        _STATUS_TABLES_STRUCTURE['values']
     ),
 
     'status_archive': '''
         INSERT INTO status_archive {} {}
         '''.format(
-        STATUS_TABLES_STRUCTURE['columns'],
-        STATUS_TABLES_STRUCTURE['values']
+        _STATUS_TABLES_STRUCTURE['columns'],
+        _STATUS_TABLES_STRUCTURE['values']
     ),
 }
