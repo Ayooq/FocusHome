@@ -7,12 +7,11 @@ def register(instance: Reporter, subscriber: str, callback: Callable) -> None:
     """Прокси для метода регистрации подписчика у экземпляра репортёра.
 
     Параметры:
-      :param instance: — экземпляр класса, от чьего имени осуществляется
+        :param instance: — экземпляр класса, от чьего имени осуществляется
     отправка отчётов;
-      :param subscriber: — имя подписчика, которому будут отправляться отчёты;
-      :param callback: — обработчик отправляемых сообщений.
+        :param subscriber: — имя подписчика, которому будут отправляться отчёты;
+        :param callback: — обработчик отправляемых сообщений.
     """
-
     instance.reporter.register(subscriber, callback)
 
 
@@ -20,22 +19,21 @@ def unregister(instance: Reporter, subscriber: str) -> None:
     """Прокси для метода удаления подписчика у экземпляра репортёра.
 
     Параметры:
-      :param instance: — экземпляр класса, от чьего имени осуществляется
+        :param instance: — экземпляр класса, от чьего имени осуществляется
     отправка отчётов;
-      :param subscriber: — имя подписчика, которого следует удалить из списка
+        :param subscriber: — имя подписчика, которого следует удалить из списка
     рассылки сообщений о событиях.
     """
-
     instance.reporter.unregister(subscriber)
 
 
 def notify(
     instance: Reporter,
     msg: str,
-    swap=False,
-    type_='event',
-    qos=1,
-    retain=False
+    swap: bool = False,
+    type_: str = 'event',
+    qos: int = 1,
+    retain: bool = False
 ) -> None:
     """Записать сообщение в журнал событий и отправить отчёт посреднику.
 
@@ -48,7 +46,6 @@ def notify(
       :param retain: — булевый показатель сохранения сообщения в качестве
     последнего "надёжного", выдаваемого сразу при подписке на данную тему.
     """
-
     common_args = instance, str(msg)
     report_args = type_, qos, retain
 
@@ -58,7 +55,7 @@ def notify(
 
 def _log(instance: Reporter, msg: str, swap: bool) -> None:
     origin = instance.id if swap else instance.description
-    debug_msg = '{}: {} | [{}]'.format(origin, msg, repr(instance))
+    debug_msg = f'{origin}: {msg} | [{repr(instance)}]'
     instance.logger.debug(debug_msg)
     instance.logger.info(': '.join([origin, msg]))
 
