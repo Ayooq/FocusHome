@@ -19,8 +19,6 @@ if os.getenv('FLASK_ENV') == 'development':
 
     Device.pin_factory = MockFactory()
 
+countdown = os.getenv('COUNTDOWN', 0)
 focus_pro = FocusPro()
-
-if __name__ == "__main__":
-    countdown = os.getenv('COUNTDOWN', 0)
-    focus_pro.connect_async(countdown)
+focus_pro.connect_async(int(countdown))

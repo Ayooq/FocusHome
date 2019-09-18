@@ -8,12 +8,23 @@ import yaml
 
 from ..feedback import Logger
 from ..utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, LOG_FILE, MAPPING_FILE
+from .locking import FocusLocking
+from .voltage import FocusVoltage
 
 
 class Hardware:
     """Оборудование.
 
-    Разбито на именованные группы.
+    Свойства:
+        :prop couts(self): — словарь экземпляров класса комплектов
+    контролируемых выходов;
+        :prop indicators(self): — словарь экземпляров класса световых
+    индикаторов;
+        :prop inputs(self): — словарь экземпляров класса входных рецепторов;
+        :prop locking(self): — экземпляр класса блокировки выходов;
+        :prop temperature(self): — словарь экземпляров класса температурных
+    датчиков;
+        :prop voltage(self): — экземпляр класса контроля питания устройства.
     """
 
     def __init__(self, config_file=CONFIG_FILE, backup_file=BACKUP_FILE):
@@ -113,13 +124,13 @@ class Hardware:
         return self.units['ins']
 
     @property
+    def locking(self) -> Type[FocusLocking]:
+        return self.units['lock']['lock']
+
+    @property
     def temperature(self) -> dict:
         return self.units['temp']
 
     @property
-    def voltage(self) -> dict:
+    def voltage(self) -> Type[FocusVoltage]:
         return self.units['volt']['volt']
-
-    @property
-    def locking(self) -> dict:
-        return self.units['lock']['lock']

@@ -5,17 +5,15 @@ from datetime import datetime
 from time import sleep
 from typing import Any, Callable, Dict, Tuple, Union
 
-import paho.mqtt.client as mqtt
+from paho.mqtt.client import Client, MQTTMessage, MQTTv311, MQTTMessageInfo
 import yaml
 
-from .commands import Handler, Parser
-from .feedback import Reporter, Content
+# from .commands import Handler, Parser
+from .feedback import Reporter
 from .hardware import Hardware
 from .utils import DB_FILE, ROUTINES_FILE
-from .utils.db_handlers import fill_table, get_db, init_db
-from .utils.messaging_tools import notify, register
-
-Client = mqtt.Client
+from .utils.db_tools import fill_table, get_db, init_db
+from .utils.messaging import notify
 
 
 class FocusPro(Hardware):
@@ -62,14 +60,17 @@ class FocusPro(Hardware):
             # Подключение к хранилищу доступных рутин:
             with shelve.open(ROUTINES_FILE) as db:
                 routines = db.items()
-        except IOError:
+
+                for index, routine in enumerate(routines):
+                    print('Routine', index, f'--> {routine}')
+        except OSError:
             print('Файл с рутинами отсутствует!')
 
             raise
 
         # Установка парсера и обработчика команд:
-        self.parser = Parser()
-        self.handler = Handler(routines)
+        # self.parser = Parser()
+        # self.handler = Handler(routines)
 
         try:
             # Подключение к локальной базе данных:
@@ -78,12 +79,12 @@ class FocusPro(Hardware):
                 print(msg)
 
             self.db = get_db(DB_FILE)
-        except IOError:
+        except OSError:
             # Инициализация новой БД:
-            self.db = init_db(DB_FILE, self.complects, self.units)
+            self.db = init_db(self, DB_FILE, self.complects, self.units)
         finally:
             # Настройка клиента MQTT:
-            self.client = Client(self.id, False)
+            self.client = Client(self.id, clean_session=False)
             self.client.is_connected = False
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
@@ -128,11 +129,6 @@ class FocusPro(Hardware):
             notify(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
-
-            notify(
-                self, 'online', swap=True, type_='status', retain=True
-            )
-
             client.unsubscribe(self.id + '/#')
             client.subscribe(
                 [
@@ -140,6 +136,8 @@ class FocusPro(Hardware):
                     (self.id + '/cmd', 2),
                 ]
             )
+
+            notify(self, 'online', swap=True, type_='status', retain=True)
 
     def on_disconnect(
         self,
@@ -165,7 +163,7 @@ class FocusPro(Hardware):
         self,
         client: Client,
         userdata: Any,
-        message: mqtt.MQTTMessage
+        message: MQTTMessage
     ) -> None:
         """Обработать принятое сообщение.
 
@@ -183,25 +181,26 @@ class FocusPro(Hardware):
 
         print('Полезная нагрузка сообщения:', payload)
 
-        if topic == 'cnf':
-            self.handler.apply_config(self.config, payload)
-            self.handler.run(self, 'reboot')
+        # if topic == 'cnf':
+        #     self.handler.apply_config(self.config, payload)
+        #     self.handler.run(self, 'reboot')
 
-        elif topic == 'cmd':
-            coros = self.parser.parse_instructions(payload)
-            self.handler.dispatch_routines(coros)
+        # elif topic == 'cmd':
+        #     coros = self.parser.parse_instructions(payload)
+        #     self.handler.dispatch_routines(coros)
 
-    def is_duplicate(self, payload: Tuple[str]) -> None:
+    def is_duplicate(
+            self, component: str, msg: Union[int, str, float]) -> bool:
         """Вернуть результат проверки, является ли данное сообщение дубликатом
         последнего отправленного указанным компонентом.
 
         Параметры:
-            :param payload: — полезная нагрузка сообщения в формате:
-        (<имя компонента>, <тело сообщения>).
+            :param component: — наименование компонента;
+            :param msg: — тело сообщения.
         """
-        return payload[1] == self.sended_messages.get(payload[0])
+        return msg == self.sended_messages.get(component)
 
-    def set_subscriptions(self, *callbacks: Callable[[dict], None]) -> None:
+    def set_subscriptions(self, *callbacks: Callable) -> None:
         """Установить внутренних подписчиков для регистрируемых на устройстве
         событий.
 
@@ -217,20 +216,20 @@ class FocusPro(Hardware):
             for unit in family.values():
                 print('Регистрирую подписчиков для одиночного компонента', unit)
 
-                register(unit, 'blink', callbacks[0])
-                register(unit, 'pub', callbacks[1])
+                self.reporter.register(unit, 'blink', callbacks[0])
+                self.reporter.register(unit, 'pub', callbacks[1])
 
         for family in self.complects.values():
             for cmp in family.values():
                 print('Регистрирую подписчиков для составного компонента', cmp)
 
-                register(cmp.control, 'blink', callbacks[0])
-                register(cmp.control, 'pub', callbacks[1])
+                self.reporter.register(cmp.control, 'blink', callbacks[0])
+                self.reporter.register(cmp.control, 'pub', callbacks[1])
 
-        register(self, 'blink', callbacks[0])
-        register(self, 'pub', callbacks[1])
+        self.reporter.register(self, 'blink', callbacks[0])
+        self.reporter.register(self, 'pub', callbacks[1])
 
-    def blink(self, reporter: Reporter) -> None:
+    def blink(self, report: Reporter) -> None:
         """Осуществлять световую индикацию при регистрации событий.
 
         Индикация производится следующим образом:
@@ -244,10 +243,10 @@ class FocusPro(Hardware):
         трижды.
 
         Параметры:
-            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+            :param report: — экземпляр репортёра, реализующего интерфейс 
         словаря.
         """
-        msg_type = reporter[reporter.topic]['type']
+        msg_type = report['type']
 
         if msg_type == 'event':
             self.indicators['led2'].blink(1, 1, 1)
@@ -258,17 +257,17 @@ class FocusPro(Hardware):
         elif msg_type == 'error':
             self.indicators['led2'].blink(3, 1, 3)
 
-    def publish(self, reporter: Reporter) -> None:
+    def publish(self, report: Reporter) -> None:
         """Отправить отчёт посреднику на указанную тему.
 
         Рапортирование сопровождается световой индикацией.
 
         Параметры:
-            :param reporter: — экземпляр репортёра, реализующего интерфейс 
+            :param report: — экземпляр репортёра, реализующего интерфейс 
         словаря.
         """
-        report = reporter[reporter.topic]
         msg_body = report['message']
+        print(msg_body)
 
         if self.is_duplicate(self.id, msg_body):
             msg_body = f'Сообщение дублирует предыдущее от этого же компонента.'
@@ -277,7 +276,7 @@ class FocusPro(Hardware):
             return
 
         payload = self._form_payload(report, msg_body)
-        pub_data = self._form_pub_data(reporter.topic, report, payload)
+        pub_data = self._form_pub_data(report, payload)
 
         self.indicators['led1'].on()
         self.client.publish(**pub_data)
@@ -285,14 +284,17 @@ class FocusPro(Hardware):
         self.indicators['led1'].off()
 
     def _form_payload(
-            self, report: Content, msg_body: Union[int, str, float]) -> str:
+        self,
+        report: Reporter,
+        msg_body: Union[int, str, float]
+    ) -> str:
         timestamp = datetime.now().isoformat(sep=' ')
-        msg_type = reporter['type']
+        msg_type = report['type']
         unit = 'self' if report['from'] == self.id else report['from']
 
         cursor = self.db.cursor()
         tables_set = {'events'}
-        tabledata = [timestamp, msg_type, unit, msg_body]
+        tabledata = [timestamp, msg_type, unit, str(msg_body)]
 
         fill_table(self.db, cursor, tables_set, tabledata)
 
@@ -306,11 +308,10 @@ class FocusPro(Hardware):
 
     def _form_pub_data(
         self,
-        topic: str,
-        report: Content,
+        report: Reporter,
         payload: str
     ) -> Dict[str, Union[str, int, bool]]:
-        topic = '/'.join([self.id, topic, report['from']])
+        topic = '/'.join([self.id, 'report', report['from']])
         qos = report['qos']
         retain = report['retain']
 
