@@ -27,8 +27,13 @@ class Hardware:
         :prop voltage(self): — экземпляр класса контроля питания устройства.
     """
 
-    def __init__(self, config_file=CONFIG_FILE, backup_file=BACKUP_FILE):
-        self.logger = Logger(LOG_FILE).instance
+    def __init__(
+        self,
+        config_file: str = CONFIG_FILE,
+        backup_file: str = BACKUP_FILE,
+        log_level: int = None
+    ) -> None:
+        self.logger = Logger(LOG_FILE)
 
         msg_body = 'Подготовка оборудования...'
         self.logger.info(msg_body)

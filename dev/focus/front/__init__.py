@@ -22,3 +22,7 @@ if os.getenv('FLASK_ENV') == 'development':
 countdown = os.getenv('COUNTDOWN', 0)
 focus_pro = FocusPro()
 focus_pro.connect_async(int(countdown))
+focus_pro.client.loop_start()
+
+from . import views
+

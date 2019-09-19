@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Tuple, Union
 from paho.mqtt.client import Client, MQTTMessage, MQTTv311, MQTTMessageInfo
 import yaml
 
-# from .commands import Handler, Parser
+from .commands import Handler, Parser
 from .feedback import Reporter
 from .hardware import Hardware
 from .utils import DB_FILE, ROUTINES_FILE
@@ -39,8 +39,8 @@ class FocusPro(Hardware):
     тему.
     """
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
         msg_body = f'Настройка внешних зависимостей...'
         self.logger.info(msg_body)
@@ -56,21 +56,17 @@ class FocusPro(Hardware):
         # Словарь последних отправленных сообщений от имени каждого компонента:
         self.sended_messages = {}
 
-        try:
-            # Подключение к хранилищу доступных рутин:
-            with shelve.open(ROUTINES_FILE) as db:
-                routines = db.items()
-
-                for index, routine in enumerate(routines):
-                    print('Routine', index, f'--> {routine}')
-        except OSError:
-            print('Файл с рутинами отсутствует!')
-
-            raise
-
         # Установка парсера и обработчика команд:
-        # self.parser = Parser()
-        # self.handler = Handler(routines)
+        self.parser = Parser()
+        self.handler = Handler()
+
+        # try:
+        #     # Подключение к хранилищу доступных рутин:
+        #     # self.handler.run()
+        # except OSError:
+        #     print('Файл с рутинами отсутствует!')
+
+        #     raise
 
         try:
             # Подключение к локальной базе данных:
@@ -107,7 +103,6 @@ class FocusPro(Hardware):
         sleep(countdown)
         broker = self.config['mqtt']['broker']
         self.client.connect_async(**broker)
-        self.client.loop_start()
 
     def on_connect(
         self,
@@ -125,11 +120,11 @@ class FocusPro(Hardware):
             :param flags: — словарь флагов ответа от посредника;
             :param rc: — код результата подключения.
         """
-        if rc:
+        if rc != 0:
             notify(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
-            client.unsubscribe(self.id + '/#')
+            # client.unsubscribe(self.id + '/#')
             client.subscribe(
                 [
                     (self.id + '/cnf', 2),
@@ -156,7 +151,7 @@ class FocusPro(Hardware):
         self.is_connected = False
         notify(self, 'offline', swap=True, type_='status', retain=True)
 
-        if rc:
+        if rc != 0:
             notify(self, rc, type_='error', swap=True)
 
     def on_message(
@@ -181,9 +176,9 @@ class FocusPro(Hardware):
 
         print('Полезная нагрузка сообщения:', payload)
 
-        # if topic == 'cnf':
-        #     self.handler.apply_config(self.config, payload)
-        #     self.handler.run(self, 'reboot')
+        if topic == 'cnf':
+            self.handler.apply_config(self.config, payload)
+            self.handler.run(self, 'reboot')
 
         # elif topic == 'cmd':
         #     coros = self.parser.parse_instructions(payload)
@@ -267,16 +262,13 @@ class FocusPro(Hardware):
         словаря.
         """
         msg_body = report['message']
-        print(msg_body)
 
         if self.is_duplicate(self.id, msg_body):
-            msg_body = f'Сообщение дублирует предыдущее от этого же компонента.'
-            self.logger.info(msg_body)
-
             return
 
-        payload = self._form_payload(report, msg_body)
-        pub_data = self._form_pub_data(report, payload)
+        unit = 'self' if report['from'] == self.id else report['from']
+        payload = self._form_payload(report, unit, msg_body)
+        pub_data = self._form_pub_data(report, unit, payload)
 
         self.indicators['led1'].on()
         self.client.publish(**pub_data)
@@ -286,11 +278,11 @@ class FocusPro(Hardware):
     def _form_payload(
         self,
         report: Reporter,
+        unit: str,
         msg_body: Union[int, str, float]
     ) -> str:
         timestamp = datetime.now().isoformat(sep=' ')
         msg_type = report['type']
-        unit = 'self' if report['from'] == self.id else report['from']
 
         cursor = self.db.cursor()
         tables_set = {'events'}
@@ -309,9 +301,10 @@ class FocusPro(Hardware):
     def _form_pub_data(
         self,
         report: Reporter,
+        unit: str,
         payload: str
     ) -> Dict[str, Union[str, int, bool]]:
-        topic = '/'.join([self.id, 'report', report['from']])
+        topic = '/'.join([self.id, 'report', unit])
         qos = report['qos']
         retain = report['retain']
 

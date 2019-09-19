@@ -12,7 +12,7 @@
     </div>
 
     {% if inputs %}
-      <div class="col_50">
+      <div class="col_33">
         <h2>Входные рецепторы</h2>
         <table class="table">
           <tr>
@@ -41,8 +41,8 @@
       </div>
     {% endif %}
 
-    {% if complects %}
-      <div class="col_50">
+    {% if control %}
+      <div class="col_33">
         <h2>Комплекты</h2>
         <table class="table">
           <tr>
@@ -52,17 +52,17 @@
             <th>Состояние гнезда</th>
           </tr>
 
-          {% for unit in complects %}
+          {% for unit in control %}
             <tr>
               <td>
-                <code>{{ complects[unit].id }}</code>
+                <code>{{ control[unit].id }}</code>
               </td>
-              <td>{{ complects[unit].control.description }}</td>
+              <td>{{ control[unit].control.description }}</td>
 
-              {% if complects[unit].control.state %}
+              {% if control[unit].control.state %}
                 <td>Да</td>
 
-                {% if complects[unit].socket.state %}
+                {% if control[unit].socket.state %}
                   <td>Активно</td>
                 {% else %}
                   <td>Неактивно</td>
@@ -81,7 +81,7 @@
     {% endif %}
 
     {% if temperature %}
-      <div class="col_50">
+      <div class="col_33">
         <h2>Температура</h2>
         <table class="table">
           <tr>
@@ -104,9 +104,9 @@
       </div>
     {% endif %}
 
-    {% if misc %}
-      <div class="col-50">
-        <h2>Питание</h2>
+    {% if locking %}
+      <div class="col-25">
+        <h2>Блокировка выходов</h2>
         <table class="table">
           <tr>
             <th>ID</th>
@@ -114,21 +114,47 @@
             <th>Состояние</th>
           </tr>
 
-          {% for unit in misc %}
-            <tr>
-              <td>
-                <code>{{ misc[unit].id }}</code>
-              </td>
-              <td>{{ misc[unit].description }}</td>
-              
-              {% if misc[unit].state %}
-                <td>Напряжение в норме</td>
-              {% else %}
-                <td>Проблемы с питанием!</td>
-              {% endif %}
-              
-            </tr>
-          {% endfor %}
+          <tr>
+            <td>
+              <code>{{ locking.id }}</code>
+            </td>
+            <td>{{ locking.description }}</td>
+            
+            {% if locking.state %}
+              <td>ВКЛ</td>
+            {% else %}
+              <td>ОТКЛ</td>
+            {% endif %}
+            
+          </tr>
+          
+        </table>
+      </div>
+    {% endif %}
+
+    {% if voltage %}
+      <div class="col-33">
+        <h2>Электропитание</h2>
+        <table class="table">
+          <tr>
+            <th>ID</th>
+            <th>Описание</th>
+            <th>Состояние</th>
+          </tr>
+
+          <tr>
+            <td>
+              <code>{{ voltage.id }}</code>
+            </td>
+            <td>{{ voltage.description }}</td>
+            
+            {% if voltage.state %}
+              <td>Напряжение в норме</td>
+            {% else %}
+              <td>Проблемы с питанием!</td>
+            {% endif %}
+            
+          </tr>
           
         </table>
       </div>

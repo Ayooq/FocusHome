@@ -4,7 +4,7 @@
   <article class="clearfix">
     <div class="hero col_100"><h1>Управление устройством</h1></div>
 
-    <div class="col_50">
+    <div class="col_33">
       <h2 class="info">Температура</h2>
       <form class="form">
         <table class="table">
@@ -29,7 +29,7 @@
         <button>Обновить показатели</button>
     </div>
 
-    <div class="col_50">
+    <div class="col_33">
       <h2>Контроль над гнёздами</h2>
       <table class="table">
         <tr>
@@ -39,14 +39,14 @@
           <th>Действие</th>
         </tr>
 
-        {% for unit in complects %}
+        {% for unit in control %}
           <tr>
             <td>
-              <code>{{ complects[unit].control.id }}</code>
+              <code>{{ control[unit].control.id }}</code>
             </td>
-            <td>{{ complects[unit].control.description }}</td>
+            <td>{{ control[unit].control.description }}</td>
 
-            {% if complects[unit].socket.state %}
+            {% if control[unit].socket.state %}
               <td>Включён</td>
               <td>
                 <button>

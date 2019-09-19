@@ -22,7 +22,7 @@ complects:
         pin: 16
 
 device:
-  id: FP-1
+  id: FP-2
   location:
     "\u0433\u043E\u0440\u043E\u0434 \u041E\u043C\u0441\u043A \u0443\u043B\u0438\
     \u0446\u0430 \u041C\u0438\u0440\u0430 33\u0410 \u043A\u0430\u0431\u0438\u043D\u0435\

@@ -27,8 +27,8 @@ def _get_temperature_status():
 
 
 def _get_miscellaneous_status():
-    for _ in focus_pro.misc.values():
-        _.state
+    focus_pro.locking.state
+    focus_pro.voltage.state
 
 
 def get_data():
@@ -36,10 +36,11 @@ def get_data():
 
     data = {
         'device': focus_pro,
+        'control': focus_pro.couts,
         'inputs': focus_pro.inputs,
-        'complects': focus_pro.couts,
+        'locking': focus_pro.locking,
         'temperature': focus_pro.temperature,
-        'misc': focus_pro.misc,
+        'voltage': focus_pro.voltage,
     }
 
     return data
