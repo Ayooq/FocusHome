@@ -18,7 +18,7 @@ from .utils.messaging import notify
 
 class FocusPro(Hardware):
     """Класс устройства мониторинга банкоматов, реализующий взаимодействие
-    с удалённым сервером по протоколам MQTT v3.1 и SMNP.
+    с удалённым сервером по протоколам MQTT v3.1 и SNMP.
 
     Методы:
         :meth __init__(self, loop, **kwargs): — инициализировать экземпляр
@@ -42,12 +42,12 @@ class FocusPro(Hardware):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-        msg_body = f'Настройка внешних зависимостей...'
-        self.logger.info(msg_body)
-
         # Идентификация:
         self.id = self.config['device']['id']
         self.description = self.config['device']['location']
+
+        msg = 'Настройка внешних зависимостей...'
+        notify(self, msg, type_='info', swap=True, local_only=True)
 
         # Регистрация обработчиков событий:
         self.reporter = Reporter(self.id)
@@ -58,21 +58,13 @@ class FocusPro(Hardware):
 
         # Установка парсера и обработчика команд:
         self.parser = Parser()
-        self.handler = Handler()
-
-        # try:
-        #     # Подключение к хранилищу доступных рутин:
-        #     # self.handler.run()
-        # except OSError:
-        #     print('Файл с рутинами отсутствует!')
-
-        #     raise
+        self.handler = Handler(self)
 
         try:
             # Подключение к локальной базе данных:
             with open(DB_FILE):
                 msg = 'Локальная БД уже существует. Инициализация не требуется.'
-                print(msg)
+                notify(self, msg, swap=True, local_only=True)
 
             self.db = get_db(DB_FILE)
         except OSError:
@@ -124,7 +116,6 @@ class FocusPro(Hardware):
             notify(self, rc, type_='error', swap=True)
         else:
             self.is_connected = True
-            # client.unsubscribe(self.id + '/#')
             client.subscribe(
                 [
                     (self.id + '/cnf', 2),
@@ -169,20 +160,23 @@ class FocusPro(Hardware):
             :param message: — экземпляр MQTTMessage с атрибутами topic, payload,
         qos, retain;
         """
-        print('Принято сообщение по теме:', message.topic)
+        msg = f'Принято сообщение по теме: {message.topic}'
+        notify(self, msg, type_='info', swap=True, local_only=True)
 
         _, topic, *args = message.topic.split('/')
         payload = json.loads(message.payload.decode())
 
-        print('Полезная нагрузка сообщения:', payload)
+        msg = f'Полезная нагрузка сообщения: {payload}'
+        notify(self, msg, type_='info', swap=True, local_only=True)
 
         if topic == 'cnf':
             self.handler.apply_config(self.config, payload)
-            self.handler.run(self, 'reboot')
+            self.handler.execute((1, (self, 'reboot', {})))
 
-        # elif topic == 'cmd':
-        #     coros = self.parser.parse_instructions(payload)
-        #     self.handler.dispatch_routines(coros)
+        elif topic == 'cmd':
+            hardware = self.units, self.complects
+            instructions = self.parser.parse_instructions(payload, hardware)
+            self.handler.handle(instructions)
 
     def is_duplicate(
             self, component: str, msg: Union[int, str, float]) -> bool:
@@ -199,27 +193,30 @@ class FocusPro(Hardware):
         """Установить внутренних подписчиков для регистрируемых на устройстве
         событий.
 
-        События обрабатываются следующим образом:
-        1) подписчик "blink" осуществляет световую индикацию, основанную на
-        типе события;
-        2) подписчик "pub" отвечает за отправку отчётов посреднику.
-
         Параметры:
             :param callbacks: — произвольное количество обработчиков событий.
         """
+        unit_msg = 'Регистрирую подписчиков для одиночного компонента '
+        complect_msg = 'Регистрирую подписчиков для составного компонента '
+
         for family in self.units.values():
             for unit in family.values():
-                print('Регистрирую подписчиков для одиночного компонента', unit)
+                msg = unit_msg + unit.id
+                notify(self, msg, type_='info', swap=True, local_only=True)
 
                 self.reporter.register(unit, 'blink', callbacks[0])
                 self.reporter.register(unit, 'pub', callbacks[1])
 
         for family in self.complects.values():
             for cmp in family.values():
-                print('Регистрирую подписчиков для составного компонента', cmp)
+                msg = complect_msg + cmp.id
+                notify(self, msg, type_='info', swap=True, local_only=True)
 
                 self.reporter.register(cmp.control, 'blink', callbacks[0])
                 self.reporter.register(cmp.control, 'pub', callbacks[1])
+
+        msg = 'Регистрирую подписчиков устройства'
+        notify(self, msg, type_='info', swap=True, local_only=True)
 
         self.reporter.register(self, 'blink', callbacks[0])
         self.reporter.register(self, 'pub', callbacks[1])
@@ -238,7 +235,7 @@ class FocusPro(Hardware):
         трижды.
 
         Параметры:
-            :param report: — экземпляр репортёра, реализующего интерфейс 
+            :param report: — экземпляр репортёра, реализующего интерфейс
         словаря.
         """
         msg_type = report['type']
@@ -258,7 +255,7 @@ class FocusPro(Hardware):
         Рапортирование сопровождается световой индикацией.
 
         Параметры:
-            :param report: — экземпляр репортёра, реализующего интерфейс 
+            :param report: — экземпляр репортёра, реализующего интерфейс
         словаря.
         """
         msg_body = report['message']
