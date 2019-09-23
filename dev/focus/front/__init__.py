@@ -1,9 +1,11 @@
+from . import views
 import os
 
 from celery import Celery
 from flask import Flask
 
 from focus.back import FocusPro
+from focus.back.commands.handle import Handler
 from focus.back.utils import CELERY_BROKER_URL
 
 app = Flask(__name__)
@@ -21,8 +23,6 @@ if os.getenv('FLASK_ENV') == 'development':
 
 countdown = os.getenv('COUNTDOWN', 0)
 focus_pro = FocusPro()
+focus_pro.handler = Handler(focus_pro)
 focus_pro.connect_async(int(countdown))
 focus_pro.client.loop_start()
-
-from . import views
-

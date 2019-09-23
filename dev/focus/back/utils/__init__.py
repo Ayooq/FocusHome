@@ -14,12 +14,12 @@ CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}'
 
 ROOT_DIR = os.path.abspath(os.path.curdir)
 MAPPING_DIR = f'{ROOT_DIR}/back/hardware'
-ROUTINES_DIR = f'{ROOT_DIR}/back/commands'
+COMMANDS_DIR = f'{ROOT_DIR}/back/commands'
 
 FILENAMES = 'config', 'focus'
 
 MAPPING_FILE = f'{MAPPING_DIR}/map'
-ROUTINES_FILE = f'{ROUTINES_DIR}/routines'
+COMMANDS_FILE = f'{COMMANDS_DIR}/commands'
 
 CONFIG_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.yml'
 BACKUP_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.bak'

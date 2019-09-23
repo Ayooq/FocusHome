@@ -1,18 +1,16 @@
 import json
-import shelve
-import subprocess
 from datetime import datetime
 from time import sleep
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Tuple
+from paho.mqtt.client import Client, MQTTMessage
 
-from paho.mqtt.client import Client, MQTTMessage, MQTTv311, MQTTMessageInfo
 import yaml
 
 from .commands import Handler, Parser
 from .feedback import Reporter
 from .hardware import Hardware
-from .utils import DB_FILE, ROUTINES_FILE
-from .utils.db_tools import fill_table, get_db, init_db
+from .utils import DB_FILE
+from .utils.db_tools import get_db, init_db
 from .utils.messaging import notify
 
 
@@ -49,16 +47,12 @@ class FocusPro(Hardware):
         msg = 'Настройка внешних зависимостей...'
         notify(self, msg, type_='info', swap=True, local_only=True)
 
-        # Регистрация обработчиков событий:
+        # Установка репортёра и парсера команд:
         self.reporter = Reporter(self.id)
-        self.set_subscriptions(self.blink, self.publish)
+        self.parser = Parser()
 
         # Словарь последних отправленных сообщений от имени каждого компонента:
         self.sended_messages = {}
-
-        # Установка парсера и обработчика команд:
-        self.parser = Parser()
-        self.handler = Handler(self)
 
         try:
             # Подключение к локальной базе данных:
@@ -175,142 +169,9 @@ class FocusPro(Hardware):
 
         elif topic == 'cmd':
             hardware = self.units, self.complects
-            instructions = self.parser.parse_instructions(payload, hardware)
+            instructions = self.parser.parse_instructions(
+                self, payload, hardware)
             self.handler.handle(instructions)
-
-    def is_duplicate(
-            self, component: str, msg: Union[int, str, float]) -> bool:
-        """Вернуть результат проверки, является ли данное сообщение дубликатом
-        последнего отправленного указанным компонентом.
-
-        Параметры:
-            :param component: — наименование компонента;
-            :param msg: — тело сообщения.
-        """
-        return msg == self.sended_messages.get(component)
-
-    def set_subscriptions(self, *callbacks: Callable) -> None:
-        """Установить внутренних подписчиков для регистрируемых на устройстве
-        событий.
-
-        Параметры:
-            :param callbacks: — произвольное количество обработчиков событий.
-        """
-        unit_msg = 'Регистрирую подписчиков для одиночного компонента '
-        complect_msg = 'Регистрирую подписчиков для составного компонента '
-
-        for family in self.units.values():
-            for unit in family.values():
-                msg = unit_msg + unit.id
-                notify(self, msg, type_='info', swap=True, local_only=True)
-
-                self.reporter.register(unit, 'blink', callbacks[0])
-                self.reporter.register(unit, 'pub', callbacks[1])
-
-        for family in self.complects.values():
-            for cmp in family.values():
-                msg = complect_msg + cmp.id
-                notify(self, msg, type_='info', swap=True, local_only=True)
-
-                self.reporter.register(cmp.control, 'blink', callbacks[0])
-                self.reporter.register(cmp.control, 'pub', callbacks[1])
-
-        msg = 'Регистрирую подписчиков устройства'
-        notify(self, msg, type_='info', swap=True, local_only=True)
-
-        self.reporter.register(self, 'blink', callbacks[0])
-        self.reporter.register(self, 'pub', callbacks[1])
-
-    def blink(self, report: Reporter) -> None:
-        """Осуществлять световую индикацию при регистрации событий.
-
-        Индикация производится следующим образом:
-        1) event — светодиод включается на секунду, затем выключается,
-        однократно;
-        2) info/status — светодиод включается на секунду, отключается на одну,
-        дважды;
-        3) warning — светодиод включается на две секунды, отключается на одну,
-        трижды;
-        4) error — светодиод включается на три секунды, выключается на одну,
-        трижды.
-
-        Параметры:
-            :param report: — экземпляр репортёра, реализующего интерфейс
-        словаря.
-        """
-        msg_type = report['type']
-
-        if msg_type == 'event':
-            self.indicators['led2'].blink(1, 1, 1)
-        elif msg_type in ('info', 'status'):
-            self.indicators['led2'].blink(1, 1, 2)
-        elif msg_type == 'warning':
-            self.indicators['led2'].blink(2, 1, 3)
-        elif msg_type == 'error':
-            self.indicators['led2'].blink(3, 1, 3)
-
-    def publish(self, report: Reporter) -> None:
-        """Отправить отчёт посреднику на указанную тему.
-
-        Рапортирование сопровождается световой индикацией.
-
-        Параметры:
-            :param report: — экземпляр репортёра, реализующего интерфейс
-        словаря.
-        """
-        msg_body = report['message']
-
-        if self.is_duplicate(self.id, msg_body):
-            return
-
-        unit = 'self' if report['from'] == self.id else report['from']
-        payload = self._form_payload(report, unit, msg_body)
-        pub_data = self._form_pub_data(report, unit, payload)
-
-        self.indicators['led1'].on()
-        self.client.publish(**pub_data)
-        self.sended_messages[self.id] = msg_body
-        self.indicators['led1'].off()
-
-    def _form_payload(
-        self,
-        report: Reporter,
-        unit: str,
-        msg_body: Union[int, str, float]
-    ) -> str:
-        timestamp = datetime.now().isoformat(sep=' ')
-        msg_type = report['type']
-
-        cursor = self.db.cursor()
-        tables_set = {'events'}
-        tabledata = [timestamp, msg_type, unit, str(msg_body)]
-
-        fill_table(self.db, cursor, tables_set, tabledata)
-
-        tables_set.clear()
-        tables_set.update({'status', 'status_archive'})
-        tabledata.pop(1)
-
-        fill_table(self.db, cursor, tables_set, tabledata)
-
-        return json.dumps((timestamp, msg_type, msg_body))
-
-    def _form_pub_data(
-        self,
-        report: Reporter,
-        unit: str,
-        payload: str
-    ) -> Dict[str, Union[str, int, bool]]:
-        topic = '/'.join([self.id, 'report', unit])
-        qos = report['qos']
-        retain = report['retain']
-
-        return {
-            'topic': topic,
-            'payload': payload,
-            'qos': qos,
-            'retain': retain,
-        }
 
     def _define_lwt(self, qos: int = 2, retain: bool = True):
         timestamp = datetime.now().isoformat(sep=' ')
