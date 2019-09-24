@@ -33,9 +33,9 @@ class Hardware:
         backup_file: str = BACKUP_FILE,
         log_level: int = None
     ) -> None:
-        self.logger = Logger(LOG_FILE)
+        self.logger = Logger(LOG_FILE).root
 
-        msg_body = 'Подготовка оборудования...'
+        msg_body = 'Установка оборудования...'
         self.logger.info(msg_body)
 
         try:
