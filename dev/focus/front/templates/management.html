@@ -42,22 +42,22 @@
         {% for unit in control %}
           <tr>
             <td>
-              <code>{{ control[unit].control.id }}</code>
+              <code>{{ unit.id }}</code>
             </td>
-            <td>{{ control[unit].control.description }}</td>
+            <td>{{ unit.description }}</td>
 
-            {% if control[unit].socket.state %}
+            {% if unit.state %}
               <td>Включён</td>
               <td>
                 <button>
-                  <a href="/management/{{ unit }}/off">Отключить</a>
+                  <a href="/management/{{ unit.id }}/off">Отключить</a>
                 </button>
               </td>
             {% else %}
               <td>Отключён</td>
               <td>
                 <button>
-                  <a href="/management/{{ unit }}/on">Включить</a>
+                  <a href="/management/{{ unit.id }}/on">Включить</a>
                 </button>
               </td>
             {% endif %}

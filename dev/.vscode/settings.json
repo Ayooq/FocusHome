@@ -1,3 +1,5 @@
 {
-    "python.pythonPath": "/home/boris_zblade/.local/share/virtualenvs/dev-Y1-dayZG/bin/python"
+    "python.pythonPath": "/home/boris_zblade/.local/share/virtualenvs/dev-Y1-dayZG/bin/python",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true
 }

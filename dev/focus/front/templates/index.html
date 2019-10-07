@@ -48,24 +48,24 @@
           <tr>
             <th>ID</th>
             <th>Описание</th>
-            <th>Гнездо под контролем</th>
-            <th>Состояние гнезда</th>
+            <th>Выходной разъём под контролем</th>
+            <th>Состояние выходного разъёма</th>
           </tr>
 
           {% for unit in control %}
             <tr>
               <td>
-                <code>{{ control[unit].id }}</code>
+                <code>{{ unit.id }}</code>
               </td>
-              <td>{{ control[unit].control.description }}</td>
+              <td>{{ unit.description }}</td>
 
-              {% if control[unit].control.state %}
+              {% if unit.state %}
                 <td>Да</td>
 
-                {% if control[unit].socket.state %}
-                  <td>Активно</td>
+                {% if unit.source.state %}
+                  <td>ВКЛ</td>
                 {% else %}
-                  <td>Неактивно</td>
+                  <td>ОТКЛ</td>
                 {% endif %}
 
               {% else %}
@@ -151,7 +151,7 @@
             {% if voltage.state %}
               <td>Напряжение в норме</td>
             {% else %}
-              <td>Проблемы с питанием!</td>
+              <td>Проблемы с напряжением!</td>
             {% endif %}
             
           </tr>

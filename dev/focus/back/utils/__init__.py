@@ -1,4 +1,5 @@
 import os
+
 # import socket as s
 
 REDIS_HOST = 'localhost'
@@ -18,8 +19,8 @@ COMMANDS_DIR = f'{ROOT_DIR}/back/commands'
 
 FILENAMES = 'config', 'focus'
 
-MAPPING_FILE = f'{MAPPING_DIR}/map'
-COMMANDS_FILE = f'{COMMANDS_DIR}/commands'
+MAPPING_FILE = f'{MAPPING_DIR}/mapping'
+COMMANDS_FILE = f'{COMMANDS_DIR}/routines'
 
 CONFIG_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.yml'
 BACKUP_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.bak'

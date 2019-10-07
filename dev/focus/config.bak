@@ -29,14 +29,15 @@ units:
       pin: 17
     led2:
       pin: 27
-  misc:
+  lock:
     lock:
       pin: 11
-    volt:
-      pin: 9
   temp:
     cpu: {}
     ext: {}
+  volt:
+    volt:
+      pin: 9
 complects:
   couts:
     cnt1:
