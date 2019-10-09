@@ -1,5 +1,6 @@
 import asyncio
 import datetime as dt
+import gzip
 import json
 import operator
 import shelve
@@ -7,21 +8,299 @@ import subprocess
 # from concurrent.futures import ThreadPoolExecutor
 # from functools import partial
 from time import sleep
-from typing import Any, Callable, Dict, List, NoReturn, Tuple, Type, Union
+from typing import (
+    Any, Callable, Dict, Iterator, List, NoReturn, Tuple, Type, Union
+)
 
 import yaml
+from pysnmp import hlapi
 
 from ..utils import BACKUP_FILE, COMMANDS_FILE, CONFIG_FILE
 from ..utils.db_tools import fill_table
 from ..utils.messaging import notify
 from .parse import Parser
 
-# from celery.app import app_or_default
-
 ShelveDB = shelve.DbfilenameShelf
 
 
 class CommandsRegistry:
+
+    @classmethod
+    def snmp_send_data(
+            cls,
+            device: Type[object],
+            target: str,
+            oids: List[str],
+            credentials: Union[hlapi.CommunityData, hlapi.UsmUserData],
+            engine: hlapi.SnmpEngine = None,
+            context: hlapi.ContextData = None,
+            port: int = 161,
+            count: Union[int, str] = 1,
+            start_from: Union[int, None] = None,
+    ) -> None:
+        """Отправить посреднику данные агента в базе управляющей информации.
+
+        :param device: экземпляр объекта устройства
+        :type device: object
+        :param target: IP или адрес удалённого устройства
+        :type target: str
+        :param oids: идентификаторы искомых объектов
+        :type oids: list[str]
+        :param credentials: набор полномочий для аутентификации сессии
+        :type credentials: hlapi.CommunityData or hlapi.UsmUserData
+        :param engine: движок SNMP, по умолчанию None
+        :type engine: hlapi.SnmpEngine
+        :param context: контекстные данные, по умолчанию None
+        :type context: hlapi.ContextData
+        :param port: порт подключения к удалённому устройству, по умолчанию 161
+        :type port: int
+        :param count: количество экземпляров объекта, по умолчанию 1
+        :type count: int
+        :param start_from: номер узла, с которого необходимо начать выборку,
+        по умолчанию None
+        :type start_from: int or None
+        """
+        engine = engine or device.config['snmp']['engine']
+        context = context or device.config['snmp']['context']
+        args = target, oids, credentials, engine, context, port
+
+        if start_from is not None:
+            print('CHECK')
+            if isinstance(count, int) and count > 1:
+                print('get bulk')
+                snmp_data = cls.snmp_get_bulk(*args, count, start_from)
+            else:
+                print('get bulk auto')
+                snmp_data = cls.snmp_get_bulk_auto(*args, count, start_from)
+        else:
+            snmp_data = cls.snmp_get_data(*args)
+
+        snmp_data = json.dumps(snmp_data)
+        gzip_bytes = gzip.compress(snmp_data.encode())
+
+        mqtt_settings = {'qos': 1, 'retain': False}
+        pub_data = device.handler._form_pub_data(
+            mqtt_settings, device, gzip_bytes, unit='all', topic='snmp')
+
+        device.indicators['led1'].on()
+        device.client.publish(**pub_data)
+        device.indicators['led1'].off()
+
+    @classmethod
+    def snmp_get_data(
+            cls,
+            target: str,
+            oids: List[str],
+            credentials: Union[hlapi.CommunityData, hlapi.UsmUserData],
+            engine: hlapi.SnmpEngine,
+            context: hlapi.ContextData,
+            port: int,
+    ) -> str:
+        """Получить значение отдельного объекта в базе управляющей информации.
+
+        :param target: IP или адрес удалённого устройства
+        :type target: str
+        :param oids: идентификаторы искомых объектов
+        :type oids: list[str]
+        :param credentials: набор полномочий для аутентификации сессии
+        :type credentials: hlapi.CommunityData or hlapi.UsmUserData
+        :param engine: движок SNMP
+        :type engine: hlapi.SnmpEngine
+        :param context: контекстные данные
+        :type context: hlapi.ContextData
+        :param port: порт подключения к удалённому устройству
+        :type port: int
+
+        :raises RuntimeError: ошибка обработки SNMP сообщения
+
+        :return: данные объекта в MIB в формате JSON
+        :rtype: str
+        """
+        snmp_handler = hlapi.getCmd(
+            engine,
+            credentials,
+            hlapi.UdpTransportTarget((target, port)),
+            context,
+            *cls.construct_object_types(oids)
+        )
+
+        return cls.fetch(snmp_handler, 1)[0]
+
+    @classmethod
+    def snmp_get_bulk(
+            cls,
+            target: str,
+            oids: List[str],
+            credentials: Union[hlapi.CommunityData, hlapi.UsmUserData],
+            engine: hlapi.SnmpEngine,
+            context: hlapi.ContextData,
+            port: int,
+            count: int,
+            start_from: str,
+    ) -> str:
+        """Получить значения множества экземпляров объекта в MIB.
+
+        :param target: IP или адрес удалённого устройства
+        :type target: str
+        :param oids: идентификаторы искомых объектов
+        :type oids: list[str]
+        :param credentials: набор полномочий для аутентификации сессии
+        :type credentials: hlapi.CommunityData or hlapi.UsmUserData
+        :param engine: движок SNMP
+        :type engine: hlapi.SnmpEngine
+        :param context: контекстные данные
+        :type context: hlapi.ContextData
+        :param port: порт подключения к удалённому устройству
+        :type port: int
+        :param count: количество экземпляров объекта
+        :type count: int
+        :param start_from: номер узла, с которого необходимо начать выборку,
+        :type start_from: int
+
+        :raises RuntimeError: ошибка обработки SNMP сообщения
+
+        :return: данные объекта в MIB в формате JSON
+        :rtype: str
+        """
+        snmp_handler = hlapi.bulkCmd(
+            engine,
+            credentials,
+            hlapi.UdpTransportTarget((target, port)),
+            context,
+            start_from, count,
+            *cls.construct_object_types(oids)
+        )
+
+        return cls.fetch(snmp_handler, count)
+
+    @classmethod
+    def snmp_get_bulk_auto(
+            cls,
+            target: str,
+            oids: List[str],
+            credentials: Union[hlapi.CommunityData, hlapi.UsmUserData],
+            engine: hlapi.SnmpEngine,
+            context: hlapi.ContextData,
+            port: int,
+            count_oid: int,
+            start_from: str,
+    ) -> str:
+        """Получить значения множества экземпляров объекта в MIB.
+
+        :param target: IP или адрес удалённого устройства
+        :type target: str
+        :param oids: идентификаторы искомых объектов
+        :type oids: list[str]
+        :param credentials: набор полномочий для аутентификации сессии
+        :type credentials: hlapi.CommunityData or hlapi.UsmUserData
+        :param engine: движок SNMP
+        :type engine: hlapi.SnmpEngine
+        :param context: контекстные данные
+        :type context: hlapi.ContextData
+        :param port: порт подключения к удалённому устройству
+        :type port: int
+        :param count_oid: идентификатор количества итераций объектов
+        :type count_oid: str
+        :param start_from: номер узла, с которого необходимо начать выборку,
+        :type start_from: int
+
+        :raises RuntimeError: ошибка обработки SNMP сообщения
+
+        :return: данные объекта в MIB в формате JSON
+        :rtype: str
+        """
+        count = cls.snmp_get_data(
+            target, [count_oid], credentials, engine, context, port
+        )[count_oid]
+        print('COUNT:', count)
+
+        return cls.snmp_get_bulk(
+            target, oids, credentials, engine, context, port, count, start_from)
+
+    @staticmethod
+    def construct_object_types(list_of_oids: List[str]) -> List[str]:
+        """Сконструировать специальные объекты для выборки данных.
+
+        :param list_of_oids: идентификаторы объектов
+        :type list_of_oids: list[str]
+
+        :return: объекты для передачи в функцию выборки
+        :rtype: list[str]
+        """
+        return [
+            hlapi.ObjectType(hlapi.ObjectIdentity(oid)) for oid in list_of_oids
+        ]
+
+    @classmethod
+    def fetch(cls, snmp_handler: Iterator, count: int) -> List[dict]:
+        """Выбрать данные, возвращаемые обработчиком GET запросов.
+
+        :param snmp_handler: обработчик SNMP
+        :type snmp_handler: generator
+        :param count: количество запросов данных
+        :type count: int
+
+        :raises RuntimeError: ошибка обработки SNMP сообщения
+
+        :return: результаты запроса
+        :rtype: list[dict]
+        """
+        result = []
+
+        for i in range(count):
+            try:
+                err_indication, err_status, _, var_binds = next(snmp_handler)
+
+                if err_indication or err_status:
+                    msg = 'ошибка обработки SNMP сообщения'
+                    notify(
+                        Handler.device, msg, no_repr=True, report_type='error')
+
+                    raise RuntimeError(
+                        f'Ошибка в итерации цикла №{i}: {err_indication}')
+
+                items = {}
+
+                for var_bind in var_binds:
+                    k, v = var_bind
+                    items[str(k)] = cls.cast(v)
+
+                result.append(items)
+            except StopIteration:
+                break
+
+        return result
+
+    @staticmethod
+    def cast(value: Any) -> Union[int, float, str]:
+        """Привести значение к определённому типу.
+
+        Приведение осуществляется в следующем порядке:
+        1) привести к целому числу, иначе
+        2) привести к числу с плавающей точкой, иначе
+        3) привести к строке.
+
+        Если приведение к вышеописанным типам невозможно, вернуть первоначальное
+        значение.
+
+        :param value: приводимое значение
+        :type value: Any
+
+        :return: приведённое либо первоначальное значение
+        :rtype: int or float or str or Any
+        """
+        try:
+            return int(value)
+        except (ValueError, TypeError):
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                try:
+                    return str(value)
+                except (ValueError, TypeError):
+                    pass
+
+        return value
 
     @staticmethod
     def set_value(component: Type[object], value: str) -> None:
@@ -194,7 +473,7 @@ class Handler:
     """
 
     def __init__(self, device: Type[object]) -> None:
-        self.device = device
+        self.focus = device
         self.routines = self._get_routines()
 
         for i, (k, v) in enumerate(self.routines.items(), start=1):
@@ -213,6 +492,10 @@ class Handler:
 
         self._set_subscriptions(device, blink=self._blink, pub=self._publish)
 
+    @property
+    def device(self):
+        return self.focus
+
     def _get_routines(self) -> dict:
         with shelve.open(COMMANDS_FILE) as db:
             return dict(db.items())
@@ -220,8 +503,9 @@ class Handler:
     def handle(self, instructions: Dict[str, List[tuple]]) -> None:
         """Обработать принятые инструкции.
 
-        Рутины добавляются в пул асинхронно исполняемых сопрограмм, команды
-        выполняются синхронно в порядке установленной очереди.
+        Рутинам присваиваются слушатели изменения состояния. При наступлении
+        всех обозначенных условий рутина исполняется обработчиком. Команды
+        выполняются сразу в порядке установленной очереди.
 
         :param instructions: словарь исполняемых инструкций
         :type instructions: dict
@@ -237,9 +521,9 @@ class Handler:
             self.execute_command(command_id, actions)
 
     def execute_command(
-        self,
-        command_id: str,
-        actions: Tuple[str, str, Dict[str, str]]
+            self,
+            command_id: str,
+            actions: list
     ) -> None:
         """Выполнить команду.
 
@@ -251,7 +535,7 @@ class Handler:
         :param command_id: идентификатор команды
         :type command_id: str
         :param actions: последовательность действий для исполнения команды
-        :type actions: list[list]
+        :type actions: list
         """
         try:
             print('command id:', command_id)
@@ -336,15 +620,13 @@ class Handler:
         units, complects = {}, {}
         family, id_, pin, params = 0, 1, 2, 3
 
-        for i in new_data.get('units'):
-            if i[family].startswith('c'):
-                # Настройка составных компонентов:
-                component = self.prepare_data(complects, i, family, id_)
-            else:
-                # Настройка одиночных компонентов:
-                component = self.prepare_data(units, i, family, id_)
+        for component in new_data.get('units'):
+            data = self.set_component_data(component, id_, family, pin, params)
 
-            self.setup_component(component, i, pin, params)
+            if component[family].startswith('c'):
+                self.update_group(complects, component, data, id_, family)
+            else:
+                self.update_group(units, component, data, id_, family)
 
         new_config = {
             'device': new_data.get('device'),
@@ -353,76 +635,91 @@ class Handler:
             'units': units,
             'complects': complects,
         }
+        new_config['snpm']['oids'] = old_data.get('oids')
         print('Новая конфигурация:', new_config)
 
         self._write_yaml(
             new_config, CONFIG_FILE, default_flow_style=False, sort_keys=False)
 
-    @staticmethod
-    def prepare_data(
-            group: dict,
+    def set_component_data(
+            self,
             component: list,
+            id_: int,
             family: int,
-            id_: int
-    ) -> dict:
-        """Подготовить к установке компонент данной группы.
-
-        :param group: группа настроенных компонентов
-        :type group: dict
-        :param component: настраиваемый компонент
-        :type component: List[str, str, int, dict]
-        :param family: индекс семейства компонента
-        :type family: int
-        :param id_: индекс кодового идентификатора компонента
-        :type id_: int
-
-        :return: незаполненный словарь данных компонента
-        :rtype: dict
-        """
-        component_data = {component[id_]: {}}
-
-        if component[family] not in group:
-            group[component[family]] = component_data
-        else:
-            group[component[family]].update(component_data)
-
-        return group[component[family]][component[id_]]
-
-    @staticmethod
-    def setup_component(
-            data: dict,
-            component: list,
             pin: int,
             params: int,
-    ) -> None:
+    ) -> Dict[str, dict]:
         """Установить данные компоненту для его последующей инициализации.
 
-        :param data: незаполненный словарь данных компонента
-        :type data: dict
+        Если компоненту назначен псевдоним, использовать его в качестве
+        идентификатора вместо установленного по умолчанию.
+
         :param component: настраиваемый компонент
-        :type component: List[str, str, int, dict]
+        :type component: list[str, str, int, dict]
+        :param id_: индекс кодового идентификатора компонента
+        :type id_: int
+        :param family: индекс семейства компонента
+        :type family: int
         :param pin: индекс ПИНа компонента
         :type pin: int
         :param params: индекс опциональных параметров компонента
         :type params: int
+
+        :raises ValueError: для правильной настройки необходим словарь
+
+        :return: словарь с данными компонента
+        :rtype: dict
         """
         try:
             data = component[params]
+            alias = data.pop("alias")
         except ValueError:
-            print(component[params])
-            print('Для правильной настройки необходим словарь!')
+            msg = 'Для правильной настройки необходим словарь!'
+            notify(self.device, msg, no_repr=True, local_only=True)
 
             raise
+        except KeyError:
+            pass
+        else:
+            component[id_] = alias
 
         if component[pin] > 0:
             data['pin'] = component[pin]
+
+        return {component[id_]: data}
+
+    @staticmethod
+    def update_group(
+            group: dict,
+            component: list,
+            data: dict,
+            id_: int,
+            family: int
+    ) -> None:
+        """Обновить словарь группированных компонентов.
+
+        :param group: группа настроенных компонентов
+        :type group: dict
+        :param component: добавляемый компонент
+        :type component: list
+        :param data: данные компонента
+        :type data: dict
+        :param id_: индекс кодового идентификатора компонента
+        :type id_: int
+        :param family: индекс семейства компонента
+        :type family: int
+        """
+        if component[family] not in group:
+            group[component[family]] = data
+        else:
+            group[component[family]].update(data)
 
     def _write_yaml(self, config: dict, file: str, **kwargs) -> None:
         with open(file, 'w') as f:
             yaml.safe_dump(config, f, **kwargs)
 
+    @staticmethod
     def _set_subscriptions(
-            self,
             device: Type[object],
             group: dict = None,
             **kwargs: Callable
@@ -442,7 +739,8 @@ class Handler:
 
                 notify(component, 'готово.', local_only=True)
 
-    def _blink(self, report: Type[dict], device: Type[object]) -> None:
+    @staticmethod
+    def _blink(report: Type[dict], device: Type[object]) -> None:
         """Осуществлять световую индикацию при регистрации событий.
 
         Индикация производится следующим образом:
@@ -479,7 +777,7 @@ class Handler:
             return
 
         payload = self._form_payload(report, device, unit, msg_body)
-        pub_data = self._form_pub_data(report, device, unit, payload)
+        pub_data = self._form_pub_data(report, device, payload, unit)
 
         device.indicators['led1'].on()
         device.client.publish(**pub_data)
@@ -500,8 +798,8 @@ class Handler:
         """
         return msg == self.sended_messages.get(unit)
 
+    @staticmethod
     def _form_payload(
-        self,
         report: Type[dict],
         device: Type[object],
         unit: str,
@@ -524,14 +822,15 @@ class Handler:
 
         return json.dumps((timestamp, msg_type, msg_body))
 
+    @staticmethod
     def _form_pub_data(
-        self,
         report: Type[dict],
         device: Type[object],
+        payload: str,
         unit: str,
-        payload: str
+        topic: str = 'report'
     ) -> Dict[str, Union[str, int, bool]]:
-        topic = '/'.join([device.id, 'report', unit])
+        topic = '/'.join([device.id, topic, unit])
         qos = report['qos']
         retain = report['retain']
 

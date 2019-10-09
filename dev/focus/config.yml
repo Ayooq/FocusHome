@@ -8,7 +8,8 @@ mqtt:
     port: 1883
 snmp:
   community: public
-  host: 127.0.0.1:161
+  host: demo.snmplabs.com:161
+  # host: 127.0.0.1:161
   password: psw
   user: user
   version: 2c

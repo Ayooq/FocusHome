@@ -1,10 +1,25 @@
 import json
+import os
 from focus.back import FocusPro, Handler
 from gpiozero import Device
 from gpiozero.pins.mock import MockFactory
 Device.pin_factory = MockFactory()
+countdown = os.getenv('COUNTDOWN', 0)
 focus = FocusPro()
 focus.handler = Handler(focus)
+snmp = focus.config['snmp']
+snmp_config_data = {
+    'target': snmp['agent'],
+    'oids': snmp['oids'],
+    'credentials': snmp['credentials'],
+    'port': snmp['port'],
+    'count': '1.3.6.1.2.1.2.1.0',
+    'start_from': 0,
+}
+focus.handler.execute_command(
+    '-1', [('self', 'snmp_send_data', snmp_config_data)])
+focus.connect_async(int(countdown))
+focus.client.loop_start()
 payload1 = json.loads(
     '{"routine_id": 2, "instruction": {"routine": {"conditions": [[{"unit": "cnt1", "compare": "eq", "value": "1"}, "and", {"unit": "cnt2", "compare": "eq", "value": "0"}], "or", {"unit": "cpu", "compare": "gt", "value": "80.0"}], "actions": [{"action": "setValue", "unit": "cnt2", "value": "1", "function": "", "params": []}]}}}')
 payload2 = json.loads(

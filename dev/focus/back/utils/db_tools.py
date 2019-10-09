@@ -145,12 +145,14 @@ def fill_table(
     for tablename in tables_set:
         try:
             cursor.execute(_SQL[tablename], tabledata)
-        except sqlite3.Error:
+        except sqlite3.Error as e:
             print(f'Не удалось заполнить таблицу {tablename}!')
+            print(e)
             conn.rollback()
         else:
-            print(f'Таблица {tablename} успешно заполнена.')
             conn.commit()
+
+    print('Таблицы базы данных успешно заполнены.')
 
 
 _STATUS_TABLES_STRUCTURE = {

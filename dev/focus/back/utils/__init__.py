@@ -20,7 +20,7 @@ COMMANDS_DIR = f'{ROOT_DIR}/back/commands'
 FILENAMES = 'config', 'focus'
 
 MAPPING_FILE = f'{MAPPING_DIR}/mapping'
-COMMANDS_FILE = f'{COMMANDS_DIR}/routines'
+COMMANDS_FILE = f'{COMMANDS_DIR}/macros'
 
 CONFIG_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.yml'
 BACKUP_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.bak'

@@ -5,11 +5,11 @@
 import json
 from datetime import datetime
 from time import sleep
-from typing import Any, Iterator, List, Tuple
+from typing import Any, Iterator, List, Tuple, Union
 
 import yaml
 from paho.mqtt.client import Client, MQTTMessage
-from pysnmp import hlapi
+from pysnmp.hlapi import ContextData, CommunityData, SnmpEngine, UsmUserData
 
 from .commands import Handler, Parser
 from .feedback import Reporter
@@ -41,8 +41,13 @@ class FocusPro(Hardware):
         self.reporter = Reporter(self.id)
         self.parser = Parser()
 
-        self.config['snmp']['agent'], self.config['snmp']['port'] = \
-            self.parse_snmp_host(self.config['snmp'])
+        # Конфигурирование SNMP:
+        snmp = self.config['snmp']
+        snmp['agent'], snmp['port'] = self.parse_snmp_host(snmp)
+        snmp['oids'] = snmp.get('oids') or ['1.3.6.1.2.1.1.5.0']
+        snmp['credentials'] = self.set_credentials(snmp)
+        snmp['engine'] = SnmpEngine()
+        snmp['context'] = ContextData()
 
         try:
             # Подключение к локальной базе данных:
@@ -74,75 +79,38 @@ class FocusPro(Hardware):
 
     @staticmethod
     def parse_snmp_host(snmp_config: dict) -> Tuple[str, int]:
+        """Разбить строку адресных данных хоста на составляющие.
+
+        :param snmp_config: конфигурация SNMP
+        :type snmp_config: dict
+
+        :return: адрес и порт для связи с хостом
+        :rtype: tuple[str, int]
+        """
         host = snmp_config['host'].split(':')
 
         return host[0], int(host[1])
 
-    def get(
-            self,
-            target: str,
-            oids: List[str],
-            credentials: str,
-            port: int,
-            engine=hlapi.SnmpEngine(),
-            context=hlapi.ContextData()
-    ):
-        handler = hlapi.getCmd(
-            engine,
-            credentials,
-            hlapi.UdpTransportTarget((target, port)),
-            context,
-            *self.construct_object_types(oids)
-        )
-        return self.fetch(handler, 1)[0]
-
     @staticmethod
-    def construct_object_types(list_of_oids: List[str]) -> List[str]:
-        object_types = []
+    def set_credentials(snmp_config: dict) -> Union[CommunityData, UsmUserData]:
+        """Установить полномочия для аутентификации.
 
-        for oid in list_of_oids:
-            object_types.append(hlapi.ObjectType(hlapi.ObjectIdentity(oid)))
+        Тип возвращаемого объекта зависит от используемой версии протокола SNMP.
 
-        return object_types
+        :param snmp_config: конфигурация SNMP
+        :type snmp_config: dict
 
-    def fetch(self, handler: Iterator, count: int) -> List[dict]:
-        result = []
+        :return: объект с настроенными полномочиями
+        :rtype: hlapi.CommunityData or hlapi.UsmUserData
+        """
+        community = snmp_config['community']
 
-        for i in range(count):
-            try:
-                err_indication, err_status, _, var_binds = next(handler)
+        if int(snmp_config['version'][0]) < 3:
+            credentials = CommunityData(community)
+        else:
+            credentials = UsmUserData(**community)
 
-                if err_indication or err_status:
-                    msg = 'ошибка обработки SNMP сообщения'
-                    notify(self, msg, no_repr=True, report_type='error')
-
-                    raise RuntimeError(f'Got SNMP error: {err_indication}')
-
-                items = {}
-
-                for var_bind in var_binds:
-                    items[str(var_bind[0])] = self.cast(var_bind[1])
-
-                result.append(items)
-            except StopIteration:
-                break
-
-        return result
-
-    @staticmethod
-    def cast(value):
-        try:
-            return int(value)
-        except (ValueError, TypeError):
-            try:
-                return float(value)
-            except (ValueError, TypeError):
-                try:
-                    return str(value)
-                except (ValueError, TypeError):
-                    pass
-
-        return value
+        return credentials
 
     def _define_lwt(self, qos: int = 2, retain: bool = True):
         timestamp = datetime.now().isoformat(sep=' ')
@@ -194,8 +162,9 @@ class FocusPro(Hardware):
             self.client.is_connected = True
             client.subscribe(
                 [
-                    (self.id + '/cnf', 2),
                     (self.id + '/cmd', 2),
+                    (self.id + '/cnf', 2),
+                    (self.id + '/snmp', 2),
                 ]
             )
             notify(self, 'online', no_repr=True,
@@ -246,19 +215,24 @@ class FocusPro(Hardware):
         msg = f'сообщение на тему --> {message.topic}'
         notify(self, msg, no_repr=True, local_only=True)
 
-        _, topic, *_ = message.topic.split('/')
+        topic = message.topic.split('/')[1]
         payload = json.loads(message.payload.decode())
 
         msg = f'полезная нагрузка --> {payload}'
         notify(self, msg, no_repr=True, local_only=True)
 
-        if topic == 'cnf':
-            self.handler.apply_config(self.config, payload)
-            self.handler.execute_command(
-                1, [('lock', 'on', {}), (self, 'reboot', {})]
-            )
-
-        elif topic == 'cmd':
+        if topic == 'cmd':
             instructions = self.parser.parse_instructions(
                 self, payload, self.handler.hardware)
             self.handler.handle(instructions)
+
+        elif topic == 'cnf':
+            self.handler.apply_config(self.config, payload)
+            self.handler.execute_command(
+                '-2', [('lock', 'on', {}), ('self', 'reboot', {})]
+            )
+
+        elif topic == 'snmp':
+            self.handler.execute_command(
+                '-3', [('self', 'report_at_intervals', payload)]
+            )
