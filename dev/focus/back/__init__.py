@@ -1,328 +1,118 @@
+"""Основной модуль бэкэнда приложения.
+
+:class FocusPro: класс верхнего уровня, инкапсулирующий логику всего бэкэнда.
+"""
 import json
-import subprocess
 from datetime import datetime
 from time import sleep
+from typing import Any, Iterator, List, Tuple, Union
 
-import paho.mqtt.client as mqtt
 import yaml
+from paho.mqtt.client import Client, MQTTMessage
+from pysnmp.hlapi import ContextData, CommunityData, SnmpEngine, UsmUserData
 
+from .commands import Handler, Parser
+from .feedback import Reporter
 from .hardware import Hardware
-from .reporting import Reporter
-from .utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, BROKER
-from .utils.concurrency import Worker
-from .utils.db_handlers import fill_table, init_db
-from .utils.messaging_tools import log_and_report, register
+from .utils import DB_FILE
+from .utils.db_tools import get_db, init_db
+from .utils.messaging import notify
 
 
 class FocusPro(Hardware):
-    """Обвязка функционала MQTT вокруг :class Hardware: без учета авторизации."""
+    r"""Класс устройства мониторинга банкоматов, реализующий взаимодействие
+    с удалённым сервером по протоколам MQTT v3.1 и SNMP.
 
-    def __init__(self, **kwargs):
-        super().__init__()
+    :param **kwargs: опциональный словарь аргументов
+    :type **kwargs: dict
+    """
 
-        self.id = self.config['device']['id']
-        self.description = self.config['device']['location']
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
-        print('Инициализация', self.id)
+        # Идентификация:
+        self.id = self.config['device']['name']
+        self.description = self.config['device']['address']
 
+        msg = 'настройка внешних зависимостей...'
+        notify(self, msg, no_repr=True, local_only=True)
+
+        # Установка репортёра и парсера команд:
         self.reporter = Reporter(self.id)
-        self.make_subscriptions(self.blink, self.publish)
+        self.parser = Parser()
 
-#        services = {
-#            self.temperature['cpu'].state_monitor,
-#            self.temperature['ext'].state_monitor,
-#        }
-#        self.apply_workers(services)
+        # Конфигурирование SNMP:
+        snmp = self.config['snmp']
+        snmp['agent'], snmp['port'] = self.parse_snmp_host(snmp)
+        snmp['oids'] = snmp.get('oids') or ['1.3.6.1.2.1.1.5.0']
+        snmp['credentials'] = self.set_credentials(snmp)
+        snmp['engine'] = SnmpEngine()
+        snmp['context'] = ContextData()
 
-        msg_body = 'Запуск %s' % self.id
-        self.logger.info(msg_body)
+        try:
+            # Подключение к локальной базе данных:
+            with open(DB_FILE):
+                msg = 'инициализация базы данных не требуется.'
+                notify(self, msg, no_repr=True, local_only=True)
 
-        self.db = init_db(DB_FILE, self.config, self.units)
+            self.db = get_db(DB_FILE)
+        except OSError:
+            # Инициализация новой БД:
+            self.db = init_db(self, DB_FILE, self.hardware)
+        finally:
+            # Настройка клиента MQTT:
+            self.client = Client(self.id, clean_session=False)
+            self.client.is_connected = False
+            self.client.on_connect = self.on_connect
+            self.client.on_disconnect = self.on_disconnect
+            self.client.on_message = self.on_message
 
-        self.client = mqtt.Client(self.id, False)
-        self.client.on_connect = self.on_connect
-        self.client.on_disconnect = self.on_disconnect
-        self.client.on_message = self.on_message
+            # Определение последнего завещания:
+            LWT = self._define_lwt()
+            self.client.will_set(**LWT)
 
-        LWT = self.define_lwt()
-        self.client.will_set(**LWT)
+            # Включение внутреннего логирования клиента:
+            self.client.enable_logger(self.logger)
 
-        self.is_connected = False
+    def __repr__(self):
+        return f'id={self.id}'
 
-    def connect(self, timeout=0):
-        sleep(timeout)
-        device = self.config.get('device')
-        broker = self._define_broker(device['broker'])
-        self.client.connect(*broker)
-        self.client.loop_start()
+    @staticmethod
+    def parse_snmp_host(snmp_config: dict) -> Tuple[str, int]:
+        """Разбить строку адресных данных хоста на составляющие.
 
-    def on_connect(self, client, userdata, flags, rc):
-        if rc:
-            log_and_report(self, rc, type_='error', swap=True)
+        :param snmp_config: конфигурация SNMP
+        :type snmp_config: dict
+
+        :return: адрес и порт для связи с хостом
+        :rtype: tuple[str, int]
+        """
+        host = snmp_config['host'].split(':')
+
+        return host[0], int(host[1])
+
+    @staticmethod
+    def set_credentials(snmp_config: dict) -> Union[CommunityData, UsmUserData]:
+        """Установить полномочия для аутентификации.
+
+        Тип возвращаемого объекта зависит от используемой версии протокола SNMP.
+
+        :param snmp_config: конфигурация SNMP
+        :type snmp_config: dict
+
+        :return: объект с настроенными полномочиями
+        :rtype: hlapi.CommunityData or hlapi.UsmUserData
+        """
+        community = snmp_config['community']
+
+        if int(snmp_config['version'][0]) < 3:
+            credentials = CommunityData(community)
         else:
-            self.is_connected = True
+            credentials = UsmUserData(**community)
 
-            log_and_report(
-                self, 'online', swap=True, type_='status', retain=True
-            )
+        return credentials
 
-            client.subscribe(
-                [
-                    (self.id + '/#', 2),
-                ]
-            )
-            client.unsubscribe(
-                [
-                    (self.id + '/report/#')
-                ]
-            )
-
-    def on_disconnect(self, client, userdata, rc):
-        self.is_connected = False
-        log_and_report(self, 'offline', swap=True, type_='status', retain=True)
-
-        if rc:
-            log_and_report(self, rc, type_='error', swap=True)
-
-    def on_message(self, client, userdata, message):
-        print('Received msg topic:', message.topic)
-        _, topic, unit = message.topic.split('/')
-        payload = json.loads(message.payload.decode())
-        print('Payload:', payload)
-
-        if topic == 'cnf':
-            
-            family, unit, pin, params = 0, 1, 2, 3
-            id_, location = payload.pop(-1)
-            new_config = {
-                'device': {
-                    'id': id_,
-                    'location': location,
-                    'broker': BROKER,
-                },
-                'units': {},
-            }
-
-            for i in payload:
-                print('Item:', i)
-                if i[family] not in new_config['units']:
-                    new_config['units'].update({i[family]: {}})
-
-                if i[pin] > 0:
-                    new_config['units'][i[family]][i[unit]] = {
-                        'pin': i[pin],
-                    }
-                elif i[params]:
-                    new_config['units'][i[family]][i[unit]] = i[params]
-                else:
-                    new_config['units'][i[family]][i[unit]] = {}
-
-            new_config.update({'complects': {'couts': {}}})
-
-            couts = new_config['units'].pop('couts')
-            new_config['complects']['couts'].update(
-                {
-                    'cmp1': {
-                        'out': couts.get('out1'),
-                        'cnt': couts.get('cnt1'),
-                    },
-                    'cmp2': {
-                        'out': couts.get('out2'),
-                        'cnt': couts.get('cnt2'),
-                    },
-                    'cmp3': {
-                        'out': couts.get('out3'),
-                        'cnt': couts.get('cnt3'),
-                    },
-                    'cmp4': {
-                        'out': couts.get('out4'),
-                        'cnt': couts.get('cnt4'),
-                    },
-                }
-            )
-
-            cf = open(CONFIG_FILE)
-
-            with open(BACKUP_FILE, 'w') as bf:
-                bf.writelines(cf.readlines())
-
-            cf.close()
-
-            with open(CONFIG_FILE, 'w') as cf:
-                yaml.dump(new_config, cf, default_flow_style=False)
-
-            # subprocess.run('/usr/bin/sudo reboot', shell=True)
-
-        if topic == 'report':
-            '@TODO'
-
-#        print(message.topic, str(message.payload), sep='\n')
-
-  #      command = message.topic.split('/')[-1]
-   #     payload = json.loads(message.payload)
-    #    changed_unit = payload[0]
-     #   target_unit = payload[1]
-      #  time_limit = payload[2]
-
-       # on_event(command, changed_unit, target_unit, time_limit=time_limit)
-
-    # #     msg_body = 'Инструкция %s [%s]' % (
-    # #         message.topic, str(message.payload))
-    # #     self.logger.info(msg_body)
-
-    # #     # Десериализация JSON запроса.
-    # #     data = json.loads(message.payload)
-
-    # #     if data['method'] == 'getFocuspioStatus':
-    # #         # Вернуть статус FocusPIO.
-    # #         pass
-    # #     elif data['method'] == 'setFocuspioStatus':
-    # #         # Обновить статус FocusPIO и отправить ответ.
-    # #         pass
-
-    def make_subscriptions(self, *callbacks):
-        """Зарегистрировать устройство и его компоненты для рапортирования.
-
-        События обрабатываются следующим образом:
-        1) подсписчик "blink" осуществляет световую индикацию, основанную на
-        типе события;
-        2) подписчик "pub" отвечает за отправку отчётов посреднику.
-        """
-
-        for family in self.units.values():
-            for unit in family.values():
-                print('Регистрирую подписчиков для одиночного компонента', unit)
-
-                register(unit, 'blink', callbacks[0])
-                register(unit, 'pub', callbacks[1])
-
-        for family in self.complects.values():
-            for cmp in family.values():
-                print('Регистрирую подписчиков для составного компонента', cmp)
-
-                register(cmp.control, 'blink', callbacks[0])
-                register(cmp.control, 'pub', callbacks[1])
-
-        register(self, 'blink', callbacks[0])
-        register(self, 'pub', callbacks[1])
-
-    def apply_workers(self, services):
-        self.workers = set()
-
-        for service in services:
-            self.workers.add(Worker(service))
-
-    def blink(self, sender: dict):
-        """Моргать при регистрации событий.
-
-        Индикация производится следующим образом:
-        1) event — светодиод включается на секунду, затем выключается,
-        однократно;
-        2) info/status — светодиод включается на секунду, отключается на одну,
-        дважды;
-        3) warning — светодиод включается на две секунды, отключается на одну,
-        трижды;
-        4) error — светодиод включается на три секунды, выключается на одну,
-        трижды.
-
-        Параметры:
-          :param sender: — объект компонента, осуществляющего отправку отчётов
-        от своего имени через реализацию словаря с данными.
-        """
-
-        msg_type = sender[sender.topic]['type']
-
-        if msg_type == 'event':
-            self.indicators['led2'].blink(1, 1, 1)
-        elif msg_type in ('info', 'status'):
-            self.indicators['led2'].blink(1, 1, 2)
-        elif msg_type == 'warning':
-            self.indicators['led2'].blink(2, 1, 3)
-        elif msg_type == 'error':
-            self.indicators['led2'].blink(3, 1, 3)
-
-    def publish(self, sender: dict):
-        """Отправка отчёта посреднику по указанной теме.
-
-        Рапортирование сопровождается световой индикацией.
-
-        Параметры:
-          :param sender: — объект отчёта, содержащий необходимые данные
-        для формирования структуры результирующего сообщения.
-        """
-
-        report = sender[sender.topic]
-        payload = self._form_payload(report)
-        pub_data = self._form_pub_data(sender.topic, report, payload)
-
-        self.indicators['led1'].on()
-        self.client.publish(**pub_data)
-        self.indicators['led1'].off()
-
-    def _form_payload(self, report: dict):
-        """Сформировать JSON-строку с данными для отправки посреднику.
-
-        Записать данные в локальную БД, а затем вернуть строку JSON,
-        преобразованную из кортежа со значениями, необходимыми для операций с
-        БД на хосте посредника.
-
-        Параметры:
-          :param report: — словарь содержимого для отчёта.
-        """
-
-        msg_type = report['type']
-        msg_body = report['message']
-
-        if report['from'] == self.id:
-            report['from'] = 'self'
-
-        timestamp = datetime.now().isoformat(sep=' ')
-        tabledata = [timestamp, msg_type, report['from'], msg_body]
-
-        cursor = self.db.cursor()
-        tables_set = {'events'}
-
-        fill_table(self.db, cursor, tables_set, tabledata)
-
-        tabledata.pop(1)
-
-        tables_set.clear()
-        tables_set.update({'status', 'status_archive'})
-
-        fill_table(self.db, cursor, tables_set, tabledata)
-
-        payload = timestamp, msg_type, msg_body
-
-        return json.dumps(payload)
-
-    def _form_pub_data(self, topic: str, report: dict, payload: str):
-        """Сформировать объект с данными для публикации отчёта.
-
-        Параметры:
-          :param topic: — тема сообщения;
-          :param report: — словарь отчёта, содержащий необходимые данные
-        для подготовки сообщения к отправке;
-          :param payload: — строка с отправляемыми данными в формате JSON.
-
-        Вернуть объект словаря для связывания с методом publish() клиента MQTT.
-        """
-
-        topic = '/'.join([self.id, topic, report['from']])
-        qos = report['qos']
-        retain = report['retain']
-
-        return {
-            'topic': topic,
-            'payload': payload,
-            'qos': qos,
-            'retain': retain,
-        }
-
-    def define_lwt(self, qos=1, retain=True):
-        """Определить завещание для отправки посреднику
-        в случае непредвиденного разрыва связи.
-        """
-
+    def _define_lwt(self, qos: int = 2, retain: bool = True):
         timestamp = datetime.now().isoformat(sep=' ')
         msg_type = 'status'
         msg_body = 'offline'
@@ -337,15 +127,112 @@ class FocusPro(Hardware):
             'retain': retain,
         }
 
-    def _define_broker(self, broker: dict):
-        """Определить адрес хоста и порт, через который будет осуществляться
-        обмен данными с посредником, а также допустимое время простоя между
-        отправкой сообщений в секундах.
+    def connect_async(self, countdown: int = 0) -> None:
+        """Подключиться к посреднику асинхронно.
 
-        Параметры:
-        :param broker: — словарь с данными о посреднике.
-
-        Вернуть кортеж вида: (адрес, порт, время простоя).
+        :param countdown: время простоя перед подключением (увеличить,
+            если процесс стартует с ошибками связи)
+        :type countdown: int
         """
+        sleep(countdown)
+        broker = self.config['mqtt']['broker']
+        self.client.connect_async(**broker)
 
-        return broker['host'], broker['port'], broker['keepalive']
+    def on_connect(
+            self,
+            client: Client,
+            userdata: Any,
+            flags: dict,
+            rc: int
+    ) -> None:
+        """Обработать результат подключения к посреднику.
+
+        :param client: экземпляр объекта клиента MQTT
+        :type client: paho.mqtt.client.Client
+        :param userdata: пользовательские данные, передаваемые обработчику
+        :type userdata: Any
+        :param flags: словарь флагов ответа от посредника
+        :type flags: dict
+        :param rc: код результата подключения
+        :type rc: int
+        """
+        if rc != 0:
+            notify(self, rc, report_type='error', no_repr=True)
+        else:
+            self.client.is_connected = True
+            client.subscribe(
+                [
+                    (self.id + '/cmd', 2),
+                    (self.id + '/cnf', 2),
+                    (self.id + '/snmp', 2),
+                ]
+            )
+            notify(self, 'online', no_repr=True,
+                   report_type='status', retain=True)
+
+    def on_disconnect(
+            self,
+            client: Client,
+            userdata: Any,
+            rc: int
+    ) -> None:
+        """Обработать результат разъединения с посредником.
+
+        :param client: экземпляр объекта клиента MQTT
+        :type client: paho.mqtt.client.Client
+        :param userdata: пользовательские данные, передаваемые обработчику
+        :type userdata: Any
+        :param rc: код результата подключения
+        :type rc: int
+        """
+        self.client.is_connected = False
+        notify(self, 'offline', no_repr=True,
+               report_type='status', retain=True)
+
+        if rc != 0:
+            notify(self, rc, report_type='error', no_repr=True)
+
+    def on_message(
+            self,
+            client: Client,
+            userdata: Any,
+            message: MQTTMessage
+    ) -> None:
+        """Обработать входящее сообщение.
+
+        Принимаются сообщения двух типов: конфигурация и инструкции.
+        Конфигурация применяется после перезагрузки устройства, которая
+        инициируется тут же. Инструкции сначала парсятся, а затем передаются
+        обработчику на исполнение.
+
+        :param client: экземпляр объекта клиента MQTT
+        :type client: paho.mqtt.client.Client
+        :param userdata: пользовательские данные, передаваемые обработчику
+        :type userdata: Any
+        :param message: экземпляр объекта сообщения MQTT
+        :type message: paho.mqtt.client.MQTTMessage
+        """
+        msg = f'сообщение на тему --> {message.topic}'
+        notify(self, msg, no_repr=True, local_only=True)
+
+        topic = message.topic.split('/')[1]
+        payload = json.loads(message.payload.decode())
+
+        msg = f'полезная нагрузка --> {payload}'
+        notify(self, msg, no_repr=True, local_only=True)
+
+        if topic == 'cmd':
+            instructions = self.parser.parse_instructions(
+                self, payload, self.handler.hardware)
+            self.handler.handle(instructions)
+
+        elif topic == 'cnf':
+            self.handler.apply_config(self.config, payload)
+            self.handler.execute_command(
+                '-2', [('lock', 'on', {}), ('self', 'reboot', {})]
+            )
+
+        elif topic == 'snmp':
+            self.handler.execute_command(
+                '-3', [('self', 'report_at_intervals', payload)]
+            )

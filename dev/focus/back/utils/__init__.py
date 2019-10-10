@@ -1,21 +1,16 @@
 import os
 
 ROOT_DIR = os.path.abspath(os.path.curdir)
+MAPPING_DIR = f'{ROOT_DIR}/back/hardware'
+COMMANDS_DIR = f'{ROOT_DIR}/back/commands'
 
-CONFIG_FILE = '%s/config.yaml' % ROOT_DIR
-BACKUP_FILE = '%s/config.yaml.bak' % ROOT_DIR
-LOG_FILE = '%s/focus.log' % ROOT_DIR
-DB_FILE = os.getenv('DB_LOCAL', 'focus.db')
+FILENAMES = 'config', 'focus'
 
-BROKER = {
-    'host': '89.223.27.69',
-    'port': 1883,
-    'keepalive': 60,
-}
+MAPPING_FILE = f'{MAPPING_DIR}/mapping'
+COMMANDS_FILE = f'{COMMANDS_DIR}/macros'
 
-SNMP_CONFIG = {
-    'community': 'public',
-    'version': '2c',
-    'host': '192.168.3.246',   #'192.168.3.40' -- PRINTER
-    'flags': ['Oe','On'],
-}
+CONFIG_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.yml'
+BACKUP_FILE = f'{ROOT_DIR}/{FILENAMES[0]}.bak'
+
+LOG_FILE = f'{ROOT_DIR}/{FILENAMES[1]}.log'
+DB_FILE = os.getenv('DB_LOCAL', f'{FILENAMES[1]}.db')

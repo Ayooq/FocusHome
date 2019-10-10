@@ -22,13 +22,12 @@ def management():
 
 @app.route('/management/<unit>/<action>')
 def action(unit, action):
-    complect = focus_pro.couts.get(unit)
+    control = focus_pro.couts.get(unit)
 
-    if complect and action == 'on':
-        complect.on()
-
-    elif complect and action == 'off':
-        complect.off()
+    if control and action == 'on':
+        control.on()
+    elif control and action == 'off':
+        control.off()
 
     return redirect(url_for('management'))
 

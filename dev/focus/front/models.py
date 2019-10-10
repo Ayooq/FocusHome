@@ -4,31 +4,9 @@ from . import focus_pro
 
 
 def update_values():
-    _get_couts_status()
-    _get_inputs_status()
-    _get_temperature_status()
-    _get_miscellaneous_status()
-
-
-def _get_couts_status():
-    for _ in focus_pro.couts.values():
-        _.socket.state
-        _.control.state
-
-
-def _get_inputs_status():
-    for _ in focus_pro.inputs.values():
-        _.state
-
-
-def _get_temperature_status():
-    for _ in focus_pro.temperature.values():
-        _.temperature
-
-
-def _get_miscellaneous_status():
-    for _ in focus_pro.misc.values():
-        _.state
+    for group_families in focus_pro.hardware.values():
+        for family_components in group_families.values():
+            [component.state for component in family_components.values()]
 
 
 def get_data():
@@ -36,10 +14,13 @@ def get_data():
 
     data = {
         'device': focus_pro,
+        'control': (
+            cmp for uid, cmp in focus_pro.couts.items() if uid.startswith('cnt')
+        ),
         'inputs': focus_pro.inputs,
-        'complects': focus_pro.couts,
+        'locking': focus_pro.locking,
         'temperature': focus_pro.temperature,
-        'misc': focus_pro.misc,
+        'voltage': focus_pro.voltage,
     }
 
     return data
