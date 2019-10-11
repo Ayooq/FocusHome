@@ -23,6 +23,8 @@ snmp_config_data = {
     'oids': snmp['oids'],
     'credentials': snmp['credentials'],
     'port': snmp['port'],
+    'count': '1.3.6.1.2.1.2.1.0',
+    'start_from': 0,
 }
 
 focus_pro.handler.execute_command(

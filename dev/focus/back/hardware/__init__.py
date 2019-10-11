@@ -92,10 +92,15 @@ class Hardware:
 
                         if 'src' in data:
                             src = data['src']
-                            src_mapping = mapping_file[group][family][src[:-1]]
-                            src_data = components[src]
-                            data['src'] = src_mapping(id=src, **src_data)
-                            res[group][family][src] = data['src']
+
+                            try:
+                                data['src'] = res[group][family][src]
+                            except KeyError:
+                                src_mapping = mapping_file[group][family].get(
+                                    src[:-1])
+                                src_data = components[src]
+                                data['src'] = src_mapping(id=src, **src_data)
+                                res[group][family][src] = data['src']
 
                         mapping = mapping_file[group][family][unit[:-1]]
                         res[group][family][unit] = mapping(id=unit, **data)
@@ -114,13 +119,13 @@ class Hardware:
     def __register_hardware(cls) -> ShelveDB:
         from .autonomous import (
             FocusExternalReceptor as ExtR,
-            FocusSocket as Sock,
+            FocusSocketControl as SockCtrl,
             FocusTemperatureSensor as T,
             FocusVoltageControlSingleton as V,
         )
         from .switchables import (
             FocusLEDIndicator as LED,
-            FocusSocketControl as SockCtrl,
+            FocusSocket as Sock,
             FocusSocketLockingSingleton as Lock,
         )
 

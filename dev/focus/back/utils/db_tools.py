@@ -122,14 +122,14 @@ def _set_initial_status(conn: Conn, hardware: dict) -> Conn:
 
     for group_families in hardware.values():
         for family_components in group_families.values():
-            for uid, component in family_components.items():
-                tabledata = [timestamp, uid, component.state]
-                fill_table(conn, cursor, tables_set, tabledata)
+            for cid, component in family_components.items():
+                tabledata = [timestamp, cid, component.state]
+                fill_tables(conn, cursor, tables_set, tabledata)
 
     return conn
 
 
-def fill_table(
+def fill_tables(
         conn: Conn, cursor: Cursor, tables_set: set, tabledata: list) -> None:
     """Заполнить таблицы указанными значениями.
 
@@ -142,17 +142,22 @@ def fill_table(
     :param tabledata: данные для заполнения таблицы
     :type tabledata: list
     """
+    error = False
+
     for tablename in tables_set:
         try:
             cursor.execute(_SQL[tablename], tabledata)
         except sqlite3.Error as e:
             print(f'Не удалось заполнить таблицу {tablename}!')
             print(e)
-            conn.rollback()
-        else:
-            conn.commit()
+            error = True
 
-    print('Таблицы базы данных успешно заполнены.')
+            break
+    if error:
+        conn.rollback()
+    else:
+        conn.commit()
+        print('Таблицы базы данных успешно заполнены.')
 
 
 _STATUS_TABLES_STRUCTURE = {

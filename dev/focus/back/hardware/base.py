@@ -19,15 +19,21 @@ class FocusBase(Device):
 
         super().__init__(**kwargs)
 
-    def inform_state(self, report_type: str = 'event') -> None:
-        notify(self, self.state, report_type=report_type)
+    def inform_state(self, **kwargs) -> None:
+        notify(self, self.state, **kwargs)
 
     def _init_completed(self):
         notify(self, 'готово.', local_only=True)
 
 
 class FocusBaseUnit(FocusBase):
-    """Базовый класс для одиночных компонентов устройства."""
+    """Базовый класс для одиночных компонентов устройства.
+
+    :param unit: класс инициируемого компонента
+    :type unit: Device
+    :param **kwargs: дополнительные именованные параметры
+    :type **kwargs: dict
+    """
 
     def __init__(self, unit: Type[Device], **kwargs) -> None:
         pin = kwargs.pop('pin', None)

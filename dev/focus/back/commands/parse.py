@@ -109,7 +109,7 @@ class Parser:
         :type hardware: tuple[dict, dict]
 
         :return: кортеж элементов выражения
-        :rtype: tuple[str or None, object, int or float or str]
+        :rtype: tuple[str or None, dict, int or float or str]
         """
         op = self._get_operator_method(condition['compare'], device)
         unit = self._get_component(condition['unit'], hardware)
@@ -125,21 +125,21 @@ class Parser:
         :param actions: список действий
         :type actions: list[dict]
 
-        :return: список распарсенных действий
-        :rtype: list[list]
+        :return: список кортежей распарсенных действий
+        :rtype: list[tuple]
         """
 
         parsed_actions = []
 
         for a in actions:
-            if a['action'] == 'call':
-                action = a['function']
-                kwargs = dict({i['name']: i['value']} for i in a['params'])
-            elif a['action'] == 'setValue':
-                action = 'set_value'
-                kwargs = {'value': a['value']}
+            components = a['params'].pop('components', None) or [a['unit']]
+            callback = a['function']
+            kwargs = {}
 
-            parsed_actions.append((a['unit'], action, kwargs))
+            for i in a['params']:
+                kwargs.update({i['name']: i['value']})
+
+            parsed_actions.append((components, callback, kwargs))
 
         return parsed_actions
 
@@ -163,6 +163,8 @@ class Parser:
             for family_components in group_families.values():
                 if target in family_components:
                     return family_components[target]
+
+        return None
 
     @classmethod
     def _get_evaluated_value(cls, value: str) -> Union[int, float, str]:
