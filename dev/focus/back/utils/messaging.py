@@ -12,7 +12,7 @@ def notify(
     local_only: bool = False,
     report_type: str = 'event',
     qos: int = 1,
-    retain: bool = False
+    retain: bool = False,
 ) -> None:
     """Записать сообщение в журнал событий и отправить отчёт посреднику.
 

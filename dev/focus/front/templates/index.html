@@ -41,39 +41,41 @@
       </div>
     {% endif %}
 
-    {% if control %}
+    {% if couts %}
       <div class="col_33">
-        <h2>Комплекты</h2>
+        <h2>Outs</h2>
         <table class="table">
           <tr>
             <th>ID</th>
             <th>Описание</th>
-            <th>Выходной разъём под контролем</th>
-            <th>Состояние выходного разъёма</th>
+            <th>Выход под контролем</th>
+            <th>Состояние выхода</th>
           </tr>
 
-          {% for unit in control %}
-            <tr>
-              <td>
-                <code>{{ unit.id }}</code>
-              </td>
-              <td>{{ unit.description }}</td>
+          {% for unit in couts %}
+            {% if unit.startswith('out') %}
+              <tr>
+                <td>
+                  <code>{{ couts[unit].id }}</code>
+                </td>
+                <td>{{ couts[unit].description }}</td>
 
-              {% if unit.state %}
-                <td>Да</td>
+                {% if couts[unit].state %}
+                  <td>Да</td>
 
-                {% if unit.source.state %}
-                  <td>ВКЛ</td>
+                  {% if couts[unit].control.state %}
+                    <td>ВКЛ</td>
+                  {% else %}
+                    <td>ОТКЛ</td>
+                  {% endif %}
+
                 {% else %}
-                  <td>ОТКЛ</td>
+                  <td>Нет</td>
+                  <td>Неизвестно</td>
                 {% endif %}
 
-              {% else %}
-                <td>Нет</td>
-                <td>Неизвестно</td>
-              {% endif %}
-
-            </tr>
+              </tr>
+            {% endif %}
           {% endfor %}
 
         </table>

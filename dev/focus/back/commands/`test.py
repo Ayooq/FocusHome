@@ -35,4 +35,4 @@ instructions3 = focus.parser.parse_instructions(
 focus.handler.handle(instructions1)
 focus.handler.handle(instructions2)
 focus.handler.handle(instructions3)
-focus.couts['cnt1'].on()
+focus.couts['out1'].on()

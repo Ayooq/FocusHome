@@ -30,7 +30,7 @@
     </div>
 
     <div class="col_33">
-      <h2>Контроль над гнёздами</h2>
+      <h2>Выходы</h2>
       <table class="table">
         <tr>
           <th>ID</th>
@@ -39,30 +39,36 @@
           <th>Действие</th>
         </tr>
 
-        {% for unit in control %}
-          <tr>
-            <td>
-              <code>{{ unit.id }}</code>
-            </td>
-            <td>{{ unit.description }}</td>
+        {% for unit in couts %}
+          {% if unit.startswith('out') %}
+            <tr>
+              <td>
+                <code>{{ couts[unit].id }}</code>
+              </td>
+              <td>{{ couts[unit].description }}</td>
 
-            {% if unit.state %}
-              <td>Включён</td>
-              <td>
-                <button>
-                  <a href="/management/{{ unit.id }}/off">Отключить</a>
-                </button>
-              </td>
-            {% else %}
-              <td>Отключён</td>
-              <td>
-                <button>
-                  <a href="/management/{{ unit.id }}/on">Включить</a>
-                </button>
-              </td>
-            {% endif %}
-            
-          </tr>
+              {% if couts[unit].state %}
+                <td>Включён</td>
+                <td>
+                  <button>
+                    <a href="/management/{{ couts[unit].id }}/off">
+                      Отключить
+                    </a>
+                  </button>
+                </td>
+              {% else %}
+                <td>Отключён</td>
+                <td>
+                  <button>
+                    <a href="/management/{{ couts[unit].id }}/on">
+                      Включить
+                    </a>
+                  </button>
+                </td>
+              {% endif %}
+              
+            </tr>
+          {% endif %}
         {% endfor %}
 
       </table>

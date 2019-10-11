@@ -16,7 +16,7 @@ import yaml
 from pysnmp import hlapi
 
 from ..utils import BACKUP_FILE, COMMANDS_FILE, CONFIG_FILE
-from ..utils.db_tools import fill_table
+from ..utils.db_tools import fill_tables
 from ..utils.messaging import notify
 from .parse import Parser
 
@@ -314,7 +314,7 @@ class CommandsRegistry:
         component.state = value
 
     @classmethod
-    def reboot(cls, device: Type[object], **kwargs) -> NoReturn:
+    def reboot(cls, device: list) -> NoReturn:
         """Перезагрузить устройство.
 
         Перезагрузка с интервалом меньше, чем в минуту, не позволяется.
@@ -322,6 +322,8 @@ class CommandsRegistry:
         :param device: экземпляр объекта устройства
         :type device: object
         """
+        device = device[0]
+        
         if cls.is_rebootable(device.db):
             # notify(device, 'fake reboot', no_repr=True,
             #       report_type='status', local_only=True)
@@ -359,7 +361,7 @@ class CommandsRegistry:
         return timediff < dt.timedelta(seconds=60)
 
     @staticmethod
-    def on(component: Type[object], **kwargs) -> None:
+    def on(components: list, **kwargs) -> None:
         r"""Включить пин компонента.
 
         :param component: экземпляр объекта компонента
@@ -367,10 +369,11 @@ class CommandsRegistry:
         :param **kwargs: опциональные именованные аргументы
         :type **kwargs: dict
         """
-        component.on(**kwargs)
+        for component in components:
+            component.on(**kwargs)
 
     @staticmethod
-    def off(component: Type[object], **kwargs) -> None:
+    def off(components: list, **kwargs) -> None:
         r"""Выключить пин компонента.
 
         :param component: экземпляр объекта компонента
@@ -378,10 +381,11 @@ class CommandsRegistry:
         :param **kwargs: опциональные именованные аргументы
         :type **kwargs: dict
         """
-        component.off(**kwargs)
+        for component in components:
+            component.off(**kwargs)
 
     @staticmethod
-    def toggle(component: Type[object], **kwargs) -> None:
+    def toggle(components: list, **kwargs) -> None:
         r"""Изменить состояние пина компонента на противоположное.
 
         :param component: экземпляр объекта компонента
@@ -389,7 +393,8 @@ class CommandsRegistry:
         :param **kwargs: опциональные именованные аргументы
         :type **kwargs: dict
         """
-        component.toggle(**kwargs)
+        for component in components:
+            component.toggle(**kwargs)
 
     @staticmethod
     def set_state(
@@ -486,11 +491,11 @@ class Handler:
         msg = 'регистрирую подписчиков...'
         notify(device, msg, no_repr=True, local_only=True)
 
-        for group in (self.device.hardware).values():
+        for group in (self.focus.hardware).values():
             self._set_subscriptions(
-                device, group, blink=self._blink, pub=self._publish)
+                self.focus, group, blink=self._blink, pub=self._publish)
 
-        self._set_subscriptions(device, blink=self._blink, pub=self._publish)
+        self._set_subscriptions(self.focus, blink=self._blink, pub=self._publish)
 
     @property
     def device(self):
@@ -571,11 +576,11 @@ class Handler:
             print(f'action {index}:', action)
             self.perform_action(*action)
 
-    def perform_action(self, target: str, action: str, kwargs: dict) -> Any:
+    def perform_action(self, components: list, action: str, kwargs: dict) -> Any:
         """Выполнить действие.
 
-        :param target: цель совершаемого действия
-        :type target: str
+        :param components: цель совершаемого действия
+        :type components: list
         :param action: название функции обработки указанного действия
         :type action: str
         :param kwargs: передаваемые обработчику именованные аргументы
@@ -586,14 +591,16 @@ class Handler:
         """
         cmd = getattr(CommandsRegistry, action)
         print('performing action...')
-        print('command:', cmd)
-        target = self.device if target == 'self' else Parser._get_component(
-            target, self.device.hardware)
-
-        print('target:', target)
+        
+        for i, c in enumerate(components):
+            c = self.device if c == 'self' else Parser._get_component(c, self.device.hardware)
+            print(f'target {i}:', c)
+            components[i] = c
+        
+        print('components:', components)
         print('kwargs:', kwargs)
 
-        return cmd(target, **kwargs)
+        return cmd(components, **kwargs)
 
     def run_forever(self, routines: List[tuple]) -> NoReturn:
         """Запустить бесконечный цикл исполнения сопрограмм в отдельном потоке.
@@ -694,7 +701,7 @@ class Handler:
             component: list,
             data: dict,
             id_: int,
-            family: int
+            family: int,
     ) -> None:
         """Обновить словарь группированных компонентов.
 
@@ -722,9 +729,9 @@ class Handler:
     def _set_subscriptions(
             device: Type[object],
             group: dict = None,
-            **kwargs: Callable
+            **kwargs: Callable,
     ) -> None:
-        if not group:
+        if group is None:
             for subscriber, callback in kwargs.items():
                 device.reporter.register(subscriber, callback, device)
 
@@ -803,7 +810,7 @@ class Handler:
         report: Type[dict],
         device: Type[object],
         unit: str,
-        msg_body: Union[int, str, float]
+        msg_body: Union[int, str, float],
     ) -> str:
         timestamp = dt.datetime.now().isoformat(sep=' ')
         msg_type = report['type']
@@ -812,13 +819,13 @@ class Handler:
         tables_set = {'events'}
         tabledata = [timestamp, msg_type, unit, str(msg_body)]
 
-        fill_table(device.db, cursor, tables_set, tabledata)
+        fill_tables(device.db, cursor, tables_set, tabledata)
 
         tables_set.clear()
         tables_set.update({'status', 'status_archive'})
         tabledata.pop(1)
 
-        fill_table(device.db, cursor, tables_set, tabledata)
+        fill_tables(device.db, cursor, tables_set, tabledata)
 
         return json.dumps((timestamp, msg_type, msg_body))
 
@@ -828,7 +835,7 @@ class Handler:
         device: Type[object],
         payload: str,
         unit: str,
-        topic: str = 'report'
+        topic: str = 'report',
     ) -> Dict[str, Union[str, int, bool]]:
         topic = '/'.join([device.id, topic, unit])
         qos = report['qos']

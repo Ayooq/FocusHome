@@ -1,28 +1,28 @@
-from typing import Union
+from typing import Type, Union
 
-from gpiozero import CPUTemperature, DigitalInputDevice, Button
+from gpiozero import CPUTemperature, DigitalInputDevice
 
 from ..utils.one_wire import get_sensor_file
 from .base import FocusBaseUnit
 
 
 class FocusAutonomousUnit(FocusBaseUnit):
-    """Класс одиночных компонентов, способных управлять своим состоянием."""
+    r"""Класс одиночных компонентов, способных управлять своим состоянием.
 
-    def __init__(self, **kwargs) -> None:
-        unit = kwargs.pop('unit', DigitalInputDevice)
-        print('Unit:', unit)
-        pull_up = kwargs.pop('pull_up', True)
-        bounce_time = kwargs.pop('bounce_time', 1.0)
+    :param unit: класс инициируемого компонента, по умолчанию
+    DigitalOutputDevice
+    :type unit: gpiozero.Device, опционально
+    :param **kwargs: дополнительные именованные параметры
+    :type **kwargs: dict
+    """
 
-        if pull_up:
-            kwargs['pull_up'] = pull_up
-
-        if bounce_time:
-            kwargs['bounce_time'] = bounce_time
-
+    def __init__(
+            self,
+            unit: Type[FocusBaseUnit] = DigitalInputDevice,
+            **kwargs,
+    ) -> None:
         super().__init__(unit, **kwargs)
-        print('self.unit:', self.unit)
+
         self.unit.when_activated = self.inform_state
         self.unit.when_deactivated = self.inform_state
 
@@ -32,23 +32,39 @@ class FocusExternalReceptor(FocusAutonomousUnit):
 
     def __init__(self, **kwargs):
         self._postfix = kwargs['id'][-1]
-        super().__init__(**kwargs)
+        pull_up = kwargs.pop('pull_up', True)
+        # bounce_time = kwargs.pop('bounce_time', 0.1)
+        super().__init__(
+            pull_up=pull_up,
+            # bounce_time=bounce_time,
+            **kwargs
+        )
+
         self._init_completed()
 
     def __str__(self):
         return f'Вход {self._postfix}'
 
 
-class FocusSocket(FocusAutonomousUnit):
-    """Класс входных/выходных разъёмов."""
+class FocusSocketControl(FocusAutonomousUnit):
+    """Класс компонентов, контролирующих состояние входных/выходных разъёмов."""
 
     def __init__(self, **kwargs):
         self._postfix = kwargs['id'][-1]
-        super().__init__(**kwargs)
+        pull_up = kwargs.pop('pull_up', True)
+        # active_state = kwargs.pop('active_state', False)
+        bounce_time = kwargs.pop('bounce_time', 1.0)
+        super().__init__(
+            pull_up=pull_up,
+            # active_state=active_state,
+            bounce_time=bounce_time,
+            **kwargs,
+        )
+
         self._init_completed()
 
     def __str__(self):
-        return f'Разъём {self._postfix}'
+        return f'Control {self._postfix}'
 
 
 class FocusTemperatureSensor(FocusAutonomousUnit):
@@ -57,16 +73,12 @@ class FocusTemperatureSensor(FocusAutonomousUnit):
     def __init__(self, **kwargs) -> None:
         self._postfix = 'ЦПУ' if kwargs['id'][-1] == 'u' else 'среды'
         sensor_file = get_sensor_file()
-        kwargs.update(
-            {
-                'sensor_file': sensor_file,
-                'min_temp': kwargs.get('min', 0.0),
-                'max_temp': kwargs.get('max', 100.0),
-                'threshold': kwargs.get('threshold', 80.0),
-                'pull_up': None,
-                'bounce_time': None,
-            }
-        )
+        kwargs.update({
+            'sensor_file': sensor_file,
+            'min_temp': kwargs.get('min', 0.0),
+            'max_temp': kwargs.get('max', 100.0),
+            'threshold': kwargs.get('threshold', 80.0),
+        })
         super().__init__(unit=CPUTemperature, **kwargs)
 
         self.hysteresis = kwargs.get('hysteresis', 1.0)
@@ -98,7 +110,9 @@ class FocusVoltageControlSingleton(FocusAutonomousUnit):
     """Класс уникального компонента контроля напряжения в сети."""
 
     def __init__(self, **kwargs) -> None:
-        super().__init__(pull_up=False, **kwargs)
+        pull_up = kwargs.pop('pull_up', False)
+        bounce_time = kwargs.pop('bounce_time', 1.0)
+        super().__init__(pull_up=pull_up, bounce_time=bounce_time, **kwargs)
 
         self.unit.when_activated = self.on
         self.unit.when_deactivated = self.off

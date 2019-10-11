@@ -22,12 +22,14 @@ def management():
 
 @app.route('/management/<unit>/<action>')
 def action(unit, action):
-    control = focus_pro.couts.get(unit)
+    cout = focus_pro.couts.get(unit)
 
-    if control and action == 'on':
-        control.on()
-    elif control and action == 'off':
-        control.off()
+    if cout and action == 'on':
+        cout.on()
+    elif cout and action == 'off':
+        cout.off()
+    elif cout and action == 'toggle':
+        cout.toggle()
 
     return redirect(url_for('management'))
 

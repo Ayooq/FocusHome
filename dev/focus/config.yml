@@ -42,21 +42,21 @@ complects:
   couts:
     cnt1:
       pin: 6
-      src: out1
     cnt2:
       pin: 19
-      src: out2
     cnt3:
       pin: 12
-      src: out3
     cnt4:
       pin: 20
-      src: out4
     out1:
       pin: 5
+      src: cnt1
     out2:
       pin: 13
+      src: cnt2
     out3:
       pin: 26
+      src: cnt3
     out4:
       pin: 16
+      src: cnt4

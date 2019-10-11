@@ -132,14 +132,14 @@ class Parser:
         parsed_actions = []
 
         for a in actions:
-            component = a['unit']
+            components = a['params'].pop('components', None) or [a['unit']]
             callback = a['function']
             kwargs = {}
 
             for i in a['params']:
                 kwargs.update({i['name']: i['value']})
 
-            parsed_actions.append((component, callback, kwargs))
+            parsed_actions.append((components, callback, kwargs))
 
         return parsed_actions
 

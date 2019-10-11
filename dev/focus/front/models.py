@@ -14,9 +14,7 @@ def get_data():
 
     data = {
         'device': focus_pro,
-        'control': (
-            cmp for uid, cmp in focus_pro.couts.items() if uid.startswith('cnt')
-        ),
+        'couts': focus_pro.couts,
         'inputs': focus_pro.inputs,
         'locking': focus_pro.locking,
         'temperature': focus_pro.temperature,

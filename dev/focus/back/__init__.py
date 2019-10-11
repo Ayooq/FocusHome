@@ -143,7 +143,7 @@ class FocusPro(Hardware):
             client: Client,
             userdata: Any,
             flags: dict,
-            rc: int
+            rc: int,
     ) -> None:
         """Обработать результат подключения к посреднику.
 
@@ -160,13 +160,12 @@ class FocusPro(Hardware):
             notify(self, rc, report_type='error', no_repr=True)
         else:
             self.client.is_connected = True
-            client.subscribe(
-                [
-                    (self.id + '/cmd', 2),
-                    (self.id + '/cnf', 2),
-                    (self.id + '/snmp', 2),
-                ]
-            )
+            client.unsubscribe(f'{self.id}/#')
+            client.subscribe([
+                (f'{self.id}/cmd/#', 2),
+                (f'{self.id}/cnf/#', 2),
+                (f'{self.id}/snmp/#', 2),
+            ])
             notify(self, 'online', no_repr=True,
                    report_type='status', retain=True)
 
@@ -174,7 +173,7 @@ class FocusPro(Hardware):
             self,
             client: Client,
             userdata: Any,
-            rc: int
+            rc: int,
     ) -> None:
         """Обработать результат разъединения с посредником.
 
@@ -196,7 +195,7 @@ class FocusPro(Hardware):
             self,
             client: Client,
             userdata: Any,
-            message: MQTTMessage
+            message: MQTTMessage,
     ) -> None:
         """Обработать входящее сообщение.
 
@@ -223,7 +222,7 @@ class FocusPro(Hardware):
 
         if topic == 'cmd':
             instructions = self.parser.parse_instructions(
-                self, payload, self.handler.hardware)
+                self, payload, self.hardware)
             self.handler.handle(instructions)
 
         elif topic == 'cnf':
