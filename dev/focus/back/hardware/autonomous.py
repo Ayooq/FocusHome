@@ -120,10 +120,10 @@ class FocusVoltageControlSingleton(FocusAutonomousUnit):
         self._init_completed()
 
     def on(self) -> None:
-        self.inform_state('info')
+        self.inform_state(report_type='info')
 
     def off(self) -> None:
-        self.inform_state('warning')
+        self.inform_state(report_type='warning')
 
     def __str__(self):
         return 'Состояние электропитания устройства'

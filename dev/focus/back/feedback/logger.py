@@ -7,7 +7,7 @@ StreamHandler = logging.StreamHandler
 
 _formats_list = [
     '%(asctime)s %(name)s %(levelname)-7s %(message)s',
-    '%(filename)-17s line:%(lineno)-5d %(levelname)-8s[%(asctime)s] %(message)s'
+    '%(filename)-20s line:%(lineno)-5d %(levelname)-8s[%(asctime)s] %(message)s'
 ]
 
 

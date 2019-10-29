@@ -21,11 +21,11 @@ focus.handler.execute_command(
 focus.connect_async(int(countdown))
 focus.client.loop_start()
 payload1 = json.loads(
-    '{"routine_id": 2, "instruction": {"routine": {"conditions": [[{"unit": "cnt1", "compare": "eq", "value": "1"}, "and", {"unit": "cnt2", "compare": "eq", "value": "0"}], "or", {"unit": "cpu", "compare": "gt", "value": "80.0"}], "actions": [{"action": "setValue", "unit": "cnt2", "value": "1", "function": "", "params": []}]}}}')
+    '{"routine_id": 2, "instruction": {"routine": {"conditions": [[{"unit": "out1", "compare": "eq", "value": "1"}, "and", {"unit": "out2", "compare": "eq", "value": "0"}], "or", {"unit": "cpu", "compare": "gt", "value": "80.0"}], "actions": [{"action": "setValue", "unit": "out3", "value": "1", "function": "", "params": []}]}}}')
 payload2 = json.loads(
-    '{"routine_id": 3, "instruction": {"routine": {"conditions": [[{"unit": "cnt1", "compare": "eq", "value": "1"}, "and", {"unit": "cnt2", "compare": "eq", "value": "1"}], "or", {"unit": "cpu", "compare": "ge", "value": "60.0"}], "actions": [{"action": "call", "unit": "lock", "value": "", "function": "on", "params": []}, {"action": "call", "unit": "self", "value": "", "function": "reboot", "params": []}]}}}')
+    '{"routine_id": 3, "instruction": {"routine": {"conditions": [[{"unit": "out3", "compare": "eq", "value": "1"}, "and", {"unit": "cnt2", "compare": "ne", "value": "1"}], "and", {"unit": "cpu", "compare": "le", "value": "60.0"}], "actions": [{"action": "call", "unit": "", "value": "", "function": "on", "params": {"name": "unit", "value": "lock"}}, {"action": "call", "unit": "", "value": "", "function": "reboot", "params": {"name": "unit", "value": "self"}}]}}}')
 payload3 = json.loads(
-    '{"routine_id": 4, "instruction": {"routine": {"conditions": [[{"unit": "lock", "compare": "eq", "value": "1"}]], "actions": [{"action": "call", "unit": "cnt4", "value": "", "function": "toggle", "params": []}]}}}')
+    '{"routine_id": 4, "instruction": {"routine": {"conditions": [[{"unit": "lock", "compare": "eq", "value": "1"}]], "actions": [{"action": "call", "unit": "", "value": "", "function": "toggle", "params": ["conditions": ["out1"]]}]}}}')
 instructions1 = focus.parser.parse_instructions(
     focus, payload1, focus.hardware)
 instructions2 = focus.parser.parse_instructions(

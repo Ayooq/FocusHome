@@ -15,7 +15,7 @@ if os.getenv('FLASK_ENV') == 'development':
 
 countdown = os.getenv('COUNTDOWN', 0)
 focus_pro = FocusPro()
-focus_pro.handler = Handler(focus_pro)
+# focus_pro.handler = Handler(focus_pro)
 
 snmp = focus_pro.config['snmp']
 snmp_config_data = {
@@ -28,7 +28,7 @@ snmp_config_data = {
 }
 
 focus_pro.handler.execute_command(
-    '-1', [('self', 'snmp_send_data', snmp_config_data)])
+    '-1', [('self', 'snmp_send_data', False, snmp_config_data)])
 focus_pro.connect_async(int(countdown))
 focus_pro.client.loop_start()
 

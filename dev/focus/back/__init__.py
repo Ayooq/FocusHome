@@ -4,12 +4,13 @@
 """
 import json
 from datetime import datetime
+from gzip import decompress
 from time import sleep
 from typing import Any, Iterator, List, Tuple, Union
 
 import yaml
 from paho.mqtt.client import Client, MQTTMessage
-from pysnmp.hlapi import ContextData, CommunityData, SnmpEngine, UsmUserData
+from pysnmp.hlapi import CommunityData, ContextData, SnmpEngine, UsmUserData
 
 from .commands import Handler, Parser
 from .feedback import Reporter
@@ -41,14 +42,6 @@ class FocusPro(Hardware):
         self.reporter = Reporter(self.id)
         self.parser = Parser()
 
-        # Конфигурирование SNMP:
-        snmp = self.config['snmp']
-        snmp['agent'], snmp['port'] = self.parse_snmp_host(snmp)
-        snmp['oids'] = snmp.get('oids') or ['1.3.6.1.2.1.1.5.0']
-        snmp['credentials'] = self.set_credentials(snmp)
-        snmp['engine'] = SnmpEngine()
-        snmp['context'] = ContextData()
-
         try:
             # Подключение к локальной базе данных:
             with open(DB_FILE):
@@ -59,20 +52,31 @@ class FocusPro(Hardware):
         except OSError:
             # Инициализация новой БД:
             self.db = init_db(self, DB_FILE, self.hardware)
-        finally:
-            # Настройка клиента MQTT:
-            self.client = Client(self.id, clean_session=False)
-            self.client.is_connected = False
-            self.client.on_connect = self.on_connect
-            self.client.on_disconnect = self.on_disconnect
-            self.client.on_message = self.on_message
 
-            # Определение последнего завещания:
-            LWT = self._define_lwt()
-            self.client.will_set(**LWT)
+        # Настройка клиента MQTT:
+        self.client = Client(self.id, clean_session=False)
+        self.client.is_connected = False
+        self.client.on_connect = self.on_connect
+        self.client.on_disconnect = self.on_disconnect
+        self.client.on_message = self.on_message
 
-            # Включение внутреннего логирования клиента:
-            self.client.enable_logger(self.logger)
+        # Определение последнего завещания:
+        LWT = self._define_lwt()
+        self.client.will_set(**LWT)
+
+        # Включение внутреннего логирования клиента:
+        self.client.enable_logger(self.logger)
+
+        # Конфигурирование SNMP:
+        snmp = self.config['snmp']
+        snmp['agent'], snmp['port'] = self.parse_snmp_host(snmp)
+        snmp['oids'] = snmp.get('oids') or ['1.3.6.1.2.1.1.5.0']
+        snmp['credentials'] = self.set_credentials(snmp)
+        snmp['engine'] = SnmpEngine()
+        snmp['context'] = ContextData()
+
+        # Запуск обработчика событий и команд:
+        self.handler = Handler(self)
 
     def __repr__(self):
         return f'id={self.id}'
@@ -130,8 +134,10 @@ class FocusPro(Hardware):
     def connect_async(self, countdown: int = 0) -> None:
         """Подключиться к посреднику асинхронно.
 
-        :param countdown: время простоя перед подключением (увеличить,
-            если процесс стартует с ошибками связи)
+        Если процесс стартует с ошибками связи, следует повысить показатель
+        обратного отсчёта до начала соединения.
+
+        :param countdown: время простоя перед подключением, по умолчанию 0
         :type countdown: int
         """
         sleep(countdown)
@@ -215,7 +221,12 @@ class FocusPro(Hardware):
         notify(self, msg, no_repr=True, local_only=True)
 
         topic = message.topic.split('/')[1]
-        payload = json.loads(message.payload.decode())
+        payload = message.payload
+
+        if topic == 'snmp':
+            payload = decompress(payload)
+
+        payload = json.loads(payload.decode())
 
         msg = f'полезная нагрузка --> {payload}'
         notify(self, msg, no_repr=True, local_only=True)
@@ -228,10 +239,11 @@ class FocusPro(Hardware):
         elif topic == 'cnf':
             self.handler.apply_config(self.config, payload)
             self.handler.execute_command(
-                '-2', [('lock', 'on', {}), ('self', 'reboot', {})]
+                '-2', [(['lock'], 'on', {}), (['self'], 'reboot', {})]
             )
 
         elif topic == 'snmp':
-            self.handler.execute_command(
-                '-3', [('self', 'report_at_intervals', payload)]
-            )
+            pass
+            # self.handler.execute_command(
+            #     '-3', [(['self'], 'report_at_intervals', payload)]
+            # )

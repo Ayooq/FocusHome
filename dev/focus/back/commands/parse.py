@@ -117,32 +117,6 @@ class Parser:
 
         return op, unit, val
 
-    @staticmethod
-    def parse_actions(
-            actions: List[dict]) -> List[Tuple[str, str, Dict[str, str]]]:
-        """Распарсить список действий для переданной рутины.
-
-        :param actions: список действий
-        :type actions: list[dict]
-
-        :return: список кортежей распарсенных действий
-        :rtype: list[tuple]
-        """
-
-        parsed_actions = []
-
-        for a in actions:
-            components = a['params'].pop('components', None) or [a['unit']]
-            callback = a['function']
-            kwargs = {}
-
-            for i in a['params']:
-                kwargs.update({i['name']: i['value']})
-
-            parsed_actions.append((components, callback, kwargs))
-
-        return parsed_actions
-
     @classmethod
     def _get_operator_method(
             cls, op: str, device: Type[dict]) -> Union[str, None]:
@@ -174,3 +148,43 @@ class Parser:
             pass
 
         return value
+
+    @staticmethod
+    def parse_actions(
+            actions: List[dict]) -> List[Tuple[str, str, Dict[str, str]]]:
+        """Распарсить список действий для переданной рутины.
+
+        :param actions: список действий
+        :type actions: list[dict]
+
+        :return: список кортежей распарсенных действий
+        :rtype: list[tuple]
+        """
+
+        parsed_actions = []
+
+        for a in actions:
+            unit = a['unit']
+            value = a['value']
+            callback = a['function']
+            kwargs = {}
+            components = []
+
+            if callback in ('sleep', 'timeout', 'wait', 'sec'):
+                async_ = True
+            else:
+                async_ = False
+
+            for i in a['params']:
+                if i['name'] == 'unit':
+                    components.append(i['value'])
+                else:
+                    kwargs.update({i['name']: i['value']})
+
+            if value:
+                kwargs = {'value': value}
+                parsed_actions.append((unit, callback, async_, kwargs))
+            else:
+                parsed_actions.append((components, callback, async_, kwargs))
+
+        return parsed_actions

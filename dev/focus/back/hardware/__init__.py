@@ -13,7 +13,6 @@ from ..utils import BACKUP_FILE, CONFIG_FILE, DB_FILE, LOG_FILE, MAPPING_FILE
 from ..utils.messaging import notify
 from .base import FocusBase
 
-
 ShelveDB = shelve.DbfilenameShelf
 
 
