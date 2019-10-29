@@ -8,14 +8,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('', RedirectView.as_view(url='login', permanent=False)),
-    path('/', RedirectView.as_view(url='login', permanent=False)),
+    # path('/', RedirectView.as_view(url='login', permanent=False)),
 
     path('login', views.log_in),
     path('logout', views.log_out),
 
-    re_path(r'^api/devices', include('Devices.urls')),
-    re_path(r'^api/clients', include('Clients.urls')),
-    re_path(r'^api/users', include('Profiles.urls')),
+    re_path(r'^api/devices/', include('Devices.urls')),
+    re_path(r'^api/clients/', include('Clients.urls')),
+    re_path(r'^api/users/', include('Profiles.urls')),
     re_path(r'^api/monitoring', include('Monitoring.urls')),
     re_path(r'^api/notifications', include('Monitoring.urls')),
 

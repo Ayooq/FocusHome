@@ -10,76 +10,97 @@ import InputNumber from 'tags/inputs/number';
 import InputSelect from 'tags/inputs/select';
 import BGC from 'tags/bgc';
 import ModalChart from 'tags/modalChart';
+import { Event } from 'react-socket-io';
 
 
 class PageDevice extends React.Component{
-  constructor(props) {
-    super(props);
-    
-    this.state = { 
-      data: {},
-      timer_id: null,
-      modal: {}
-    };
+    constructor(props) {
+        super(props);
 
-  }
-
-  componentDidMount() {
-    this.update_list();
-    let timer_id = setInterval(this.update_list.bind(this),global_monitoring_update_period);
-    this.setState({timer_id: timer_id});
-  }
-
-  componentWillUnmount() {
-    clearTimeout(this.state.timer_id);
-    // this.setState({timer_id: null});
-  }
-
-  update_list(){
-    util.get({
-      'url': '/api/monitoring?action=device_info',
-      'data': {'device_id': this.props.match.params.deviceID},
-      'success' : response => {
-        this.setState({data: response.data});
-      }
-    });
-  }
-
-  handleChange(propertyName, value) {
-    this.setState({ [propertyName] : value });
-  }
-
-  chartShow(deviceID, unitID, chartType) {
-    this.setState({ modal : {} });
-    util.get({
-      'url': '/api/monitoring?action=chart',
-      'data': {'device_id': deviceID, 'unitID': unitID, 'chartType': chartType},
-      'success' : response => {
-        let modal = {
-          device: response.data.unit.device,
-          title: response.data.unit.title,
-          subtitle: '',
-          unit_code: response.data.unit.name,
-          chartType: chartType,
-          data: response.data.data,
-          date: (new Date()).toString()
+        this.state = {
+            data: {},
+            timer_id: null,
+            modal: {}
         };
         
-        this.setState({ modal : modal });
-      }
-    });
-    $('#modal_chart').modal();
-  }
+        this.device_inits_state = this.device_inits_state.bind(this);
+    }
 
-  unitToggle(deviceID, unitID) {
-    util.get({
-      'url': '/api/monitoring?action=unit_toggle',
-      'data': {'device_id': deviceID, 'unitID': unitID},
-      'success' : response => {
-        //console.log(response.data);
-      }
-    });
-  }
+    componentDidMount() {
+        this.update_list();
+        // let timer_id = setInterval(this.update_list.bind(this), global_monitoring_update_period);
+        // this.setState({timer_id: timer_id});
+        this.context.emit('subscribe:device_inits_state', {'device_id': this.props.match.params.deviceID});
+    }
+
+    componentWillUnmount() {
+        // clearTimeout(this.state.timer_id);
+        this.context.emit('unsubscribe:device_inits_state', {'device_id': this.props.match.params.deviceID});
+    }
+
+    device_inits_state(msg){
+        console.log('/pages/monitoring/device.jsx::socket message');
+        
+        let family = Object.keys(msg)[0];
+        if (family != undefined) {
+            let unit = Object.keys(msg[family])[0];
+            
+            if (family in this.state.data.data.status){
+                if(unit in this.state.data.data.status[family]) {
+                    this.setState((state) => {
+                        state.data.data.status[family][unit] = msg[family][unit];
+                        return state;
+                    });
+                }
+            }
+        }
+    }
+
+    update_list() {
+        util.get({
+            'url': '/api/monitoring?action=device_info',
+            'data': {'device_id': this.props.match.params.deviceID},
+            'success': response => {
+                this.setState({data: response.data});                
+            }
+        });
+    }
+
+    handleChange(propertyName, value) {
+        this.setState({[propertyName]: value});
+    }
+
+    chartShow(deviceID, unitID, chartType) {
+        this.setState({modal: {}});
+        util.get({
+            'url': '/api/monitoring?action=chart',
+            'data': {'device_id': deviceID, 'unitID': unitID, 'chartType': chartType},
+            'success': response => {
+                let modal = {
+                    device: response.data.unit.device,
+                    title: response.data.unit.title,
+                    subtitle: '',
+                    unit_code: response.data.unit.name,
+                    chartType: chartType,
+                    data: response.data.data,
+                    date: (new Date()).toString()
+                };
+
+                this.setState({modal: modal});
+            }
+        });
+        $('#modal_chart').modal();
+    }
+
+    unitToggle(deviceID, unitID) {
+        util.get({
+            'url': '/api/monitoring?action=unit_toggle',
+            'data': {'device_id': deviceID, 'unitID': unitID},
+            'success': response => {
+                //console.log(response.data);
+            }
+        });
+    }
 
   render(){
     if (!('data' in this.state.data)){
@@ -179,7 +200,7 @@ class PageDevice extends React.Component{
 
           couts.push(<div key={key} className="device-ins-block">
             <div className={ "p-10 " + t.unit_format.class }>
-              <h6>{ t.unit_format.title } { chartBtn }</h6>
+              <h6>{ t.unit_format.title }&nbsp;{ chartBtn }</h6>
               <div>
                 <h4 className="text-center">{ t.unit_format.caption }</h4>
                 <div className="text-right">
@@ -210,43 +231,46 @@ class PageDevice extends React.Component{
 
     }
 
-    
-    return <div className="page-content container-fluid">
-      <div className="row">
-        <div className="col-md-8">
-          <BGC title={block_title} buttons={buttons}>
-            <div>
-              <i className="c-orange-500 ti-home"></i> { this.state.data.data.address }
-            </div>
-            <div>
-              { networkStatus }
-            </div>
-          </BGC>
-          <BGC title="Датчики">
-            <div>{ ins }</div>
-            <div>{ couts }</div>
-          </BGC>
-        </div>
-        <div className="col-md-4">
-          <BGC title="Температура">
-            { temps }
-          </BGC>
-        </div>
+
+      return <div className="page-content container-fluid">
+          <Event event='device_inits_state' handler={this.device_inits_state}/>
+          
+          <div className="row">
+              <div className="col-md-8">
+                  <BGC title={block_title} buttons={buttons}>
+                      <div>
+                          <i className="c-orange-500 ti-home"></i> { this.state.data.data.address }
+                      </div>
+                      <div>
+                          { networkStatus }
+                      </div>
+                  </BGC>
+                  <BGC title="Датчики">
+                      <div>{ ins }</div>
+                      <div>{ couts }</div>
+                  </BGC>
+              </div>
+              <div className="col-md-4">
+                  <BGC title="Температура">
+                      { temps }
+                  </BGC>
+              </div>
+
+          </div>
+
+          <ModalChart id="modal_chart" title={this.state.modal.device} data={this.state.modal}>
+              <div></div>
+          </ModalChart>
 
       </div>
-
-      <ModalChart id="modal_chart" title={this.state.modal.device} data={this.state.modal}>
-        <div></div>
-      </ModalChart>
-
-     </div>
   }
 }
 
-const mapStateToProps = function(store) {
-  return {
-    appSettings:  store.appSettings
-  };
+PageDevice.contextType = ReactSocketIO.SocketContext;
+const mapStateToProps = function (store) {
+    return {
+        appSettings: store.appSettings
+    };
 };
 
 export default connect(mapStateToProps)(PageDevice);

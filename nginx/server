@@ -1,0 +1,36 @@
+#!/bin/bash
+
+if [ -z $1 ]; then
+    echo "No parameters found"
+    exit 0
+fi
+
+action=$1
+project="/var/www/focus"
+
+function server_start {
+    # uwsgi
+    # /usr/local/bin/uwsgi --emperor --ini $project/nginx/focus_uwsgi.ini > /dev/null 2> /dev/null &
+
+    # websocket
+    # /usr/local/bin/forever start $project/node_server/server.js &
+
+    echo start
+}
+
+function server_stop {
+    # killall uwsgi -s 9
+    # /usr/local/bin/forever stop $project/node_server/server.js
+
+    echo stop
+}
+
+
+if [ $action == "start" ]; then 
+    server_start
+elif [ $action == "stop" ]; then
+    server_stop
+elif [ $action == "restart" ]; then
+    server_stop
+    server_start
+fi

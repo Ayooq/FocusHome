@@ -14,232 +14,251 @@ import JsonView from 'tags/json-view';
 
 
 class PageDeviceRoutines extends React.Component{
-  constructor(props) {
-    super(props);
+    constructor(props) {
+        super(props);
 
-    this.state = {
-      data: null,
-      units: [],
-      compares: [],
-      functions: [],
-      modes: [],
-      actions: [],
-      request_send: false,
-      input_name: '',
-      device: props.match.params.deviceID,
-      id: props.match.params.id || 0,
+        this.state = {
+            data: null,
+            units: [],
+            compares: [],
+            functions: [],
+            modes: [],
+            actions: [],
+            request_send: false,
+            input_name: '',
+            device: props.match.params.deviceID,
+            id: props.match.params.id || 0,
 
-      inputs: {
-        actions: [],
-        units: [],
-        functions: [],
-        modes: []
-      }
-    };
+            inputs: {
+                actions: [],
+                units: [],
+                functions: [],
+                modes: []
+            }
+        };
 
-    this.routine_save = this.routine_save.bind(this);
-    this.routine_remove = this.routine_remove.bind(this);
+        this.routine_save = this.routine_save.bind(this);
+        this.routine_remove = this.routine_remove.bind(this);
 
-  }
-
-  componentDidMount() {
-    this.update_list();
-  }
-
-  update_list(){
-    this.setState({request_send: true});
-    util.get({
-      'url': '/api/monitoring?action=get_routines',
-      'data': {'device_id':  this.state.device, 'id': this.state.id},
-      'success' : response => {
-        this.setState({request_send: false});
-        
-
-        this.setState({units: response.data.units});
-        this.setState({compares: response.data.compares});
-        this.setState({functions: response.data.functions});
-        this.setState({modes: response.data.modes});
-        this.setState({actions: response.data.actions});
-
-        
-        let actions = [];
-        for(let i=0;i<response.data.actions.length;i++){
-          let item = response.data.actions[i];
-          actions.push(<option key={i} value={item.name}>{item.value}</option>)
-        }
-        this.setState({inputs: {...this.state.inputs, actions: actions}});
-
-        let units = [];
-        for(let i=0;i<response.data.units.length;i++){
-          let item = response.data.units[i];
-          units.push(<option key={i} value={item.name}>{item.title}</option>)
-        }
-        this.setState({inputs: {...this.state.inputs, units: units}});
-
-        let functions = [];
-        for(let key in response.data.functions){
-          let item = response.data.functions[key];
-          functions.push(<option key={key} value={item.name}>{item.name}</option>)
-        }
-        this.setState({inputs: {...this.state.inputs, functions: functions}});
-
-        let modes = [];
-        for(let i=0;i<response.data.modes.length;i++){
-          let item = response.data.modes[i];
-          modes.push(<option key={i} value={item.name}>{item.value}</option>)
-        }
-        this.setState({inputs: {...this.state.inputs, modes: modes}});
-
-        let compares = [];
-        for(let key in response.data.compares){
-          let item = response.data.compares[key];
-          compares.push(<option key={key} value={item.name}>{item.value}</option>)
-        }
-        this.setState({inputs: {...this.state.inputs, compares: compares}});
-
-        this.setState({data: response.data.data});
-      }
-    });
-  }
-
-  data_name_update(event){
-    let value = event.target.value;
-    this.setState({
-      data: {
-        ...this.state.data,
-        name: value.slice(0,255)
-      }
-    });
-  }
-
-  data_comment_update(event){
-    let value = event.target.value;
-    this.setState({
-      data: {
-        ...this.state.data,
-        comment: value.slice(0,255)
-      }
-    });
-  }
-
-  routine_actions_add(){
-    this.setState( (state) => {
-      state.data.instruction.routine.actions = state.data.instruction.routine.actions.concat([{
-        "action": (state.actions[0] || {"name": ""}).name,
-        "unit": (state.units[0] || {"name": ""}).name,
-        "value": ""
-      }]);
-      return state;
-    });
-  }
-
-  routine_actions_remove(actionIndex, event){
-    this.setState( (state) => {
-      let actions = state.data.instruction.routine.actions;
-      actions.splice(actionIndex, 1);
-      state.data.instruction.routine.actions = actions;
-      return state;
-    });
-  }
-
-  routine_actions_action_update(actionIndex, event){
-    let value = event.target.value;
-    let firstFuncName = (this.state.functions[Object.keys(this.state.functions)[0]] || {"name": ""}).name;
-    
-    this.setState( (state) => {
-      state.data.instruction.routine.actions[actionIndex].action = value;
-      state.data.instruction.routine.actions[actionIndex].value = "";
-      state.data.instruction.routine.actions[actionIndex].unit = "";
-      state.data.instruction.routine.actions[actionIndex].function = firstFuncName;
-      state.data.instruction.routine.actions[actionIndex].params = [];
-      return state;
-    });
-
-    if (value === 'call' && firstFuncName != "") {
-      this.routine_actions_function_update(actionIndex,{target:{value: firstFuncName}});
     }
-  }
 
-  routine_actions_unit_update(actionIndex, event){
-    let value = event.target.value;
-    this.setState( (state) => {
-      state.data.instruction.routine.actions[actionIndex].unit = value;
-      return state;
-    });
-  }
+    componentDidMount() {
+        this.update_list();
+    }
 
-  routine_actions_value_update(actionIndex, event){
-    let value = event.target.value;
-    this.setState( (state) => {
-      state.data.instruction.routine.actions[actionIndex].value = value;
-      return state;
-    });
-  }
+    update_list() {
+        this.setState({request_send: true});
+        util.get({
+            'url': '/api/monitoring?action=get_routines',
+            'data': {'device_id': this.state.device, 'id': this.state.id},
+            'success': response => {
+                this.setState({request_send: false});
 
-  routine_actions_function_update(actionIndex, event){
-    let value = event.target.value;
-    
-    this.setState( (state) => {
-      let params = [];
-      for (let i=0;i<this.state.functions[value].params.length;i++){
-        let p = this.state.functions[value].params[i];
-        params.push({
-          "name": p.name,
-          "value": p.value
+
+                this.setState({units: response.data.units});
+                this.setState({compares: response.data.compares});
+                this.setState({functions: response.data.functions});
+                this.setState({modes: response.data.modes});
+                this.setState({actions: response.data.actions});
+
+
+                let actions = [];
+                for (let i = 0; i < response.data.actions.length; i++) {
+                    let item = response.data.actions[i];
+                    actions.push(<option key={i} value={item.name}>{item.value}</option>)
+                }
+                this.setState({inputs: {...this.state.inputs, actions: actions}});
+
+                // let units = [];
+                // for(let i=0;i<response.data.units.length;i++){
+                //   let item = response.data.units[i];
+                //   units.push(<option key={i} value={item.name}>{item.title}</option>)
+                // }
+                // this.setState({inputs: {...this.state.inputs, units: units}});
+
+                let family = null;
+                let families = [<option key={ -1 } value={ "" }>-- не выбрано --</option>];
+                let units = [];
+                for (let i = 0; i < response.data.units.length; i++) {
+                    let item = response.data.units[i];
+
+                    if (family != item.family__title) {
+                        if (units.length) {
+                            families.push(<optgroup label={family} key={i}>{units}</optgroup>);
+                            units = [];
+                        }
+                        family = item.family__title;
+                    }
+                    units.push(<option key={i} value={ item.name }>{item.units__title}</option>)
+                }
+                if (units.length) {
+                    families.push(<optgroup label={family} key={family.length}>{units}</optgroup>);
+                }
+                this.setState({inputs: {...this.state.inputs, units: families}});
+
+                let functions = [];
+                for (let key in response.data.functions) {
+                    let item = response.data.functions[key];
+                    functions.push(<option key={key} value={item.name}>{item.name}</option>)
+                }
+                this.setState({inputs: {...this.state.inputs, functions: functions}});
+
+                let modes = [];
+                for (let i = 0; i < response.data.modes.length; i++) {
+                    let item = response.data.modes[i];
+                    modes.push(<option key={i} value={item.name}>{item.value}</option>)
+                }
+                this.setState({inputs: {...this.state.inputs, modes: modes}});
+
+                let compares = [];
+                for (let key in response.data.compares) {
+                    let item = response.data.compares[key];
+                    compares.push(<option key={key} value={item.name}>{item.value}</option>)
+                }
+                this.setState({inputs: {...this.state.inputs, compares: compares}});
+
+                this.setState({data: response.data.data});
+            }
         });
-      }
-            
-      state.data.instruction.routine.actions[actionIndex].function = value;
-      state.data.instruction.routine.actions[actionIndex].params = params;
-      
-      return state;
-    });
-  }
-  
-  routine_actions_function_param_update(actionIndex, paramIndex, paramName, event){
-    let value = event.target.value;
-    this.setState( (state) => {
-      state.data.instruction.routine.actions[actionIndex].params[paramIndex][paramName] = value;
-      return state;
-    });
-  }
-  
-  
-  routine_save(){
-    this.setState({request_send: true});
-    
-    util.post({
-      'url': '/api/monitoring?action=routine_save',
-      'data': {
-        'device_id':  this.state.device,
-        'id': this.state.id,
-        'instruction': this.state.data.instruction,
-        'name': this.state.data.name,
-        'comment': this.state.data.comment
-      },
-      'success' : response => {
-        this.setState({request_send: false});
-        if (this.state.id == 0){
-          this.setState({id: response.data.data.id});
-          this.props.history.push('/monitoring/device/'+this.state.device+'/routines/'+response.data.data.id);
-        }else {
-          this.setState({data: response.data.data});
-        }
-      }
-    });
-  }
+    }
 
-  routine_remove(){
-    this.setState({request_send: true});
-    util.post({
-      'url': '/api/monitoring?action=routine_remove',
-      'data': {'device_id':  this.state.device, 'id': this.state.id},
-      'success' : response => {
-        this.setState({request_send: false});
-        this.props.history.push('/monitoring/device/'+this.state.device+'/routines');
-      }
-    });
-  }
+    data_name_update(event) {
+        let value = event.target.value;
+        this.setState({
+            data: {
+                ...this.state.data,
+                name: value.slice(0, 255)
+            }
+        });
+    }
+
+    data_comment_update(event) {
+        let value = event.target.value;
+        this.setState({
+            data: {
+                ...this.state.data,
+                comment: value.slice(0, 255)
+            }
+        });
+    }
+
+    routine_actions_add() {
+        this.setState((state) => {
+            state.data.instruction.routine.actions = state.data.instruction.routine.actions.concat([{
+                "action": (state.actions[0] || {"name": ""}).name,
+                "unit": (state.units[0] || {"name": ""}).name,
+                "value": ""
+            }]);
+            return state;
+        });
+    }
+
+    routine_actions_remove(actionIndex, event) {
+        this.setState((state) => {
+            let actions = state.data.instruction.routine.actions;
+            actions.splice(actionIndex, 1);
+            state.data.instruction.routine.actions = actions;
+            return state;
+        });
+    }
+
+    routine_actions_action_update(actionIndex, event) {
+        let value = event.target.value;
+        let firstFuncName = (this.state.functions[Object.keys(this.state.functions)[0]] || {"name": ""}).name;
+
+        this.setState((state) => {
+            state.data.instruction.routine.actions[actionIndex].action = value;
+            state.data.instruction.routine.actions[actionIndex].value = "";
+            state.data.instruction.routine.actions[actionIndex].unit = "";
+            state.data.instruction.routine.actions[actionIndex].function = firstFuncName;
+            state.data.instruction.routine.actions[actionIndex].params = [];
+            return state;
+        });
+
+        if (value === 'call' && firstFuncName != "") {
+            this.routine_actions_function_update(actionIndex, {target: {value: firstFuncName}});
+        }
+    }
+
+    routine_actions_unit_update(actionIndex, event) {
+        let value = event.target.value;
+        this.setState((state) => {
+            state.data.instruction.routine.actions[actionIndex].unit = value;
+            return state;
+        });
+    }
+
+    routine_actions_value_update(actionIndex, event) {
+        let value = event.target.value;
+        this.setState((state) => {
+            state.data.instruction.routine.actions[actionIndex].value = value;
+            return state;
+        });
+    }
+
+    routine_actions_function_update(actionIndex, event) {
+        let value = event.target.value;
+
+        this.setState((state) => {
+            let params = [];
+            for (let i = 0; i < this.state.functions[value].params.length; i++) {
+                let p = this.state.functions[value].params[i];
+                params.push({
+                    "name": p.name,
+                    "value": p.value
+                });
+            }
+
+            state.data.instruction.routine.actions[actionIndex].function = value;
+            state.data.instruction.routine.actions[actionIndex].params = params;
+
+            return state;
+        });
+    }
+
+    routine_actions_function_param_update(actionIndex, paramIndex, paramName, event) {
+        let value = event.target.value;
+        this.setState((state) => {
+            state.data.instruction.routine.actions[actionIndex].params[paramIndex][paramName] = value;
+            return state;
+        });
+    }
+
+    routine_save() {
+        this.setState({request_send: true});
+
+        util.post({
+            'url': '/api/monitoring?action=routine_save',
+            'data': {
+                'device_id': this.state.device,
+                'id': this.state.id,
+                'instruction': this.state.data.instruction,
+                'name': this.state.data.name,
+                'comment': this.state.data.comment
+            },
+            'success': response => {
+                this.setState({request_send: false});
+                if (this.state.id == 0) {
+                    this.setState({id: response.data.data.id});
+                    this.props.history.push('/monitoring/device/' + this.state.device + '/routines/' + response.data.data.id);
+                } else {
+                    this.setState({data: response.data.data});
+                }
+            }
+        });
+    }
+
+    routine_remove() {
+        this.setState({request_send: true});
+        util.post({
+            'url': '/api/monitoring?action=routine_remove',
+            'data': {'device_id': this.state.device, 'id': this.state.id},
+            'success': response => {
+                this.setState({request_send: false});
+                this.props.history.push('/monitoring/device/' + this.state.device + '/routines');
+            }
+        });
+    }
 
   get_condition_string(group, key){
     if(typeof key === 'undefined'){
@@ -280,7 +299,8 @@ class PageDeviceRoutines extends React.Component{
         for (let p = 0; p < a.params.length; p++) {
           params.push(<span key={'a_'+i+'_'+p}>{a.params[p].name}="{a.params[p].value}" { (p<a.params.length-1)?' ,':'' }</span>);
         }
-        lines.push(<div key={'a_'+i}><span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span className="text-danger">call</span> <span className="text-success">{a.function}</span>({ params });</div>);
+        lines.push(<div key={'a_'+i}>
+            <span>&nbsp;&nbsp;&nbsp;&nbsp;</span><span className="text-danger">call</span> <span className="text-success">{a.function}</span>({ params });</div>);
       }
     }
 
@@ -289,100 +309,108 @@ class PageDeviceRoutines extends React.Component{
     return lines;
   }
 
-  render_condition_group_btn(group, conditionIndex, key /*, is_delete_btn, group, conditionIndex, key*/){
-    return <small className="d-inline" key={key}>
-      <span className="text-primary cur-p mr-3" onClick={ this.render_condition_group_add_group.bind(this, group, conditionIndex) }>+ группу</span>
-      <span className="text-primary cur-p mr-3" onClick={ this.render_condition_group_add_condition.bind(this, group, conditionIndex) }><i className="ti-plus"></i> условие</span>
-    </small>
-  }
-
-  render_condition_group_btn_delete(group, conditionIndex, key /*, is_delete_btn, group, conditionIndex, key*/){
-    return <small className="d-inline" key={key}>
-      <span className="text-danger cur-p mr-3" onClick={ this.render_condition_group_condition_remove.bind(this, group, conditionIndex) }><i className="ti-trash"></i></span>
-    </small>
-  }
-
-  render_condition_group_add_condition(group, conditionIndex){
-    let prevElem = group[conditionIndex-1] || '';
-    let nextElem = group[conditionIndex] || '';
-
-    group.splice(conditionIndex, 0, { 
-      "unit": (this.state.units[0] || {"name": ""}).name, 
-      "compare": (this.state.compares[Object.keys(this.state.compares)[0]] || {"name": ""}).name,
-      "value": "0" }
-    );
-
-    if (util.gettype(prevElem) !== 'String'){
-      group.splice(conditionIndex, 0, "and");
-    }
-    if (util.gettype(nextElem) !== 'String'){
-      group.splice(conditionIndex+1, 0, "and");
-    }
-    this.forceUpdate();
-  }
-
-  render_condition_group_add_group(group, conditionIndex){
-    let prevElem = group[conditionIndex-1] || '';
-    let nextElem = group[conditionIndex] || '';
-
-    group.splice(conditionIndex, 0, []);
-    
-    if (util.gettype(prevElem) !== 'String'){
-      group.splice(conditionIndex, 0, "and");
-    }
-    if (util.gettype(nextElem) !== 'String'){
-      group.splice(conditionIndex+1, 0, "and");
-    }
-    this.forceUpdate();
-  }
-
-  render_condition_group_condition_remove(group, conditionIndex){
-    let prevElem = group[conditionIndex-1] || null;
-    let nextElem = group[conditionIndex+1] || null;
-    
-    group.splice(conditionIndex, 1);
-
-    if (util.gettype(prevElem) === 'String' && util.gettype(nextElem) === 'String'){
-      group.splice(conditionIndex-1, 1);
+    render_condition_group_btn(group, conditionIndex, key /*, is_delete_btn, group, conditionIndex, key*/) {
+        return <small className="d-inline" key={key}>
+          <span className="text-primary cur-p mr-3"
+                onClick={ this.render_condition_group_add_group.bind(this, group, conditionIndex) }>+ группу</span>
+          <span className="text-primary cur-p mr-3"
+                onClick={ this.render_condition_group_add_condition.bind(this, group, conditionIndex) }>
+              <i className="ti-plus"></i><span> условие</span>
+          </span>
+        </small>
     }
 
-    if (util.gettype(prevElem) === 'String' && util.gettype(nextElem) === 'Null'){
-      group.splice(conditionIndex-1, 1);
+    render_condition_group_btn_delete(group, conditionIndex, key /*, is_delete_btn, group, conditionIndex, key*/) {
+        return <small className="d-inline" key={key}>
+          <span className="text-danger cur-p mr-3"
+                onClick={ this.render_condition_group_condition_remove.bind(this, group, conditionIndex) }>
+              <i className="ti-trash"></i>
+          </span>
+        </small>
     }
 
-    if (util.gettype(prevElem) === 'Null' && util.gettype(nextElem) === 'String'){
-      group.splice(conditionIndex, 1);
+    render_condition_group_add_condition(group, conditionIndex) {
+        let prevElem = group[conditionIndex - 1] || '';
+        let nextElem = group[conditionIndex] || '';
+
+        group.splice(conditionIndex, 0, {
+                "unit": (this.state.units[0] || {"name": ""}).name,
+                "compare": (this.state.compares[Object.keys(this.state.compares)[0]] || {"name": ""}).name,
+                "value": "0"
+            }
+        );
+
+        if (util.gettype(prevElem) !== 'String') {
+            group.splice(conditionIndex, 0, "and");
+        }
+        if (util.gettype(nextElem) !== 'String') {
+            group.splice(conditionIndex + 1, 0, "and");
+        }
+        this.forceUpdate();
     }
-    
-    
-    this.forceUpdate();
-  }
 
-  render_select_modes(value, onChange){
-    return <select className="form-control form-control-sm d-inline mw-100" value={ value } onChange={ onChange }>
-      { this.state.inputs.modes }
-    </select>
-  }
-  
-  routine_actions_conditions_modes_update(group, index, event){
-    group[index] = event.target.value;
-    this.forceUpdate();
-  }
+    render_condition_group_add_group(group, conditionIndex) {
+        let prevElem = group[conditionIndex - 1] || '';
+        let nextElem = group[conditionIndex] || '';
 
-  routine_actions_conditions_unit_update(group, index, event){
-    group[index].unit = event.target.value;
-    this.forceUpdate();
-  }
+        group.splice(conditionIndex, 0, []);
 
-  routine_actions_conditions_compare_update(group, index, event){
-    group[index].compare = event.target.value;
-    this.forceUpdate();
-  }
+        if (util.gettype(prevElem) !== 'String') {
+            group.splice(conditionIndex, 0, "and");
+        }
+        if (util.gettype(nextElem) !== 'String') {
+            group.splice(conditionIndex + 1, 0, "and");
+        }
+        this.forceUpdate();
+    }
 
-  routine_actions_conditions_value_update(group, index, event){
-    group[index].value = event.target.value;
-    this.forceUpdate();
-  }
+    render_condition_group_condition_remove(group, conditionIndex) {
+        let prevElem = group[conditionIndex - 1] || null;
+        let nextElem = group[conditionIndex + 1] || null;
+
+        group.splice(conditionIndex, 1);
+
+        if (util.gettype(prevElem) === 'String' && util.gettype(nextElem) === 'String') {
+            group.splice(conditionIndex - 1, 1);
+        }
+
+        if (util.gettype(prevElem) === 'String' && util.gettype(nextElem) === 'Null') {
+            group.splice(conditionIndex - 1, 1);
+        }
+
+        if (util.gettype(prevElem) === 'Null' && util.gettype(nextElem) === 'String') {
+            group.splice(conditionIndex, 1);
+        }
+
+
+        this.forceUpdate();
+    }
+
+    render_select_modes(value, onChange) {
+        return <select className="form-control form-control-sm d-inline mw-100" value={ value } onChange={ onChange }>
+            { this.state.inputs.modes }
+        </select>
+    }
+
+    routine_actions_conditions_modes_update(group, index, event) {
+        group[index] = event.target.value;
+        this.forceUpdate();
+    }
+
+    routine_actions_conditions_unit_update(group, index, event) {
+        group[index].unit = event.target.value;
+        this.forceUpdate();
+    }
+
+    routine_actions_conditions_compare_update(group, index, event) {
+        group[index].compare = event.target.value;
+        this.forceUpdate();
+    }
+
+    routine_actions_conditions_value_update(group, index, event) {
+        group[index].value = event.target.value;
+        this.forceUpdate();
+    }
   
   render_conditions_group(group, level, key){
     if (typeof level === 'undefined'){
@@ -489,9 +517,16 @@ class PageDeviceRoutines extends React.Component{
         for (let p=0;p<item.params.length;p++){
           let param = item.params[p];
 
+          let input = <input className="form-control form-control-sm d-inline mw-200" value={ param.value } onChange={ this.routine_actions_function_param_update.bind(this, i, p, "value") } type="text" placeholder="" />
+          if (this.state.functions[item.function].params[p].source == "inputs.units"){
+            input = <select className="form-control form-control-sm d-inline mw-200" value={ param.value } onChange={ this.routine_actions_function_param_update.bind(this, i, p, "value") } >
+                { this.state.inputs.units }
+            </select>
+          }
+
           function_params.push(<div key={ p }>
             <label className="col-form-label label-caption">{ param.name }</label>
-            <input className="form-control form-control-sm d-inline mw-200" value={ param.value } onChange={ this.routine_actions_function_param_update.bind(this, i, p, "value") } type="text" placeholder="" />
+            { input }
             <small className="d-block">{ this.state.functions[item.function].params[p].desc }</small>
           </div>);
         }

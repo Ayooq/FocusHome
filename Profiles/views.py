@@ -23,7 +23,7 @@ def index(request):
         FROM auth_user as au
             inner join clients as c
                 on c.id = au.client_id
-        where 1=1
+        where au.id > 0
             """ + (" and c.name like %(client_name)s" if client_name else '') + """
             """ + (" and concat(au.last_name, ' ', au.first_name) like %(user_name)s" if user_name else '') + """
             """ + (" and au.client_id = %(client_id)s" if request.user.role_code == 'clients' else '') + """

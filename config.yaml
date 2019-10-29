@@ -1,0 +1,22 @@
+APP:
+  SSL             : false
+  debug           : true
+
+MYSQl:
+  connectionLimit : 10
+  host            : '89.223.27.69'
+  port            : 3306
+  user            : 'FocusCore'
+  password        : 'GG1Dn9qUIKAd53Lp'
+  database        : 'focus'
+
+MQTT:
+  host            : '89.223.27.69'
+  port            : 1883
+  clientId        : 'node_dispatcher'
+
+MONITORING:
+  key             : 'x9oBNohwtf2p81jOZ5GuKweWn1AI0XfwGDw1OhX0EPgcoTs0TW'
+
+SOCKET-SERVER:
+  host            : 'http://127.0.0.1:3000/'

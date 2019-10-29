@@ -97,18 +97,31 @@ def update(request):
                 query = """
                     INSERT INTO devices_config (
                         `pin`, `format`,
-                        `device_id`, `unit_id`
+                        `device_id`, `unit_id`,
+                        `src_id`
                     ) VALUES (
                         %(gpio_pin)s, %(gpio_format)s,
-                        %(device_id)s, %(unit_id)s
+                        %(device_id)s, %(unit_id)s,
+                        %(src_id)s
                     )
                     ON DUPLICATE KEY UPDATE
                         `pin`    = VALUES (`pin`),
-                        `format` = VALUES (`format`)
+                        `format` = VALUES (`format`),
+                        `src_id` = VALUES (`src_id`)
                 """
+
+                src_id = None
+                src_id_post = item.get('src_id', "")
+                if type(src_id_post) == str:
+                    if src_id_post.isdigit():
+                        src_id = int(src_id_post)
+                if type(src_id_post) == int:
+                    src_id = src_id_post
+
                 cursor.execute(query, {
                     'device_id': device_id,
                     'unit_id': item.get('units__id', 0),
+                    'src_id': src_id,
                     'gpio_pin': item.get('gpio__pin', 0),
                     'gpio_format': util.jsonToStr(gpio__format) if not bool(gpio__format.get('is_default',True)) else None
                 })
@@ -263,18 +276,22 @@ def __create_post(request):
         query = """
             INSERT INTO devices_config (
                 `pin`, `format`,
-                `device_id`, `unit_id`
+                `device_id`, `unit_id`,
+                `src_id`
             ) VALUES (
                 %(gpio_pin)s, %(gpio_format)s,
-                %(device_id)s, %(unit_id)s
+                %(device_id)s, %(unit_id)s,
+                %(src_id)s
             )
             ON DUPLICATE KEY UPDATE
                 `pin`    = VALUES (`pin`),
-                `format` = VALUES (`format`)
+                `format` = VALUES (`format`),
+                `src_id` = VALUES (`src_id`)
         """
         cursor.execute(query, {
             'device_id': device_id,
             'unit_id': item.get('units__id', 0),
+            'src_id': item.get('src_id', None) if util.toInt(item.get('src_id', 0)) > 0 else None,
             'gpio_pin': item.get('gpio__pin', 0),
             'gpio_format': util.jsonToStr(gpio__format) if not bool(gpio__format.get('is_default', True)) else None
         })

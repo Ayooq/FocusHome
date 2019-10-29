@@ -1,0 +1,220 @@
+{% load staticfiles %}
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{ page.title }}</title>
+        <link href="{% static 'bootstrap.css' %}" rel="stylesheet">
+        <link href="{% static 'style.css' %}" rel="stylesheet">
+    </head>
+
+    <body class="app">
+        <div>
+            <div class="sidebar">
+                <div class="sidebar-inner">
+                    <div class="sidebar-logo">
+                        <div class="peers ai-c fxw-nw">
+                            <div class="peer peer-greed"><a class="sidebar-link td-n" href="https://colorlib.com/polygon/adminator/index.html">
+                                <div class="peers ai-c fxw-nw">
+                                    <div class="peer">
+                                        <div class="logo"><img src="https://media.glassdoor.com/sqls/29783/focus-electronics-group-squarelogo-1426857440912.png" alt="" style="max-height:64px;"></div>
+                                    </div>
+                                    <div class="peer peer-greed"><h5 class="lh-1 mB-0 logo-text">FOCUS</h5></div>
+                                </div>
+                            </a></div>
+                            <div class="peer">
+                                <div class="mobile-toggle sidebar-toggle"><a href="" class="td-n"><i class="ti-arrow-circle-left"></i></a></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ul class="sidebar-menu scrollable pos-r ps">
+                        {% if perms.Clients.clients_list %}
+                        <li class="nav-item mT-30 active">
+                            <a class="sidebar-link" href="/clients/" default="">
+                                <span class="icon-holder"><i class="c-blue-500 ti-home"></i></span>
+                                <span class="title">Клиенты</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.Devices.devices_list %}
+                        <li class="nav-item">
+                            <a class="sidebar-link" href="/devices/">
+                                <span class="icon-holder"><i class="c-brown-500 ti-email"></i> </span>
+                                <span class="title">Оборудование</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.Profiles.users_list %}
+                        <li class="nav-item">
+                            <a class="sidebar-link" href="/users/">
+                                <span class="icon-holder"><i class="c-blue-500 ti-share"></i> </span>
+                                <span class="title">Пользователи</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if perms.Monitoring.mon_list %}
+                        <li class="nav-item">
+                            <a class="sidebar-link" href="/monitoring/">
+                                <span class="icon-holder"><i class="c-orange-500 ti-layout-list-thumb"></i> </span>
+                                <span class="title">Мониторинг</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <div class="page-container">
+                <div class="header navbar">
+                    <div class="header-container">
+                        <ul class="nav-left">
+                            <li><a id="sidebar-toggle" class="sidebar-toggle" href="javascript:void(0);"><i class="ti-menu"></i></a></li>
+                            <li class="search-box"><a class="search-toggle no-pdd-right" href="javascript:void(0);"><i class="search-icon ti-search pdd-right-10"></i> <i
+                                    class="search-icon-close ti-close pdd-right-10"></i></a></li>
+                            <li class="search-input"><input class="form-control" type="text" placeholder="Search..."></li>
+                        </ul>
+                        <ul class="nav-right">
+                            <li class="notifications dropdown">
+                                <span class="counter bgc-red" style="display: none;">0</span> <a href="" class="dropdown-toggle no-after" data-toggle="dropdown"><i
+                                    class="ti-bell"></i></a>
+                                <ul class="dropdown-menu">
+                                    <li class="pX-20 pY-15 bdB"><i class="ti-bell pR-10"></i> <span class="fsz-sm fw-600 c-grey-900">Уведомления</span></li>
+                                    <li>
+                                        <ul class="ovY-a pos-r scrollable lis-n p-0 m-0 fsz-sm ps">
+                                            {% comment %}
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/1.jpg" alt=""></div>
+                                                <div class="peer peer-greed"><span><span class="fw-500">John Doe</span> <span class="c-grey-600">liked your <span
+                                                        class="text-dark">post</span></span></span>
+                                                    <p class="m-0">
+                                                        <small class="fsz-xs">5 mins ago</small>
+                                                    </p>
+                                                </div>
+                                            </a></li>
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/2.jpg" alt=""></div>
+                                                <div class="peer peer-greed"><span><span class="fw-500">Moo Doe</span> <span class="c-grey-600">liked your <span class="text-dark">cover image</span></span></span>
+                                                    <p class="m-0">
+                                                        <small class="fsz-xs">7 mins ago</small>
+                                                    </p>
+                                                </div>
+                                            </a></li>
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/3.jpg" alt=""></div>
+                                                <div class="peer peer-greed"><span><span class="fw-500">Lee Doe</span> <span class="c-grey-600">commented on your <span
+                                                        class="text-dark">video</span></span></span>
+                                                    <p class="m-0">
+                                                        <small class="fsz-xs">10 mins ago</small>
+                                                    </p>
+                                                </div>
+                                            </a></li>
+                                            {% endcomment %}
+                                            <div class="ps__rail-x" style="left: 0px; bottom: 0px;">
+                                                <div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div>
+                                            </div>
+                                            <div class="ps__rail-y" style="top: 0px; right: 0px;">
+                                                <div class="ps__thumb-y" tabindex="0" style="top: 0px; height: 0px;"></div>
+                                            </div>
+                                        </ul>
+                                    </li>
+                                    <li class="pX-20 pY-15 ta-c bdT">
+                                        <span><a href="/notifications" class="c-grey-600 cH-blue fsz-sm td-n">Все уведомления <i
+                                            class="ti-angle-right fsz-xs mL-10"></i></a></span>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li class="notifications dropdown">
+                                <span class="counter bgc-blue" style="display: none;">0</span> <a href="" class="dropdown-toggle no-after" data-toggle="dropdown"><i
+                                    class="ti-email"></i></a>
+                                <ul class="dropdown-menu">
+                                    <li class="pX-20 pY-15 bdB"><i class="ti-email pR-10"></i> <span class="fsz-sm fw-600 c-grey-900">Emails</span></li>
+                                    <li>
+                                        <ul class="ovY-a pos-r scrollable lis-n p-0 m-0 fsz-sm ps">
+                                            {% comment %}
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/1.jpg" alt=""></div>
+                                                <div class="peer peer-greed">
+                                                    <div>
+                                                        <div class="peers jc-sb fxw-nw mB-5">
+                                                            <div class="peer"><p class="fw-500 mB-0">John Doe</p></div>
+                                                            <div class="peer">
+                                                                <small class="fsz-xs">5 mins ago</small>
+                                                            </div>
+                                                        </div>
+                                                        <span class="c-grey-600 fsz-sm">Want to create your own customized data generator for your app...</span></div>
+                                                </div>
+                                            </a></li>
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/2.jpg" alt=""></div>
+                                                <div class="peer peer-greed">
+                                                    <div>
+                                                        <div class="peers jc-sb fxw-nw mB-5">
+                                                            <div class="peer"><p class="fw-500 mB-0">Moo Doe</p></div>
+                                                            <div class="peer">
+                                                                <small class="fsz-xs">15 mins ago</small>
+                                                            </div>
+                                                        </div>
+                                                        <span class="c-grey-600 fsz-sm">Want to create your own customized data generator for your app...</span></div>
+                                                </div>
+                                            </a></li>
+                                            <li><a href="" class="peers fxw-nw td-n p-20 bdB c-grey-800 cH-blue bgcH-grey-100">
+                                                <div class="peer mR-15"><img class="w-3r bdrs-50p" src="https://randomuser.me/api/portraits/men/3.jpg" alt=""></div>
+                                                <div class="peer peer-greed">
+                                                    <div>
+                                                        <div class="peers jc-sb fxw-nw mB-5">
+                                                            <div class="peer"><p class="fw-500 mB-0">Lee Doe</p></div>
+                                                            <div class="peer">
+                                                                <small class="fsz-xs">25 mins ago</small>
+                                                            </div>
+                                                        </div>
+                                                        <span class="c-grey-600 fsz-sm">Want to create your own customized data generator for your app...</span></div>
+                                                </div>
+                                            </a></li>
+                                            {% endcomment %}
+                                            <div class="ps__rail-x" style="left: 0px; bottom: 0px;">
+                                                <div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div>
+                                            </div>
+                                            <div class="ps__rail-y" style="top: 0px; right: 0px;">
+                                                <div class="ps__thumb-y" tabindex="0" style="top: 0px; height: 0px;"></div>
+                                            </div>
+                                        </ul>
+                                    </li>
+                                    <li class="pX-20 pY-15 ta-c bdT"><span><a href="" class="c-grey-600 cH-blue fsz-sm td-n">View All Email <i
+                                            class="fs-xs ti-angle-right mL-10"></i></a></span></li>
+                                </ul>
+                            </li>
+                            <li class="dropdown">
+                                <a href="" class="dropdown-toggle no-after peers fxw-nw ai-c lh-1" data-toggle="dropdown">
+                                    <div class="peer mR-10"><img class="w-2r bdrs-50p" src="https://randomuser.me/api/portraits/men/10.jpg" alt=""></div>
+                                    <div class="peer"><span class="fsz-sm c-grey-900">{{ request.user.username }}</span></div>
+                                </a>
+                                <ul class="dropdown-menu fsz-sm">
+                                    <li><a href="" class="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i class="ti-settings mR-10"></i> <span>Setting</span></a></li>
+                                    <li><a href="" class="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i class="ti-user mR-10"></i> <span>Profile</span></a></li>
+                                    <li><a href="" class="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i class="ti-email mR-10"></i> <span>Messages</span></a></li>
+                                    <li role="separator" class="divider"></li>
+                                    <li><a href="/logout" class="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i class="ti-power-off mR-10"></i> <span>Выход</span></a></li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <main class="main-content bgc-grey-100">
+                    <div id="mainContent">
+                        <h4 class="c-grey-900 mT-10 mB-30">{{ page.title }}</h4>
+                        {% block content %}{% endblock content %}
+                    </div>
+                </main>
+                <footer class="bdT ta-c p-30 lh-0 fsz-sm c-grey-600">
+                    <span>Copyright © 2019 <a href="#" target="_blank" title="Colorlib">FOCUS</a>. All rights reserved.</span>
+                </footer>
+            </div>
+        </div>
+
+        <script src="{% static 'jquery.js' %}"></script>
+        <script src="{% static 'bootstrap.min.js' %}"></script>
+        <script src="{% static 'bundle.js' %}"></script>
+        <script src="{% static 'highcharts.js' %}"></script>
+    </body>
+</html>

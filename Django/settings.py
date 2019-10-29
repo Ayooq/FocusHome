@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import yaml
+
+config = {}
+with open("config.yaml") as f:
+    config = yaml.load(f, Loader=yaml.FullLoader)
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,10 +27,13 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'm362i)4(9%0t&-=li7r-ip&v%w&y)^lof0hhz2pyg@&7s1hvp%'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# SECURITY: monitoring key - django-> nodeserver
+MONITORING_KEY = config["MONITORING"]["key"]
 
-ALLOWED_HOSTS = []
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = config["APP"]["debug"]
+
+ALLOWED_HOSTS = ['127.0.0.1', 'focus-pro.space']
 
 # Application definition
 
@@ -85,11 +93,11 @@ WSGI_APPLICATION = 'Django.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'focus',
-        'USER': 'FocusCore',
-        'PASSWORD': 'GG1Dn9qUIKAd53Lp',
-        'HOST': '89.223.27.69',
-        'PORT': '3306',
+        'NAME': config["MYSQl"]["database"],
+        'USER': config["MYSQl"]["user"],
+        'PASSWORD': config["MYSQl"]["password"],
+        'HOST': config["MYSQl"]["host"],
+        'PORT': config["MYSQl"]["port"],
     }
 }
 

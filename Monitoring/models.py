@@ -35,8 +35,11 @@ class Monitoring(models.Model):
                 dug.id as unit__id,
                 duu.title as annotation,
                 ds.state,
-                COALESCE(dug.format, duu.format, "{{}}") as state_format
-                ,duu.format as duu_format
+                duu.format as duu_format,
+                get_unit_format(
+                    COALESCE(dug.format, duu.format),
+                    ds.state
+                ) as unit_format
             from devices as dt
                 inner join clients as ct
                     on ct.id = dt.client_id
@@ -79,51 +82,51 @@ class Monitoring(models.Model):
                 devices[device_id]['status'][dev['family']] = {}
 
             if dev['family'] is not None:
-                unit_value = str(dev.get("state",""))
-                state_format = json.loads(dev['state_format']) if util.is_json(dev['state_format']) else {}
-                state_format_values = state_format.get("values", [])
-                state_format_values_else = {}
-                state_format_value_index = {}
-                controlValues = []
-                for format_value in state_format_values:
-                    if str(format_value['value']) == unit_value:
-                        state_format_value_index = format_value
-                        if format_value['value'] != VALUES_ELSE_NAME:
-                            controlValues.append(format_value['value'])
-                        else:
-                            state_format_values_else = format_value
-
-                unit_format = {
-                    "title": state_format.get("title", dev['annotation']),
-                    "chart": state_format.get("chart", None),
-                    "controls": state_format.get("controls", []),
-                    "controlValues": controlValues
-                }
-
-                unit_format__type = state_format.get("type", "")
-                if unit_format__type == "INTEGER":
-                    unit_format["value"] = util.toInt(unit_value)
-                    unit_format["caption"] = state_format_value_index.get("title", unit_value)
-                    unit_format["class"] = state_format_value_index.get("class", "")
-                elif unit_format__type == "STRING":
-                    unit_format["value"] = unit_value
-                    unit_format["caption"] = state_format_value_index.get("title", unit_value)
-                    unit_format["class"] = state_format_value_index.get("class", "")
-                elif unit_format__type == "FLOAT_RANGE":
-                    unit_value_float = util.toFloat(unit_value)
-                    unit_format["value"] = unit_value_float
-                    unit_format["caption"] = state_format.get("format", "{0:.2f}").format(util.toFloat(unit_value)).replace('.',',')
-                    unit_format["class"] = state_format_values_else.get("class", "")
-                    for item in state_format_values:
-                        if not item['value'] == VALUES_ELSE_NAME:
-                            keyTuple = util.strRangeToTuple(item['value'])
-                            if keyTuple[0] <= unit_value_float < keyTuple[1]:
-                                unit_format["class"] = item.get("class", "")
-                                break
-                else:
-                    unit_format["value"] = unit_value
-                    unit_format["caption"] = unit_value
-                    unit_format["class"] = "bd bdc-brown-100 bg-light text-dark"
+                # unit_value = str(dev.get("state",""))
+                # state_format = json.loads(dev['state_format']) if util.is_json(dev['state_format']) else {}
+                # state_format_values = state_format.get("values", [])
+                # state_format_values_else = {}
+                # state_format_value_index = {}
+                # controlValues = []
+                # for format_value in state_format_values:
+                #     if str(format_value['value']) == unit_value:
+                #         state_format_value_index = format_value
+                #         if format_value['value'] != VALUES_ELSE_NAME:
+                #             controlValues.append(format_value['value'])
+                #         else:
+                #             state_format_values_else = format_value
+                #
+                # unit_format = {
+                #     "title": state_format.get("title", dev['annotation']),
+                #     "chart": state_format.get("chart", None),
+                #     "controls": state_format.get("controls", []),
+                #     "controlValues": controlValues
+                # }
+                #
+                # unit_format__type = state_format.get("type", "")
+                # if unit_format__type == "INTEGER":
+                #     unit_format["value"] = util.toInt(unit_value)
+                #     unit_format["caption"] = state_format_value_index.get("title", unit_value)
+                #     unit_format["class"] = state_format_value_index.get("class", "")
+                # elif unit_format__type == "STRING":
+                #     unit_format["value"] = unit_value
+                #     unit_format["caption"] = state_format_value_index.get("title", unit_value)
+                #     unit_format["class"] = state_format_value_index.get("class", "")
+                # elif unit_format__type == "FLOAT_RANGE":
+                #     unit_value_float = util.toFloat(unit_value)
+                #     unit_format["value"] = unit_value_float
+                #     unit_format["caption"] = state_format.get("format", "{0:.2f}").format(util.toFloat(unit_value)).replace('.',',')
+                #     unit_format["class"] = state_format_values_else.get("class", "")
+                #     for item in state_format_values:
+                #         if not item['value'] == VALUES_ELSE_NAME:
+                #             keyTuple = util.strRangeToTuple(item['value'])
+                #             if keyTuple[0] <= unit_value_float < keyTuple[1]:
+                #                 unit_format["class"] = item.get("class", "")
+                #                 break
+                # else:
+                #     unit_format["value"] = unit_value
+                #     unit_format["caption"] = unit_value
+                #     unit_format["class"] = "bd bdc-brown-100 bg-light text-dark"
 
                 devices[device_id]['status'][dev['family']][dev['unit']] = {
                     'date': dev['date'],
@@ -131,7 +134,7 @@ class Monitoring(models.Model):
                     'unit__id': dev['unit__id'],
                     'annotation': dev['annotation'],
                     'state': dev['state'],
-                    'unit_format': unit_format,
+                    'unit_format': util.toJson(dev['unit_format']),
                 }
 
         del devices_list

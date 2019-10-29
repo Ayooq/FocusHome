@@ -17,12 +17,12 @@ def notification_set_read(user_id, nid):
     query = """
         SELECT 
             sa.id
-        from profiles as p
+        from auth_user as au
             inner join devices as d
-                on d.client_id = p.client_id
+                on d.client_id = au.client_id
             inner join snmp_alert as sa
                 on sa.device_id = d.id
-        where p.auth_id=%s and sa.id=%s
+        where au.id=%s and sa.id=%s
     """
     cursor.execute(query, (user_id, nid))
 
@@ -715,10 +715,10 @@ def get_alerts(request):
             SELECT 
                  d.id
                 , d.name
-            from profiles as p
+            from auth_user as au
                 inner join devices as d
-                    on d.client_id = p.client_id
-            where p.auth_id=%s
+                    on d.client_id = au.client_id
+            where au.id=%s
             order by d.name
         """
         cursor.execute(query, (user_id, ))
@@ -791,9 +791,13 @@ def get_routine_by_id(device_id, id):
         SELECT
               u.name as name
             , u.title as title
+            , u.title as units__title
+            , uf.title as family__title
         from devices_config as dc
             inner join units as u
                 on u.id = dc.unit_id
+            inner join units_family as uf
+                on uf.id = u.family_id
         where dc.device_id = %(device_id)s
     """
     cursor.execute(query, {"device_id": device_id})

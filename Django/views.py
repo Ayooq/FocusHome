@@ -1,11 +1,11 @@
-from django.core.paginator import Paginator
-from django.views.decorators.http import require_http_methods
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 import Django.util as util
 from django.contrib.auth.decorators import login_required
 from Settings.models import Settings
 from django.http import JsonResponse
+from django.db import connection
+import uuid
 
 
 @login_required(login_url='log_in')
@@ -40,6 +40,21 @@ def log_in(request):
             return redirect('/login')
 
         login(request, user)
+
+        cursor = connection.cursor()
+        # add socket key
+        query = """
+            UPDATE auth_user
+            SET 
+                socket_key=%(socket_key)s
+            WHERE id=%(user_id)s;
+        """
+        cursor.execute(query, {
+            'user_id': user.id,
+            'socket_key': str(uuid.uuid4())
+        })
+
+        cursor.close()
 
         return redirect('/monitoring/')
 

@@ -1,24 +1,20 @@
 import Monitoring.libs.focusSNMP.server as focus_snmp_server
 import Django.util as util
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from django.db import connection
 from Devices.models import Device
 import json
 import os
+from Django.settings import config
 
-# >>> r = requests.post("http://bugs.python.org", data={'number': 12524, 'type': 'issue', 'action': 'show'})
-# >>> print(r.status_code, r.reason)
-# 200 OK
-# >>> print(r.text[:300] + '...')
+DISPATCHER_SERVER_URL = config["SOCKET-SERVER"]["host"]
+
 
 class Dispatcher:
-    DISPATCHER_SERVER_URL = "http://127.0.0.1:3000/"
-    MONITORING_KEY = "x9oBNohwtf2p81jOZ5GuKweWn1AI0XfwGDw1OhX0EPgcoTs0TW"
 
     def __init__(self):
         self.curl = requests.Session()
-        self.cursor = connection.cursor()
-        # self.curl.headers.update({'monitoring-key': self.MONITORING_KEY})
 
     # отправка сообщения на Брокер
     def send_to_broker(self, urlAction, device_id, topic, payload, payloadType='json', user_id=None):
@@ -34,7 +30,7 @@ class Dispatcher:
 
         device = Device(device_id)
         if device.device_id == 0:
-            result_message = "Не удалось опредлить ID устройства"
+            result_message = "Не удалось определить ID устройства"
             result_code = 0
 
         topic = device.device_name + topic
@@ -42,24 +38,29 @@ class Dispatcher:
         if not result_message:
             try:
                 r = self.curl.post(
-                    self.DISPATCHER_SERVER_URL + urlAction,
+                    DISPATCHER_SERVER_URL + urlAction,
                     data={
                         'topic': topic,
-                        'monitoring_key': self.MONITORING_KEY,
+                        'monitoring_key': config["MONITORING"]["key"],
                         'payload': payload
                     },
-                    timeout=5)
-
+                    timeout=5,
+                    verify=False
+                    )
+                
                 if int(r.status_code) == 200:
+                    result_message = None
                     result_code = 1
                 else:
                     result_message = r.text
                     result_code = 0
             except Exception as ex:
-                result_message = ex
+                result_message = str(ex)
                 result_code = 0
-
-        self.cursor.callproc('broker_dispatcher_log_add', (
+        
+        
+        cursor = connection.cursor()
+        cursor.callproc('broker_dispatcher_log_add', (
             user_id,
             device.device_id,
             topic,
@@ -217,11 +218,15 @@ class Dispatcher:
             }
         }
 
-        for unit in device.get_units():
+
+        for unit in device.get_units(is_gpio=-1):
             config['units'].append([
                 unit['family__name'],
                 unit['units__name'],
-                unit['gpio__pin']
+                unit['gpio__pin'],
+                {
+                    'src': unit['units__src']
+                }
             ])
 
         return self.send_to_broker(
@@ -264,4 +269,5 @@ class Dispatcher:
         )
 
 
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 dispatcher = Dispatcher()

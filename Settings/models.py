@@ -137,7 +137,8 @@ class Settings(models.Model):
             },
             'clients': [],
             'group': config_db,
-            'menu': app_menu
+            'menu': app_menu,
+            'user': {}
         }
 
         if request.user.role_code == 'management':
@@ -152,6 +153,27 @@ class Settings(models.Model):
             rows = cursor.fetchall()
             for row in rows:
                 config['clients'].append({'id': row[0], 'name': row[1]})
+
+        query = """
+            select
+                 au.id
+                ,au.socket_key
+                ,au.first_name
+                ,au.last_name
+                ,concat_ws(" ", au.first_name, au.last_name) as user_name
+            from auth_user as au
+            where au.id=%(user_id)s
+        """
+        cursor.execute(query, {
+            'user_id': request.user.id
+        })
+        row = cursor.fetchone()
+        if row:
+            config['user'] = {
+                'user_id': row[0],
+                'socket_key': row[1],
+                'user_name': row[4]
+            }
 
         cursor.close()
 

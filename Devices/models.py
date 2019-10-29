@@ -124,23 +124,23 @@ class Device(BaseModel):
                 "device_address": "",
                 "device_comment": "",
                 "device_client_id": 0,
-                "snmp_host":"",
-                "snmp_community":"",
-                "snmp_version":"",
-                "snmp_user":"",
-                "snmp_password":"",
+                "snmp_host": "",
+                "snmp_community": "",
+                "snmp_version": "",
+                "snmp_user": "",
+                "snmp_password": "",
             }
 
 
         return self.data
 
-    def get_units(self, gpio_format='str'):
+    def get_units(self, gpio_format='str', is_gpio=1):
+        is_gpio = -1
+
         query = """
             select
-                #dt.id as id,
-                #dt.name as name,
-                #dt.address as address,
-                #dt.id as uid,
+                COALESCE(dug.src_id,"") as src_id,
+                COALESCE(src.name,"") as units__src,
                 duf.name as family__name,
                 duf.title as family__title,
                 duu.id as units__id,
@@ -152,17 +152,21 @@ class Device(BaseModel):
                 COALESCE(dug.format, duu.format, "{}") as gpio__format
             from devices as dt
                 inner join units as duu
-                    on duu.is_gpio=1
+                    """ + ("on duu.is_gpio=1" if is_gpio == 1 else "") + """
                 inner join units_family as duf
                     on duf.id = duu.family_id
                 left join devices_config as dug
                     on dug.device_id = dt.id
                     and dug.unit_id = duu.id
+                left join units as src
+                    on src.id = dug.src_id
             where dt.id=%(device_id)s
             order by duf.name, duu.name
         """
 
-        self.cursor.execute(query, {'device_id': self.device_id if self.device_id > 0 else -1})
+        self.cursor.execute(query, {
+            'device_id': self.device_id if self.device_id > 0 else -1
+        })
 
         units = util.dictfetchall(self.cursor)
 
@@ -190,9 +194,24 @@ class Device(BaseModel):
 
         return units
 
+    # def get_aliases(self):
+    #     aliases = {}
+    #
+    #     query = """
+    #         select
+    #               dca.id
+    #             , dca.name
+    #             , dca.title
+    #         from devices_config_aliases as dca
+    #         order by dca.title
+    #     """
+    #
+    #     self.cursor.execute(query)
+    #
+    #     return util.dictfetchall(self.cursor)
+
     def get_pins(self):
         return list(range(0, 31))
-
 
     @staticmethod
     def get_monitoring_gpio_types():

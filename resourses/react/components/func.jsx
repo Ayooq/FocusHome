@@ -18,6 +18,7 @@ const MyFunc = {
       type: 'data.update',
       state: true
     });
+    
     axios({
       method:   method,
       baseURL:  _baseUrl,
@@ -54,12 +55,19 @@ const MyFunc = {
         type: 'data.update',
         state: false
       });
-      
-      let msg = error.response.data || error.response.statusText;
-      if (typeof params.error === 'function') {
-        return params.error(msg);
-      }
-      alert( msg.message || 'error, see console' );
+
+      // let status = error.response.status || '';
+      // let msg = error.response.statusText || '';
+      //
+      // if (MyFunc.is_object(error.response.data)){
+      //   msg = error.response.data || error.response.statusText;
+      // }
+      //
+      // if (typeof params.error === 'function') {
+      //   return params.error(msg);
+      // }
+      //
+      // alert( msg.message || 'error, see console' );
       console.log(error.response)
     });
   },

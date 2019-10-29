@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom';
 import {Link} from 'react-router-dom';
 import {MyFunc as util} from 'func.jsx';
 import store from 'store.jsx';
+import { Provider, connect } from 'react-redux';
 
 
 class NotificationItem extends React.Component{
@@ -198,14 +199,14 @@ class Navbar extends React.Component{
           */}
           <li className="dropdown">
             <a href="" className="dropdown-toggle no-after peers fxw-nw ai-c lh-1" data-toggle="dropdown">
-              <div className="peer mR-10"><img className="w-2r bdrs-50p" src="https://randomuser.me/api/portraits/men/10.jpg" alt=""/></div>
-              <div className="peer"><span className="fsz-sm c-grey-900">username</span></div>
+              <div className="peer mR-10"><img className="w-2r bdrs-50p" src="https://findicons.com/files/icons/2354/dusseldorf/32/user.png" alt=""/></div>
+              <div className="peer"><span className="fsz-sm c-grey-900">{this.props.appSettings.user.user_name}</span></div>
             </a>
             <ul className="dropdown-menu fsz-sm">
-              <li><a href="" className="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i className="ti-settings mR-10"></i> <span>Setting</span></a></li>
+              {/*<li><a href="" className="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i className="ti-settings mR-10"></i> <span>Setting</span></a></li>
               <li><a href="" className="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i className="ti-user mR-10"></i> <span>Profile</span></a></li>
               <li><a href="" className="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i className="ti-email mR-10"></i> <span>Messages</span></a></li>
-              <li role="separator" className="divider"></li>
+              <li role="separator" className="divider"></li>*/}
               <li><a href="/logout" className="d-b td-n pY-5 bgcH-grey-100 c-grey-700"><i className="ti-power-off mR-10"></i> <span>Выход</span></a></li>
             </ul>
           </li>
@@ -215,4 +216,10 @@ class Navbar extends React.Component{
   }
 }
 
-export default Navbar;
+
+const mapStateToProps = function (store) {
+    return {
+        appSettings: store.appSettings
+    };
+};
+export default connect(mapStateToProps)(Navbar);

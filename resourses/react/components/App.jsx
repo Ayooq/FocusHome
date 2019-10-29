@@ -4,7 +4,9 @@ import { BrowserRouter as Router, Route, Redirect, Switch, Link } from 'react-ro
 import { Provider, connect } from 'react-redux';
 import store from 'store.jsx';
 import {MyFunc as util} from 'func.jsx';
-
+// import socketIOClient from "socket.io-client";
+import { Socket } from 'react-socket-io';
+//https://www.npmjs.com/package/react-socket-io
 
 // notification
 import PageNotifications from './pages/notifications/notifications.jsx';
@@ -34,87 +36,101 @@ import Navbar from './tags/navbar';
 import Footer from './tags/footer';
 import PageTitle from './tags/template-page-title';
 
+const baseURL = window.location.protocol + "//" + (window.location.host).split(':')[0] + ":3000";
 
-class App extends React.Component{
-  componentDidMount() {
-    util.get({
-      'url': '/api/settings',
-      'data': {},
-      'success' : response => {
-        store.dispatch({
-          type: 'appSettings_upload',
-          data: response.data
+class App extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            socket_uri: baseURL,
+            socket_options: null
+        }
+    }
+
+    componentDidMount() {
+        util.get({
+            'url': '/api/settings',
+            'data': {},
+            'success': response => {
+                store.dispatch({
+                    type: 'appSettings_upload',
+                    data: response.data
+                });
+                
+                let socket_key = response.data.user.socket_key || "";
+                let user_id = response.data.user.user_id || "";
+                
+                this.setState({socket_uri: baseURL});
+                this.setState({socket_options: {
+                    transports: ['websocket'],
+                    query: 'socket='+socket_key+'&user='+user_id,
+                    secure: true
+                }
+                });
+            }
         });
-      }
-    });
-  }
-  
-  render(){
-    return <Router>
-        <div className={this.props.template.sidebar_is_collapsed?'is-collapsed':''}>
-          <SidebarLeft />
-          <div className="page-container">
-            <Navbar />
-            <main className="main-content bgc-grey-100">
-              <div id="mainContent">
-                <PageTitle />
+    }
 
-                <div className="body">
-                  {/*<ol className="breadcrumb">
+    render() {
+        if(!this.state.socket_options){return <div></div>}
+        
+        return <Router>
+            <Socket uri={this.state.socket_uri} options={this.state.socket_options}>
+                <div className={this.props.template.sidebar_is_collapsed?'is-collapsed':''}>
+                    <SidebarLeft />
+                    <div className="page-container">
+                        <Navbar />
+                        <main className="main-content bgc-grey-100">
+                            <div id="mainContent">
+                                <PageTitle />
 
-                   </ol>
-                   <ol class="breadcrumb">
-                   <li v-for="item in store.pageData.path">
-                   <Link to="item.href" v-if="item.href">{item.title}</Link>
-                   <span v-else v-html="item.title"></span>
-                   </li>
-                   </ol>*/}
-                  <Switch>
-                    {/*<Redirect exact from="/react" to="/react/orders" />*/}
+                                <div className="body">
+                                    <Switch>
+                                        <Route exact path='/clients/' component={PageClients}/>
+                                        <Route exact path='/clients/:clientID(create)' component={PageClientsEdit}/>
+                                        <Route exact path='/clients/:clientID(\d+)' component={PageClientsEdit}/>
 
-                    <Route exact path='/clients/' component={PageClients} />
-                    <Route exact path='/clients/:clientID(create)' component={PageClientsEdit} />
-                    <Route exact path='/clients/:clientID(\d+)' component={PageClientsEdit} />
+                                        <Route exact path='/users/' component={PageUsers}/>
+                                        <Route exact path='/users/:userID(create)' component={PageUsersEdit}/>
+                                        <Route exact path='/users/:userID(\d+)/perm' component={PageUsersPerm}/>
+                                        <Route exact path='/users/:userID(\d+)' component={PageUsersEdit}/>
 
-                    <Route exact path='/users/' component={PageUsers} />
-                    <Route exact path='/users/:userID(create)' component={PageUsersEdit} />
-                    <Route exact path='/users/:userID(\d+)/perm' component={PageUsersPerm} />
-                    <Route exact path='/users/:userID(\d+)' component={PageUsersEdit} />
+                                        <Route exact path='/devices/' component={PageDevices}/>
+                                        <Route exact path='/devices/:deviceID(create)' component={PageDevicesEdit}/>
+                                        <Route exact path='/devices/:deviceID(\d+)' component={PageDevicesEdit}/>
 
-                    <Route exact path='/devices/' component={PageDevices} />
-                    <Route exact path='/devices/:deviceID(create)' component={PageDevicesEdit} />
-                    <Route exact path='/devices/:deviceID(\d+)' component={PageDevicesEdit} />
+                                        <Route exact path='/notifications/' component={PageNotifications}/>
 
-                    <Route exact path='/notifications/' component={PageNotifications} />
+                                        <Route exact path='/monitoring/' component={PageIndex}/>
+                                        <Route exact path='/monitoring/device/:deviceID' component={PageDevice}/>
+                                        <Route exact path='/monitoring/device/:deviceID/snmp' component={PageDeviceSNMP}/>
+                                        <Route exact path='/monitoring/device/:deviceID/snmp/widgets' component={PageDeviceSNMPWidgets}/>
+                                        <Route exact path='/monitoring/device/:deviceID/snmp/:addr/details' component={PageDeviceSNMPDetails}/>
+                                        <Route exact path='/monitoring/device/:deviceID/snmp/:addr/history' component={PageDeviceSNMPHistory}/>
+                                        <Route exact path='/monitoring/device/:deviceID/snmp/:addr/widget' component={PageDeviceSNMPWidgetSetting}/>
+                                        <Route exact path='/monitoring/device/:deviceID/routines' component={PageDeviceRoutines}/>
+                                        <Route exact path='/monitoring/device/:deviceID/routines/add' component={PageDeviceRoutinesEdit}/>
+                                        <Route exact path='/monitoring/device/:deviceID/routines/:id' component={PageDeviceRoutinesEdit}/>
 
-                    <Route exact path='/monitoring/' component={PageIndex} />
-                    <Route exact path='/monitoring/device/:deviceID' component={PageDevice} />
-                    <Route exact path='/monitoring/device/:deviceID/snmp' component={PageDeviceSNMP} />
-                    <Route exact path='/monitoring/device/:deviceID/snmp/widgets' component={PageDeviceSNMPWidgets} />
-                    <Route exact path='/monitoring/device/:deviceID/snmp/:addr/details' component={PageDeviceSNMPDetails} />
-                    <Route exact path='/monitoring/device/:deviceID/snmp/:addr/history' component={PageDeviceSNMPHistory} />
-                    <Route exact path='/monitoring/device/:deviceID/snmp/:addr/widget' component={PageDeviceSNMPWidgetSetting} />
-                    <Route exact path='/monitoring/device/:deviceID/routines' component={PageDeviceRoutines} />
-                    <Route exact path='/monitoring/device/:deviceID/routines/add' component={PageDeviceRoutinesEdit} />
-                    <Route exact path='/monitoring/device/:deviceID/routines/:id' component={PageDeviceRoutinesEdit} />
+                                        <Route path="*" render={() => <div>Ничего не найдено</div>}/>
 
-                    <Route path="*" render={() => <div>Ничего не найдено</div>}/>
+                                    </Switch>
+                                </div>
 
-                  </Switch>
+                            </div>
+                        </main>
+                        <Footer />
+                    </div>
                 </div>
-
-              </div>
-            </main>
-            <Footer />
-          </div>
-        </div>
-      </Router>
-  }
+            </Socket>
+        </Router>
+    }
 }
 
-const mapStateToProps = function(store) {
-  return {
-    template:  store.template
-  };
+const mapStateToProps = function (store) {
+    return {
+        template: store.template
+    };
 };
 export default connect(mapStateToProps)(App);
