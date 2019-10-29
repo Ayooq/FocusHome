@@ -10,19 +10,16 @@ project="/var/www/focus"
 
 function server_start {
     # uwsgi
-    # /usr/local/bin/uwsgi --emperor --ini $project/nginx/focus_uwsgi.ini > /dev/null 2> /dev/null &
+    /usr/local/bin/uwsgi --emperor --ini $project/nginx/focus_uwsgi.ini > /dev/null 2> /dev/null &
 
     # websocket
-    # /usr/local/bin/forever start $project/node_server/server.js &
+    /usr/local/bin/forever start $project/node_server/server.js &
 
-    echo start
 }
 
 function server_stop {
-    # killall uwsgi -s 9
-    # /usr/local/bin/forever stop $project/node_server/server.js
-
-    echo stop
+    killall uwsgi -s 9
+    /usr/local/bin/forever stop $project/node_server/server.js
 }
 
 
