@@ -1,6 +1,6 @@
 import operator
 from ast import literal_eval
-from typing import Dict, List, Tuple, Type, Union
+from typing import Dict, List, NoReturn, Tuple, Type, Union
 
 from ..utils.messaging import notify
 
@@ -12,7 +12,6 @@ class Parser:
             self,
             device: Type[object],
             payload: dict,
-            hardware: Tuple[dict, dict],
     ) -> Dict[str, list]:
         """Разбить инструкции на составляющие для последующей обработки.
 
@@ -20,40 +19,72 @@ class Parser:
         :type device: focus.back.FocusPro
         :param payload: словарь с инструкциями, который нужно распарсить
         :type payload: dict
-        :param hardware: кортеж из семейств компонентов
-        :type hardware: tuple[dict, dict]
 
         :return: словарь, содержащий распарсенные инструкции
         :rtype: dict[str, list]
         """
         routine_id = str(payload.get('routine_id'))
-        instructions = {'routines': [], 'commands': []}
+        instructions = {'routines': {}, 'commands': []}
 
         for k, v in payload['instruction'].items():
             if k == 'routine':
-                actions = v.get('actions')
-                actions = self.parse_actions(actions)
-                command = [routine_id, actions]
+                command = self.parse_actions(v.get('actions'))
+                print('parsed command:', command)
 
-                conditions = v.get('conditions')
-
-                if conditions:
-                    components_objects = []
-                    conditions = self.parse_conditions(
-                        device, conditions, hardware, components_objects)
-                    command.extend([conditions, components_objects])
-                    instructions['routines'].append(command)
+                if (conditions := v.get('conditions')):
+                    conditions = self.parse_conditions(device, conditions)
+                    instructions['routines'][routine_id] = conditions, command
+                    print('routines:', instructions['routines'])
                 else:
                     instructions['commands'].append(command)
 
         return instructions
 
+    def parse_actions(self, actions: List[dict]) -> List[list]:
+        """Распарсить список действий для переданной рутины.
+
+        :param actions: список заданных действий
+        :type actions: list[dict]
+
+        :return: вложенный список распарсенных действий
+        :rtype: list[list]
+        """
+        parsed_actions = []
+
+        for act in actions:
+            callback = act.get('function', 'set_state')
+            value = act['value']
+
+            if callback in ('sleep', 'timeout', 'wait', 'watch', 'monitor'):
+                async_ = True
+            else:
+                async_ = False
+
+            if value:
+                target = act['unit']
+                kwargs = {'value': value}
+                parsed_actions.append([target, callback, async_, kwargs])
+
+                continue
+
+            target, kwargs = [], {}
+
+            for i in act.get('params'):
+                if i['name'] == 'unit':
+                    unit = i['value']
+                    target.append(unit)
+                else:
+                    kwargs.update({i['name']: i['value']})
+
+            parsed_actions.append([target, callback, async_, kwargs])
+
+        return parsed_actions
+
+    @classmethod
     def parse_conditions(
-            self,
+            cls,
             device: Type[object],
             conditions: List[Union[list, dict, str]],
-            hardware: Tuple[dict, dict],
-            components_objects: List[Type[dict]]
     ) -> str:
         """Рекурсивно распарсить условия выполнения рутины.
 
@@ -66,125 +97,118 @@ class Parser:
         аргумента.
 
         :param device: экземпляр объекта устройства
-        :type device: dict
+        :type device: focus.back.FocusPro
         :param conditions: список условий для проверки на истинность
         :type conditions: list
-        :param hardware: кортеж из словарей компонентов
-        :type hardware: tuple[dict, dict]
-        :param components_objects: список для добавления экземпляров объектов
-            компонентов устройства
-        :type components_objects: list[dict]
 
-        :return: составленное выражение для проверки условий в виде строки
+        :return: выражение для проверки условий в виде строки
         :rtype: str
         """
-        expression = []
-
+        res = []
+        
         for c in conditions:
             if isinstance(c, list):
-                c = self.parse_conditions(
-                    device, c, hardware, components_objects)
+                c = cls.parse_conditions(device, c)
             elif isinstance(c, dict):
-                op, unit, val = self.get_items_to_compare(device, c, hardware)
-                c = f'${op}:{unit.id}:{val}'
-                components_objects.append(unit)
+                unit_id, op, val = c['unit'], c['compare'], c['value']
+                c = f'${unit_id}:{op}:{val}'
+            elif c.startswith('$'):
+                unit_id, op, val = c.strip('$').split(':')
+                unit_obj = cls.id_to_object(unit_id, device)
+                op = cls.get_operator_method(op, device)
+                val = cls.get_evaluated_value(val)
+                c = str(op(unit_obj.state, val))
 
-            expression.append(c)
+            res.append(c)
 
-        return ' '.join(expression)
+        return ' '.join(res)
 
-    def get_items_to_compare(
-            self,
-            device: Type[object],
-            condition: dict,
-            hardware: Tuple[dict, dict],
-    ) -> Tuple[Union[str, None], Type[dict], Union[int, float, str]]:
-        """Получить элементы для проверки логического выражения.
+    @staticmethod
+    def id_to_object(
+            id_: str, device: Type[object]) -> Union[Type[object], None]:
+        """Преобразовать строковый идентификатор в экземпляр объекта.
 
+        :param id_: строковый идентификатор компонента
+        :type id_: str
         :param device: экземпляр объекта устройства
-        :type device: dict
-        :param condition: условие для сравнения
-        :type condition: dict
-        :param hardware: кортеж из словарей компонентов
-        :type hardware: tuple[dict, dict]
+        :type device: focus.back.FocusPro
 
-        :return: кортеж элементов выражения
-        :rtype: tuple[str or None, dict, int or float or str]
+        :return: экземпляр объекта устройства/компонента либо None
+        :rtype: object or None
         """
-        op = self._get_operator_method(condition['compare'], device)
-        unit = self._get_component(condition['unit'], hardware)
-        val = self._get_evaluated_value(condition['value'])
+        if id_ == 'self':
+            return device
 
-        return op, unit, val
-
-    @classmethod
-    def _get_operator_method(
-            cls, op: str, device: Type[dict]) -> Union[str, None]:
-        meth = f'operator.{op}'
-
-        try:
-            eval(meth)
-        except AttributeError:
-            msg = 'недопустимый оператор сравнения!'
-            notify(device, msg, no_repr=True, report_type='warning')
-        else:
-            return meth
-
-    @classmethod
-    def _get_component(
-            cls, target: str, hardware: Tuple[dict, dict]) -> Type[dict]:
-        for group_families in hardware.values():
+        for group_families in device.hardware.values():
             for family_components in group_families.values():
-                if target in family_components:
-                    return family_components[target]
+                if id_ in family_components:
+                    return family_components[id_]
 
         return None
 
     @classmethod
-    def _get_evaluated_value(cls, value: str) -> Union[int, float, str]:
+    def get_command(
+            cls,
+            registry: Type[object],
+            cmd: str,
+            device: Type[object],
+    ) -> Union[str, NoReturn]:
+        """Получить рабочий метод из реестра команд соответственно переданному
+        названию команды.
+
+        :param registry: реестр команд
+        :type registry: focus.back.commands.handle.CommandsRegistry
+        :param cmd: название команды
+        :type cmd: str
+        :param device: экземпляр объекта устройства
+        :type device: focus.back.FocusPro
+
+        :raise AttributeError: команда отсутствует в реестре
+
+        :return: метод класса реестра
+        :rtype: str
+        """
+        try:
+            meth = getattr(registry, cmd)
+        except AttributeError:
+            msg = 'команда отсутствует в реестре!'
+            notify(device, msg, no_repr=True, report_type='warning')
+
+            raise
+        else:
+            return meth
+
+    @staticmethod
+    def get_operator_method(
+            op: str, device: Type[object]) -> Union[str, NoReturn]:
+        """Получить рабочий метод из модуля operator соответственно переданному
+        названию оператора сравнения.
+
+        :param op: название оператора
+        :type op: str
+        :param device: экземпляр объекта устройства
+        :type device: focus.back.FocusPro
+
+        :raise AttributeError: недопустимый оператор сравнения
+
+        :return: метод сравнения
+        :rtype: str
+        """
+        try:
+            meth = getattr(operator, op)
+        except AttributeError:
+            msg = 'недопустимый оператор сравнения!'
+            notify(device, msg, no_repr=True, report_type='warning')
+
+            raise
+        else:
+            return meth
+
+    @staticmethod
+    def get_evaluated_value(value: str) -> Union[int, float, str]:
         try:
             value = literal_eval(value)
         except (ValueError, SyntaxError):
             pass
-
-        return value
-
-    @staticmethod
-    def parse_actions(
-            actions: List[dict]) -> List[Tuple[str, str, Dict[str, str]]]:
-        """Распарсить список действий для переданной рутины.
-
-        :param actions: список действий
-        :type actions: list[dict]
-
-        :return: список кортежей распарсенных действий
-        :rtype: list[tuple]
-        """
-
-        parsed_actions = []
-
-        for a in actions:
-            unit = a['unit']
-            value = a['value']
-            callback = a['function']
-            kwargs = {}
-            components = []
-
-            if callback in ('sleep', 'timeout', 'wait', 'sec'):
-                async_ = True
-            else:
-                async_ = False
-
-            for i in a['params']:
-                if i['name'] == 'unit':
-                    components.append(i['value'])
-                else:
-                    kwargs.update({i['name']: i['value']})
-
-            if value:
-                kwargs = {'value': value}
-                parsed_actions.append((unit, callback, async_, kwargs))
-            else:
-                parsed_actions.append((components, callback, async_, kwargs))
-
-        return parsed_actions
+        finally:
+            return value

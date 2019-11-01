@@ -14,12 +14,10 @@ from typing import (Any, Callable, Dict, Iterator, List,
 import yaml
 from pysnmp import hlapi
 
-from ..utils import BACKUP_FILE, COMMANDS_FILE, CONFIG_FILE
+from ..utils import BACKUP_FILE, MACROS_FILE, CONFIG_FILE
 from ..utils.db_tools import fill_tables
 from ..utils.messaging import notify
 from .parse import Parser
-
-ShelveDB = shelve.DbfilenameShelf
 
 
 class CommandsRegistry:
@@ -28,8 +26,8 @@ class CommandsRegistry:
     @classmethod
     def snmp_send_data(
             cls,
-            device: Type[object],
-            target: str,
+            target: List[Type[object]],
+            agent: str,
             oids: List[str],
             credentials: Union[hlapi.CommunityData, hlapi.UsmUserData],
             engine: hlapi.SnmpEngine = None,
@@ -40,10 +38,10 @@ class CommandsRegistry:
     ) -> None:
         """Отправить посреднику данные агента в базе управляющей информации.
 
-        :param device: экземпляр объекта устройства
-        :type device: focus.back.FocusPro
-        :param target: IP-адрес удалённого устройства
-        :type target: str
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: dict
+        :param agent: IP-адрес удалённого устройства
+        :type agent: str
         :param oids: идентификаторы искомых объектов
         :type oids: list[str]
         :param credentials: набор полномочий для аутентификации сессии
@@ -60,9 +58,10 @@ class CommandsRegistry:
         по умолчанию None
         :type start_from: int or None
         """
+        device = target[0]
         engine = engine or device.config['snmp']['engine']
         context = context or device.config['snmp']['context']
-        args = device, target, oids, credentials, engine, context, port
+        args = device, agent, oids, credentials, engine, context, port
 
         if start_from is not None:
             if isinstance(count, int) and count > 1:
@@ -324,11 +323,18 @@ class CommandsRegistry:
 
     # Синхронные команды:
     @classmethod
-    def reboot(cls, device: Type[object], **kwargs) -> NoReturn:
-        """Перезагрузить устройство.
+    def reboot(cls, target: List[Type[object]], **kwargs) -> NoReturn:
+        r"""Перезагрузить устройство.
 
         Перезагрузка с интервалом меньше, чем в две минуты, не позволяется.
+
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
+        :param **kwargs: дополнительные именованные аргументы
+        :type **kwargs: dict, опционально
         """
+        device = target[0]
+
         if cls.is_rebootable(device.db):
             # notify(device, 'fake reboot', no_repr=True,
             #       report_type='status', local_only=True)
@@ -366,78 +372,83 @@ class CommandsRegistry:
         return timediff < dt.timedelta(seconds=120)
 
     @staticmethod
-    def on(components: list, **kwargs) -> None:
+    def on(target: List[Type[object]], **kwargs) -> None:
         r"""Включить пин у каждого переданного компонента.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
-        :param **kwargs: опциональные именованные аргументы
-        :type **kwargs: dict
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
+        :param **kwargs: дополнительные именованные аргументы
+        :type **kwargs: dict, опционально
         """
-        for component in components:
+        for component in target:
             component.on(**kwargs)
 
     @staticmethod
-    def off(components: list, **kwargs) -> None:
+    def off(target: List[Type[object]], **kwargs) -> None:
         r"""Выключить пин у каждого переданного компонента.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
-        :param **kwargs: опциональные именованные аргументы
-        :type **kwargs: dict
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
+        :param **kwargs: дополнительные именованные аргументы
+        :type **kwargs: dict, опционально
         """
-        for component in components:
+        for component in target:
             component.off(**kwargs)
 
     @staticmethod
-    def toggle(components: list, **kwargs) -> None:
+    def toggle(target: List[Type[object]], **kwargs) -> None:
         r"""Переключить пин у каждого переданного компонента.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
-        :param **kwargs: опциональные именованные аргументы
-        :type **kwargs: dict
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
+        :param **kwargs: дополнительные именованные аргументы
+        :type **kwargs: dict, опционально
         """
-        for component in components:
+        for component in target:
             component.toggle(**kwargs)
 
     @staticmethod
     def set_state(
-            component: Type[object], value: Union[int, float, str]) -> None:
+            target: List[Type[object]],
+            value: Union[int, float, str],
+    ) -> None:
         """Установить новое значение состояния компоненту.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
         :param value: новое состояние компонента
         :type value: int or float or str
         """
-        component.state = value
+        target[0].state = value
 
     # Асинхронные команды:
     @staticmethod
     async def report_at_intervals(
-            component: Type[object], pending_time: int) -> NoReturn:
+            target: List[Type[object]], pending_time: int) -> NoReturn:
         """Уведомлять о состоянии компонента c заданной периодичностью.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
         :param pending_time: время простоя перед оповещением
         :type pending_time: int
         """
         await asyncio.sleep(pending_time)
-        notify(component, component.state, report_type='info')
+
+        for component in target:
+            notify(component, component.state, report_type='info')
 
     @classmethod
-    async def watch_state(cls, component: Type[object]) -> NoReturn:
+    async def watch_state(cls, target: List[Type[object]]) -> NoReturn:
         """Наблюдать за состоянием компонента.
 
-        :param component: экземпляр объекта компонента
-        :type component: object
+        :param target: целевые компоненты, на которые направлена команда
+        :type target: list
         """
-        if await cls.is_exceeded(component):
-            notify(component, component.state, report_type='warning')
-        elif await cls.is_back_to_normal(component):
-            notify(component, component.state)
+        for component in target:
+            if await cls.is_exceeded(component):
+                notify(component, component.state, report_type='warning')
+            elif await cls.is_back_to_normal(component):
+                notify(component, component.state)
 
     @staticmethod
     async def is_exceeded(component: Type[object]) -> bool:
@@ -483,7 +494,7 @@ class AsyncLoop(ThreadPoolExecutor):
           :param component: — объект компонента;
           :param kwargs: — опциональный словарь именованных аргументов.
         """
-        with shelve.open(COMMANDS_FILE) as db:
+        with shelve.open(MACROS_FILE) as db:
             try:
                 for c in components:
                     db[command](c, **kwargs)
@@ -522,7 +533,7 @@ class AsyncLoop(ThreadPoolExecutor):
     #     ключа, объект функции-обработчика рутины, выступающий в роли значения
     #     по ключу, и список аргументов для исполнения конкретной рутины).
     #     """
-    #     with shelve.open(COMMANDS_FILE) as db:
+    #     with shelve.open(MACROS_FILE) as db:
     #         for i in routines:
     #             key, handler, _ = i
     #             db[key] = handler
@@ -540,14 +551,11 @@ class Handler:
         self.async_ = AsyncLoop()
         self.routines = self._get_routines()
 
-        for i, (k, v) in enumerate(self.routines.items(), start=1):
-            print(f'Рутина {i}) {k}: {v}')
-
         # Словарь последних отправленных сообщений от имени каждого компонента:
         self.sended_messages = {}
 
         # Регистрация обработчиков событий:
-        msg = 'регистрирую подписчиков...'
+        msg = 'регистрация подписчиков на события...'
         notify(self.device, msg, no_repr=True, local_only=True)
 
         for group in (self.device.hardware).values():
@@ -556,11 +564,50 @@ class Handler:
 
         self._set_subscriptions(blink=self._blink, pub=self._publish)
 
-    def _get_routines(self) -> dict:
-        with shelve.open(COMMANDS_FILE) as db:
+        # Запуск доступных рутин:
+        for i, (k, v) in enumerate(self.routines.items(), start=1):
+            print(f'Рутина {i}) {k}: {v}')
+            self.apply_routine(k, *v)
+            print('routine has been applied!')
+
+    @staticmethod
+    def _get_routines() -> dict:
+        with shelve.open(MACROS_FILE) as db:
             return dict(db.items())
 
-    def handle(self, instructions: Dict[str, List[tuple]]) -> None:
+    def apply_routine(
+            self,
+            routine_id: str,
+            conditions: dict,
+            actions: List[Tuple[Type[object], str, Dict[str, str]]],
+    ) -> None:
+        """Запустить обработку событий для указанных компонентов.
+
+        :param routine_id: идентификатор рутины
+        :type routine_id: str
+        :param conditions: условия срабатывания рутины
+        :type conditions: dict
+        :param actions: действия, запланированные к выполнению при выполнении
+        определённых условий
+        :type actions: list
+        """
+        msg = 'связывание рутины с указанными компонентами...'
+        notify(self.device, msg, no_repr=True, local_only=True)
+
+        for component in conditions['components']:
+            component.reporter.register(routine_id, self._run_routine,
+                                        conditions, actions)
+            notification = [component, 'готово.', {'local_only': True}]
+
+            if component is self.device:
+                notification[-1].update({'no_repr': True})
+
+            notify(*notification)
+
+        # _ = {}
+        # self._run_routine(_, conditions, actions)
+
+    def handle(self, instructions: Dict[str, list]) -> None:
         """Обработать принятые инструкции.
 
         Рутинам присваиваются слушатели изменения состояния. При наступлении
@@ -570,81 +617,74 @@ class Handler:
         :param instructions: словарь исполняемых инструкций
         :type instructions: dict
         """
-        for i in instructions.get('routines'):
-            routine_id, actions, conditions, components_objects = i
+        for k, v in instructions.get('routines', {}).items():
+            routine_id, conditions, actions = k, *v
+            print('handling a routine...')
+            print(routine_id, conditions, actions, sep='\n')
+            print('------------')
+            expression = conditions.pop('expression')
+            macro = self.save_macro(routine_id, expression, actions)
+            print('saved a new macro!')
+            self.routines.update(macro)
+            print('routines upd:', self.routines)
 
-            for co in components_objects:
-                co.reporter.register(routine_id, self._eval_and_exec,
-                                     routine_id, actions, conditions)
+            self.apply_routine(routine_id, conditions, actions)
 
-        for command_id, actions in instructions.get('commands'):
-            self.execute_command(command_id, actions)
+        (self.execute_command(cmd) for cmd in instructions.get('commands', []))
 
-    def execute_command(self, command_id: str, actions: list) -> None:
+    @staticmethod
+    def save_macro(
+            routine_id: str,
+            conditions: str,
+            actions: List[Tuple[Type[object], str, Dict[str, str]]],
+    ) -> dict:
+        """Сохранить макрос в файл для последующего вызова.
+
+        :param routine_id: идентификатор рутины
+        :type routine_id: str
+        :param conditions: условия срабатывания рутины
+        :type conditions: str
+        :param actions: действия, запланированные к выполнению при выполнении
+        определённых условий
+        :type actions: list
+
+        :return: сохранённый макрос
+        :rtype: dict
+        """
+        macro = {}
+        
+        with shelve.open(MACROS_FILE) as db:
+            print(f'saving macro: <{routine_id}: {conditions}, {actions}>...')
+            db[routine_id] = conditions, actions
+            macro[routine_id] = conditions, actions
+
+        return macro
+
+    def execute_command(self, actions: list) -> None:
         """Выполнить команду.
 
-        Если команда уже содержится в реестре исполняемых макросов,
-        найти её по ключу и выполнить. Иначе исполнить каждое указанное в ней
-        действие в порядке установленной очерёдности и записать в реестр как
-        новый макрос.
-
-        :param command_id: идентификатор команды
-        :type command_id: str
         :param actions: последовательность действий для исполнения команды
         :type actions: list
         """
-        try:
-            print('command id:', command_id)
-            self.run_macro(self.routines, command_id)
-        except KeyError:
-            print('failed to run macro, performing a new set of actions...')
-            macro = []
-
-            for index, action in enumerate(actions, start=1):
-                # target, command, kwargs = action
-                print(f'action {index}:', action)
-                macro.append(action)
-
-                if index == len(actions):
-                    self.save_macro(command_id, macro)
-
-                self.perform_action(*action)
-
-            # Если программа продолжает работать, обновить словарь рутин:
-            self.routines[command_id] = macro
-
-    def run_macro(self, routines: dict, command_id: str) -> None:
-        print('trying to run macro...')
-        for id_, macro in routines.items():
-            print('macro:', f'<{id_}: {macro}>')
-
-        macro = routines[command_id]
-
-        for index, action in enumerate(macro, start=1):
-            print(f'action {index}:', *action)
+        for index, action in enumerate(actions, start=1):
+            print(f'action {index}:', action)
+            action[0] = [
+                Parser.id_to_object(id_, self.device) for id_ in action[0]]
             self.perform_action(*action)
-
-    @staticmethod
-    def save_macro(command_id: str, macro: list) -> None:
-        with shelve.open(COMMANDS_FILE) as db:
-            print('macro:', macro)
-            db[command_id] = macro
-            print('saved a new macro!')
 
     def perform_action(
             self,
-            target: Union[str, list],
-            action: str,
+            target: Union[list, Type[object]],
+            callback: str,
             async_: bool,
             kwargs: dict,
     ) -> Any:
         """Выполнить действие.
 
-        :param target: один или несколько компонентов, к которым необходимо
-        применить действие
-        :type target: str or list
-        :param action: название функции обработки указанного действия
-        :type action: str
+        :param target: компонент(-ы), к которым необходимо применить действие
+        :type target: list[object] or object
+        :param callback: название функции обработки указанного действия
+        :type callback: str
         :param async_: флаг, обозначающий синхронность/асинхронность действия
         :type async_: bool
         :param kwargs: именованные аргументы, передаваемые обработчику
@@ -653,17 +693,8 @@ class Handler:
         :return: результат выполненного действия
         :rtype: Any
         """
-        cmd = getattr(CommandsRegistry, action)
-        print('performing action...')
-
-        if isinstance(target, str):
-            target = self.id_to_object(target)
-
-            return cmd(target, **kwargs)
-
-        for i, c in enumerate(target):
-            target[i] = self.id_to_object(c)
-
+        cmd = Parser.get_command(CommandsRegistry, callback, self.device)
+        print('performing action...', cmd)
         print('components:', target)
         print('kwargs:', kwargs)
 
@@ -671,20 +702,6 @@ class Handler:
             self.async_.run(cmd, target, **kwargs)
         else:
             return cmd(target, **kwargs)
-
-    def id_to_object(self, id_: str):
-        """Преобразовать строковый идентификатор в экземпляр объекта компонента.
-
-        :param id_: строковый идентификатор компонента
-        :type id_: str
-
-        :return: экземпляр объекта устройства/компонента
-        :rtype: object
-        """
-        if id_ == 'self':
-            return self.device
-
-        return Parser._get_component(id_, self.device.hardware)
 
     def run_forever(self, routines: List[tuple]) -> NoReturn:
         """Запустить бесконечный цикл исполнения сопрограмм в отдельном потоке.
@@ -760,7 +777,6 @@ class Handler:
         """
         try:
             data = component[params]
-            data.pop('alias', None)
         except ValueError:
             msg = 'Для правильной настройки необходим словарь!'
             notify(self.device, msg, no_repr=True, local_only=True)
@@ -773,11 +789,7 @@ class Handler:
         return {component[id_]: data}
 
     @staticmethod
-    def update_group(
-            group: dict,
-            family: str,
-            data: dict,
-    ) -> None:
+    def update_group(group: dict, family: str, data: dict) -> None:
         """Обновить словарь группированных компонентов.
 
         :param group: группа настроенных компонентов
@@ -916,27 +928,23 @@ class Handler:
             'retain': retain,
         }
 
-    def _eval_and_exec(
+    def _run_routine(
             self,
             report: Type[dict],
-            routine_id: str,
-            actions: List[Tuple[str, str, Dict[str, str]]],
             conditions: str,
+            actions: List[Tuple[Type[object], str, Dict[str, str]]],
     ) -> None:
-        expr = []
+        if self.check_conditions(conditions.split()):
+            print('conditions satisfied')
+            self.execute_command(actions)
 
-        for c in conditions.split():
-            if c.startswith('$'):
-                op, unit, val = c.split(':')
-                unit_state = Parser._get_component(
-                    unit, self.device.hardware).state
-                expr.append(f'{op[1:]}({unit_state}, {val})')
-            else:
-                expr.append(c)
+    def check_conditions(self, conditions: list) -> bool:
+        """Проверить условия исполнения рутины на истинность.
 
-        print('Expr:', expr)
-        res = eval(' '.join(expr))
-        print('Result:', res)
+        :param conditions: условия
+        :type conditions: str
 
-        if res:
-            self.execute_command(routine_id, actions)
+        :return: результат проверки
+        :rtype: bool
+        """
+        return eval(Parser.parse_conditions(self.device, conditions))

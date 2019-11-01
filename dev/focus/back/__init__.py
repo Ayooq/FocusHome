@@ -15,7 +15,7 @@ from pysnmp.hlapi import CommunityData, ContextData, SnmpEngine, UsmUserData
 from .commands import Handler, Parser
 from .feedback import Reporter
 from .hardware import Hardware
-from .utils import DB_FILE
+from .utils import DB_FILE, SNMP_COUNT, SNMP_OIDS, SNMP_START
 from .utils.db_tools import get_db, init_db
 from .utils.messaging import notify
 
@@ -68,18 +68,35 @@ class FocusPro(Hardware):
         self.client.enable_logger(self.logger)
 
         # Конфигурирование SNMP:
-        snmp = self.config['snmp']
-        snmp['agent'], snmp['port'] = self.parse_snmp_host(snmp)
-        snmp['oids'] = snmp.get('oids') or ['1.3.6.1.2.1.1.5.0']
-        snmp['credentials'] = self.set_credentials(snmp)
-        snmp['engine'] = SnmpEngine()
-        snmp['context'] = ContextData()
+        snmp_params = self.set_snmp_params(self.config['snmp'])
 
         # Запуск обработчика событий и команд:
         self.handler = Handler(self)
+        self.handler.execute_command(
+            [[['self'], 'snmp_send_data', False, snmp_params]])
 
     def __repr__(self):
         return f'id={self.id}'
+
+    def set_snmp_params(self, snmp_config: dict) -> dict:
+        """Установить параметры, необходимые для работы по протоколу SNMP.
+
+        :param snmp_config: исходные настройки конфигурации, связанные с SNMP
+        :type snmp_config: dict
+
+        :return params: настроенные параметры для коммуникации
+        :rtype params: dict
+        """
+        params = {}
+        params['agent'], params['port'] = self.parse_snmp_host(snmp_config)
+        params['oids'] = snmp_config.get('oids') or SNMP_OIDS
+        params['credentials'] = self.set_credentials(snmp_config)
+        params['engine'] = SnmpEngine()
+        params['context'] = ContextData()
+        params['count'] = snmp_config.get('count') or SNMP_COUNT
+        params['start_from'] = snmp_config.get('start_from') or SNMP_START
+
+        return params
 
     @staticmethod
     def parse_snmp_host(snmp_config: dict) -> Tuple[str, int]:
@@ -232,18 +249,19 @@ class FocusPro(Hardware):
         notify(self, msg, no_repr=True, local_only=True)
 
         if topic == 'cmd':
-            instructions = self.parser.parse_instructions(
-                self, payload, self.hardware)
+            instructions = self.parser.parse_instructions(self, payload)
             self.handler.handle(instructions)
 
         elif topic == 'cnf':
             self.handler.apply_config(self.config, payload)
-            self.handler.execute_command(
-                '-2', [(['lock'], 'on', {}), (['self'], 'reboot', {})]
-            )
+            self.handler.execute_command([
+                [[self.locking.id], 'on', False, {}],
+                [['self'], 'reboot', False, {}],
+            ])
 
         elif topic == 'snmp':
             pass
+            print('pass')
             # self.handler.execute_command(
-            #     '-3', [(['self'], 'report_at_intervals', payload)]
+            #     '-3', [[['self'], 'report_at_intervals', payload]]
             # )
