@@ -8,5 +8,5 @@ setup(
     install_requires=[
         'flask',
     ],
-    long_description=open('README.md').read(),
+    # long_description=open('README.md').read(),
 )
